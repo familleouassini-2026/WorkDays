@@ -192,7 +192,7 @@ export default function AbsencesBalancesPage() {
             onChange={(e) => setSelectedYear(Number(e.target.value))}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
-            {[2025, 2024, 2023, 2022].map((y) => (
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>

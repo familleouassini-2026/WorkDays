@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, TableProperties, TrendingUp, Calculator } from "lucide-react";
+import { TableProperties, TrendingUp, Calculator } from "lucide-react";
 
 const tabs = [
   { label: "Baremes", href: "/remuneration/baremes", icon: TableProperties },

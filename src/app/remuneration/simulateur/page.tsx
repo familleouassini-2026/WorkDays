@@ -90,6 +90,9 @@ export default function SimulateurPage() {
   }, []);
 
   function calculateSeniorityYears(employee: Employee): number {
+    // When granted_seniority_date is set, it already encodes any granted bonus
+    // (i.e., it IS the adjusted start date). Do not add granted_seniority on top.
+    // Only add granted_seniority when using date_of_hire as the reference.
     const referenceDate = employee.granted_seniority_date
       ? new Date(employee.granted_seniority_date)
       : employee.date_of_hire
@@ -105,7 +108,10 @@ export default function SimulateurPage() {
       years--;
     }
 
-    const grantedYears = employee.granted_seniority || 0;
+    // Only add granted_seniority when NOT using granted_seniority_date
+    const grantedYears = employee.granted_seniority_date
+      ? 0
+      : (employee.granted_seniority || 0);
     return Math.max(0, years + grantedYears);
   }
 

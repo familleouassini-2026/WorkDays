@@ -42,14 +42,12 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchDashboardData() {
       const supabase = createClient();
-      const today = new Date().toISOString().split("T")[0];
-      const startOfMonth = new Date(
-        new Date().getFullYear(),
-        new Date().getMonth(),
-        1
-      )
-        .toISOString()
-        .split("T")[0];
+
+      // Use local date formatting to avoid timezone shift
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const startOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
 
       // Fetch all data in parallel
       const [
@@ -266,9 +264,14 @@ export default function DashboardPage() {
         {/* Evenements a venir */}
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Evenements a venir
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Evenements a venir
+              </h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                Donnees d&apos;exemple
+              </span>
+            </div>
             <TrendingUp className="w-5 h-5 text-slate-400" />
           </div>
           <div className="space-y-3">

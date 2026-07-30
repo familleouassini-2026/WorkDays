@@ -23,7 +23,6 @@ interface AbsenceCode {
 
 export default function NewAbsencePage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [absenceCodes, setAbsenceCodes] = useState<AbsenceCode[]>([]);
@@ -49,6 +48,7 @@ export default function NewAbsencePage() {
 
   useEffect(() => {
     async function fetchData() {
+      const supabase = createClient();
       const [empRes, codesRes] = await Promise.all([
         supabase
           .from("employees")
@@ -122,6 +122,16 @@ export default function NewAbsencePage() {
 
     setLoading(true);
 
+    const supabase = createClient();
+
+    // Helper: format date as YYYY-MM-DD using local values (avoids timezone shift)
+    const formatDate = (d: Date): string => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
     // Insert into holiday_selections
     const { data: selectionData, error: selectionError } = await supabase
       .from("holiday_selections")
@@ -182,7 +192,7 @@ export default function NewAbsencePage() {
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         calendarEntries.push({
           year: current.getFullYear(),
-          absence_date: current.toISOString().split("T")[0],
+          absence_date: formatDate(current),
           employee_id: Number(form.employee_id),
           absence_code_id: Number(form.absence_code_id),
           absence_minutes: perDayMinutes,
@@ -200,6 +210,11 @@ export default function NewAbsencePage() {
         .insert(calendarEntries);
 
       if (calError) {
+        // Compensating delete: remove the orphaned holiday_selections row
+        await supabase
+          .from("holiday_selections")
+          .delete()
+          .eq("id", selectionData.id);
         setError(calError.message);
         setLoading(false);
         return;

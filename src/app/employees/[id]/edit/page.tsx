@@ -18,7 +18,6 @@ interface Location {
 export default function EditEmployeePage() {
   const params = useParams();
   const router = useRouter();
-  const supabase = createClient();
   const employeeId = params.id as string;
 
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -61,6 +60,7 @@ export default function EditEmployeePage() {
 
   useEffect(() => {
     async function fetchData() {
+      const supabase = createClient();
       const [employeeRes, sectorsRes, locationsRes] = await Promise.all([
         supabase.from("employees").select("*").eq("id", employeeId).single(),
         supabase.from("sectors").select("id, name").order("name"),
@@ -141,6 +141,8 @@ export default function EditEmployeePage() {
     }
 
     setSaving(true);
+
+    const supabase = createClient();
 
     const payload: Record<string, unknown> = {
       ...form,
