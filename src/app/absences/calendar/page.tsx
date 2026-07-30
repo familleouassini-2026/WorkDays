@@ -158,8 +158,9 @@ export default function AbsencesCalendarPage() {
 
                 const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const dayAbsences = absencesByDate[dateStr] || [];
-                const isToday =
-                  new Date().toISOString().split("T")[0] === dateStr;
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                const isToday = todayStr === dateStr;
                 const isSelected = selectedDay === dateStr;
                 const isWeekend = idx % 7 === 5 || idx % 7 === 6;
 
