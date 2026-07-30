@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Implement the Employee Edit Form at /employees/[id]/edit. This form pre-fills all fields from the existing employee data and allows updating via Supabase .update(). Follow the exact same form structure as src/app/employees/new/page.tsx (same sections: Identite, Emploi, Contact, Adresse, Anciennete & Remuneration) but fetches existing data on mount and uses update instead of insert.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create directory src/app/employees/[id]/edit/",
     "Create src/app/employees/[id]/edit/page.tsx as a 'use client' component that: (1) Fetches employee by id using createClient() from @/lib/supabase/client on mount, (2) Pre-fills all form fields with existing data, (3) Fetches sectors and locations for dropdowns just like the new form, (4) Uses the same form sections/layout as src/app/employees/new/page.tsx (Identite, Emploi, Contact, Adresse, Anciennete & Remuneration), (5) On submit calls supabase.from('employees').update(payload).eq('id', employeeId), (6) Shows success feedback and redirects to /employees/[id] detail page, (7) Includes error handling and loading states, (8) Has a 'Retour' link to /employees/[id] and an 'Annuler' button",
@@ -20,5 +20,5 @@
     "npm run build passes without errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build passes cleanly. The edit form is at /employees/[id]/edit with all fields pre-filled from existing data. distance_to_home placed in the Adresse section, notes in its own section at the bottom."
 }
