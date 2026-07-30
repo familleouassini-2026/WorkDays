@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Implement the Remuneration module: salary scale display by sector, indexed salary calculation, and salary alerts. Replace the current placeholder page with a functional module.",
+  "status": "pending",
+  "steps": [
+    "Replace src/app/remuneration/page.tsx with a full module page that shows: (1) Tab navigation between 'Baremes' (salary scales), 'Indexations' (indexation history), and 'Simulations' (salary calculator), (2) Default view shows salary scales table grouped by sector from seniority_scales table",
+    "Create src/app/remuneration/baremes/page.tsx - Salary scales display: (1) Fetch seniority_scales joined with sectors, (2) Display as a table grouped by sector showing years of seniority and base_salary, (3) Allow filtering by sector",
+    "Create src/app/remuneration/indexations/page.tsx - Indexation history: (1) Fetch organisation_indexations and sector_indexations, (2) Display chronological list of indexations with dates and values, (3) Show current cumulative indexation factor",
+    "Create src/app/remuneration/simulateur/page.tsx - Salary simulator: (1) Select an employee from dropdown, (2) Auto-fill their sector, seniority years, and work percentage from timesheets, (3) Calculate indexed salary = base_salary (from seniority_scale) * cumulative indexation * work_percentage, (4) Display the calculation breakdown",
+    "Ensure the remuneration routes share the Sidebar + Header layout"
+  ],
+  "acceptance_criteria": [
+    "The /remuneration page shows a tabbed navigation to Baremes, Indexations, and Simulateur",
+    "The /remuneration/baremes page displays salary scales from Supabase grouped by sector",
+    "The /remuneration/indexations page shows indexation history",
+    "The /remuneration/simulateur page calculates indexed salary for a selected employee",
+    "All text is in French",
+    "npm run build passes"
+  ],
+  "verification": [
+    "npm run build passes without errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

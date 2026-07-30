@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Implement the Absences module enhancements: interactive calendar view, absence booking wizard, and vacation balance display. This builds on the existing absences page which already shows a list view with filters.",
+  "status": "pending",
+  "steps": [
+    "Create src/app/absences/new/page.tsx - Absence booking wizard with: (1) Employee selector dropdown fetched from Supabase, (2) Absence code selector with color badges, (3) Date range picker (start_date, end_date), (4) Duration in days or hours/minutes depending on absence_code.time_unit, (5) Reason text field, (6) Submit creates entries in holiday_selections table with status PENDING and corresponding entries in year_calendar, (7) Confirmation and redirect back to absences page",
+    "Create src/app/absences/calendar/page.tsx - Monthly calendar view showing: (1) Grid calendar for selected month, (2) Absence entries color-coded by absence_code.color_hex, (3) Employee names on each day cell, (4) Month/year navigation, (5) Click on a day shows details of absences for that day",
+    "Create src/app/absences/balances/page.tsx - Vacation balance page showing: (1) Table of all active employees, (2) For each employee show their vacation_rights (days/hours entitled per absence code for current year), (3) Calculated used days from year_calendar, (4) Remaining balance (entitled - used), (5) Filter by employee name and absence code type",
+    "Update the existing src/app/absences/page.tsx to add navigation tabs/links to the Calendar view and Balances view, and make the 'Nouvelle absence' button link to /absences/new",
+    "Ensure the absences routes share the same layout pattern (Sidebar + Header) by creating src/app/absences/layout.tsx if it doesn't already exist correctly"
+  ],
+  "acceptance_criteria": [
+    "The /absences/new page renders a working absence booking form that inserts into holiday_selections and year_calendar",
+    "The /absences/calendar page shows a monthly calendar grid with color-coded absences",
+    "The /absences/balances page shows vacation entitlements vs used for each employee",
+    "The main /absences page has navigation to Calendar, Balances, and New Absence",
+    "All text is in French",
+    "npm run build passes"
+  ],
+  "verification": [
+    "npm run build passes without errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Implement the Employee Edit Form at /employees/[id]/edit. This form pre-fills all fields from the existing employee data and allows updating via Supabase .update(). Follow the exact same form structure as src/app/employees/new/page.tsx (same sections: Identite, Emploi, Contact, Adresse, Anciennete & Remuneration) but fetches existing data on mount and uses update instead of insert.",
+  "status": "pending",
+  "steps": [
+    "Create directory src/app/employees/[id]/edit/",
+    "Create src/app/employees/[id]/edit/page.tsx as a 'use client' component that: (1) Fetches employee by id using createClient() from @/lib/supabase/client on mount, (2) Pre-fills all form fields with existing data, (3) Fetches sectors and locations for dropdowns just like the new form, (4) Uses the same form sections/layout as src/app/employees/new/page.tsx (Identite, Emploi, Contact, Adresse, Anciennete & Remuneration), (5) On submit calls supabase.from('employees').update(payload).eq('id', employeeId), (6) Shows success feedback and redirects to /employees/[id] detail page, (7) Includes error handling and loading states, (8) Has a 'Retour' link to /employees/[id] and an 'Annuler' button",
+    "Add a 'distance_to_home' and 'notes' field to the edit form (these exist in the schema but are missing from the new form)",
+    "Ensure all labels and UI text are in French",
+    "The detail page at src/app/employees/[id]/page.tsx already has a Link to /employees/[id]/edit (the Pencil icon) so no additional linking is needed"
+  ],
+  "acceptance_criteria": [
+    "The page at /employees/[id]/edit renders a form pre-filled with the employee's current data",
+    "All 25+ fields from the employees table are editable (title, first_name, last_name, date_of_birth, nationality, national_registration, job_title, contract_type, date_of_hire, end_date, sector_id, location_id, is_inactive, email, mobile_phone, business_phone, home_phone, address, postal_code, city, province, country, granted_seniority, granted_seniority_date, inami_number, iban, bic, distance_to_home, notes)",
+    "Submitting the form updates the employee in Supabase and redirects to the detail page",
+    "npm run build passes with the new page"
+  ],
+  "verification": [
+    "npm run build passes without errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

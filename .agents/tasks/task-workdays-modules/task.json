@@ -1,0 +1,7 @@
+{
+  "task_id": "task-workdays-modules",
+  "task_description": "Implement WorkDays HR app modules: Employee Edit Form, Absences module (calendar, booking wizard, balances), Remuneration module (salary scales, indexations, simulator), and Dynamic Dashboard. All UI in French.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

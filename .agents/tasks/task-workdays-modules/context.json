@@ -1,0 +1,36 @@
+{
+  "project_type": "Next.js 14 App Router with Supabase backend - HR management app for Belgian medical center",
+  "language": "TypeScript/React",
+  "build_system": "npm with Next.js CLI",
+  "test_framework": "None configured - validation via npm run build only",
+  "build_command": "npm run build",
+  "test_command": "npm run build",
+  "verification_instructions": "Run npm run build to verify TypeScript compiles and pages build correctly",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "cd /projects/sandbox/WorkDays && npm install",
+  "environment_constraints": "Internet access available for npm installs. Supabase instance is live at https://jqfaclixnraugzmcrylp.supabase.co with real data (33 employees). No test framework configured.",
+  "contribution_requirements": "All UI must be in French. Follow existing patterns from the new employee form and detail page.",
+  "key_patterns": {
+    "data_fetching": "Client-side with 'use client' directive, useEffect + createClient() from @/lib/supabase/client",
+    "form_pattern": "useState for form state, handleChange for inputs, handleSubmit with Supabase .insert()/.update(). See src/app/employees/new/page.tsx",
+    "styling": "Tailwind CSS with custom primary color palette. Cards use 'card' class or bg-white rounded-lg border. Sections use fieldset with sectionClass.",
+    "routing": "App Router with [id] dynamic segments. Layouts in each route dir with Sidebar + Header.",
+    "supabase_client": "createBrowserClient from @supabase/ssr, env vars NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "icons": "lucide-react for all icons",
+    "date_formatting": "toLocaleDateString('fr-BE') or date-fns"
+  },
+  "relevant_files": [
+    "src/app/employees/[id]/page.tsx",
+    "src/app/employees/new/page.tsx",
+    "src/app/employees/page.tsx",
+    "src/app/employees/layout.tsx",
+    "src/app/absences/page.tsx",
+    "src/app/remuneration/page.tsx",
+    "src/app/schedules/page.tsx",
+    "src/app/dashboard/page.tsx",
+    "src/lib/supabase/client.ts",
+    "src/components/layout/Sidebar.tsx",
+    "supabase/schema.sql"
+  ],
+  "directory_structure": "src/app/ contains route directories (employees/, absences/, dashboard/, remuneration/, schedules/, governance/, reports/, settings/, assets/). src/components/layout/ has Sidebar.tsx and Header.tsx. src/lib/supabase/ has client.ts and server.ts. supabase/ has schema.sql and seed-data.sql."
+}
