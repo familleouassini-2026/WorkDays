@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "feat",
   "description": "Make the Dashboard dynamic by fetching real data from Supabase instead of hardcoded values. Show real KPIs (active employees count, today's absences, pending requests) and recent absences from the database.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Convert src/app/dashboard/page.tsx from a Server Component with hardcoded data to a 'use client' component that fetches real data from Supabase",
     "Fetch and display: (1) Count of active employees (is_inactive = false), (2) Count of today's absences from year_calendar where absence_date = today, (3) Count of pending holiday_selections (status = 'PENDING'), (4) Recent absences list from year_calendar joined with employees and absence_codes (last 5 entries)",
@@ -22,5 +22,5 @@
     "npm run build passes without errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Converted dashboard from server component with hardcoded data to a client component fetching real data from Supabase. Used Promise.all for parallel queries. The year_calendar join with employees and absence_codes works via Supabase foreign key relationships. Build passes cleanly."
 }
