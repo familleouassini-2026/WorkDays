@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   UserX,
@@ -12,6 +13,7 @@ import {
 interface RecentAbsence {
   id: number;
   date: string;
+  employee_id: number;
   employees: { first_name: string; last_name: string } | null;
   absence_codes: { code: string; label: string } | null;
 }
@@ -49,7 +51,7 @@ export default function DashboardPage() {
           .lte("date", monthEnd),
         supabase
           .from("year_calendar")
-          .select("id, date, employees(first_name, last_name), absence_codes(code, label)")
+          .select("id, date, employee_id, employees(first_name, last_name), absence_codes(code, label)")
           .order("date", { ascending: false })
           .limit(5),
       ]);
@@ -106,23 +108,39 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {kpiCards.map((card) => (
-              <div key={card.title} className="card p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {card.title}
-                    </p>
-                    <p className="text-3xl font-bold text-slate-900 mt-1">
-                      {card.value}
-                    </p>
-                  </div>
-                  <div className={`p-3 rounded-xl ${card.iconBg}`}>
-                    <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+            {kpiCards.map((card, index) => {
+              const cardContent = (
+                <div key={card.title} className="card p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-slate-500 font-medium">
+                        {card.title}
+                      </p>
+                      <p className="text-3xl font-bold text-slate-900 mt-1">
+                        {card.value}
+                      </p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${card.iconBg}`}>
+                      <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+              if (index === 0) {
+                return (
+                  <Link key={card.title} href="/employees">
+                    {cardContent}
+                  </Link>
+                );
+              }
+              return <div key={card.title}>{cardContent}</div>;
+            })}
+          </div>
+
+          <div className="flex justify-end">
+            <Link href="/employees" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              Voir le personnel &rarr;
+            </Link>
           </div>
 
           {/* Recent absences */}
@@ -136,41 +154,51 @@ export default function DashboardPage() {
             {recentAbsences.length === 0 ? (
               <p className="text-slate-500 text-sm">Aucune absence enregistree.</p>
             ) : (
-              <div className="space-y-3">
-                {recentAbsences.map((absence) => (
-                  <div
-                    key={absence.id}
-                    className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-slate-600">
-                          {absence.employees
-                            ? `${absence.employees.first_name[0]}${absence.employees.last_name[0]}`
-                            : "?"}
-                        </span>
+              <>
+                <div className="space-y-3">
+                  {recentAbsences.map((absence) => (
+                    <div
+                      key={absence.id}
+                      className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium text-slate-600">
+                            {absence.employees
+                              ? `${absence.employees.first_name[0]}${absence.employees.last_name[0]}`
+                              : "?"}
+                          </span>
+                        </div>
+                        <div>
+                          <Link
+                            href={`/employees/${absence.employee_id}`}
+                            className="text-sm font-medium text-slate-900 hover:text-blue-600"
+                          >
+                            {absence.employees
+                              ? `${absence.employees.last_name}, ${absence.employees.first_name}`
+                              : "Inconnu"}
+                          </Link>
+                          <p className="text-xs text-slate-500">
+                            {absence.absence_codes?.code} - {absence.absence_codes?.label}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {absence.employees
-                            ? `${absence.employees.last_name}, ${absence.employees.first_name}`
-                            : "Inconnu"}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {absence.absence_codes?.code} - {absence.absence_codes?.label}
-                        </p>
-                      </div>
+                      <span className="text-xs text-slate-500">
+                        {new Date(absence.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
                     </div>
-                    <span className="text-xs text-slate-500">
-                      {new Date(absence.date + "T00:00:00").toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Link href="/absences" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Voir toutes les absences &rarr;
+                  </Link>
+                </div>
+              </>
             )}
           </div>
         </>
