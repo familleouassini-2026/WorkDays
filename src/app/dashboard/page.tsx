@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   UserX,
   Users,
   CalendarDays,
-  TrendingUp,
+  ArrowRight,
 } from "lucide-react";
 
 interface RecentAbsence {
   id: number;
   date: string;
+  employee_id: number;
   employees: { first_name: string; last_name: string } | null;
   absence_codes: { code: string; label: string } | null;
 }
@@ -49,7 +51,7 @@ export default function DashboardPage() {
           .lte("date", monthEnd),
         supabase
           .from("year_calendar")
-          .select("id, date, employees(first_name, last_name), absence_codes(code, label)")
+          .select("id, date, employee_id, employees(first_name, last_name), absence_codes(code, label)")
           .order("date", { ascending: false })
           .limit(5),
       ]);
@@ -70,6 +72,7 @@ export default function DashboardPage() {
       icon: Users,
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-600",
+      href: "/employees",
     },
     {
       title: "Absents aujourd'hui",
@@ -77,6 +80,7 @@ export default function DashboardPage() {
       icon: UserX,
       iconBg: "bg-red-100",
       iconColor: "text-red-600",
+      href: null,
     },
     {
       title: "Absences ce mois",
@@ -84,6 +88,7 @@ export default function DashboardPage() {
       icon: CalendarDays,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
+      href: null,
     },
   ];
 
@@ -106,8 +111,8 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {kpiCards.map((card) => (
-              <div key={card.title} className="card p-5">
+            {kpiCards.map((card) => {
+              const content = (
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-slate-500 font-medium">
@@ -121,8 +126,29 @@ export default function DashboardPage() {
                     <card.icon className={`w-5 h-5 ${card.iconColor}`} />
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+
+              if (card.href) {
+                return (
+                  <Link key={card.title} href={card.href} className="card p-5 hover:shadow-md transition-shadow">
+                    {content}
+                  </Link>
+                );
+              }
+
+              return (
+                <div key={card.title} className="card p-5">
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Link to personnel */}
+          <div className="flex justify-end">
+            <Link href="/employees" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+              Voir le personnel <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
           {/* Recent absences */}
@@ -151,11 +177,16 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {absence.employees
-                            ? `${absence.employees.last_name}, ${absence.employees.first_name}`
-                            : "Inconnu"}
-                        </p>
+                        {absence.employees ? (
+                          <Link
+                            href={`/employees/${absence.employee_id}`}
+                            className="text-sm font-medium text-slate-900 hover:text-blue-600"
+                          >
+                            {absence.employees.last_name}, {absence.employees.first_name}
+                          </Link>
+                        ) : (
+                          <p className="text-sm font-medium text-slate-900">Inconnu</p>
+                        )}
                         <p className="text-xs text-slate-500">
                           {absence.absence_codes?.code} - {absence.absence_codes?.label}
                         </p>
@@ -172,6 +203,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+
+            {/* Link to all absences */}
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <Link href="/absences" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+                Voir toutes les absences <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </>
       )}

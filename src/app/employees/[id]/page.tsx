@@ -208,8 +208,9 @@ export default function EmployeeDetailPage() {
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${employee.is_inactive ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>
               {employee.is_inactive ? "Inactif" : "Actif"}
             </span>
-            <Link href={`/employees/${employee.id}/edit`} className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+            <Link href={`/employees/${employee.id}/edit`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
               <Pencil className="w-4 h-4" />
+              Modifier
             </Link>
             <button onClick={handleDelete} disabled={deleting} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
               <Trash2 className="w-4 h-4" />
