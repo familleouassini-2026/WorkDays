@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { CalendarDays, Plus, Filter } from "lucide-react";
+import { CalendarDays, Plus, Filter, BarChart3, Calendar } from "lucide-react";
 
 interface AbsenceEntry {
   id: number;
@@ -81,15 +82,40 @@ export default function AbsencesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Absences & Congés</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Absences & Conges</h1>
           <p className="text-slate-500 mt-1">
             {filteredAbsences.length} absence{filteredAbsences.length > 1 ? "s" : ""} en {selectedYear}
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+        <Link
+          href="/absences/new"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+        >
           <Plus className="w-4 h-4" />
           Nouvelle absence
-        </button>
+        </Link>
+      </div>
+
+      {/* Navigation tabs */}
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium border border-blue-200">
+          <CalendarDays className="w-4 h-4" />
+          Liste
+        </span>
+        <Link
+          href="/absences/calendar"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors"
+        >
+          <Calendar className="w-4 h-4" />
+          Calendrier
+        </Link>
+        <Link
+          href="/absences/balances"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors"
+        >
+          <BarChart3 className="w-4 h-4" />
+          Soldes
+        </Link>
       </div>
 
       {/* Filters */}
