@@ -1,52 +1,92 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   UserX,
-  Clock,
-  AlertTriangle,
   Users,
   CalendarDays,
   TrendingUp,
 } from "lucide-react";
 
-const kpiCards = [
-  {
-    title: "Absents aujourd'hui",
-    value: "3",
-    change: "-1 vs hier",
-    changeType: "positive" as const,
-    icon: UserX,
-    color: "bg-red-50 text-red-600",
-    iconBg: "bg-red-100",
-  },
-  {
-    title: "Demandes en attente",
-    value: "7",
-    change: "+2 nouvelles",
-    changeType: "neutral" as const,
-    icon: Clock,
-    color: "bg-amber-50 text-amber-600",
-    iconBg: "bg-amber-100",
-  },
-  {
-    title: "Alertes salaires",
-    value: "2",
-    change: "Index à vérifier",
-    changeType: "negative" as const,
-    icon: AlertTriangle,
-    color: "bg-orange-50 text-orange-600",
-    iconBg: "bg-orange-100",
-  },
-  {
-    title: "Effectif actif",
-    value: "48",
-    change: "+3 ce mois",
-    changeType: "positive" as const,
-    icon: Users,
-    color: "bg-emerald-50 text-emerald-600",
-    iconBg: "bg-emerald-100",
-  },
-];
+interface RecentAbsence {
+  id: number;
+  date: string;
+  employees: { first_name: string; last_name: string } | null;
+  absence_codes: { code: string; label: string } | null;
+}
 
 export default function DashboardPage() {
+  const [activeEmployees, setActiveEmployees] = useState<number>(0);
+  const [absencesToday, setAbsencesToday] = useState<number>(0);
+  const [absencesMonth, setAbsencesMonth] = useState<number>(0);
+  const [recentAbsences, setRecentAbsences] = useState<RecentAbsence[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboard() {
+      const supabase = createClient();
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+      const [empRes, todayRes, monthRes, recentRes] = await Promise.all([
+        supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("is_inactive", false),
+        supabase
+          .from("year_calendar")
+          .select("id", { count: "exact", head: true })
+          .eq("date", todayStr),
+        supabase
+          .from("year_calendar")
+          .select("id", { count: "exact", head: true })
+          .gte("date", monthStart)
+          .lte("date", monthEnd),
+        supabase
+          .from("year_calendar")
+          .select("id, date, employees(first_name, last_name), absence_codes(code, label)")
+          .order("date", { ascending: false })
+          .limit(5),
+      ]);
+
+      setActiveEmployees(empRes.count || 0);
+      setAbsencesToday(todayRes.count || 0);
+      setAbsencesMonth(monthRes.count || 0);
+      if (recentRes.data) setRecentAbsences(recentRes.data as unknown as RecentAbsence[]);
+      setLoading(false);
+    }
+    fetchDashboard();
+  }, []);
+
+  const kpiCards = [
+    {
+      title: "Employes actifs",
+      value: activeEmployees,
+      icon: Users,
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+    },
+    {
+      title: "Absents aujourd'hui",
+      value: absencesToday,
+      icon: UserX,
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+    },
+    {
+      title: "Absences ce mois",
+      value: absencesMonth,
+      icon: CalendarDays,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -58,172 +98,83 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpiCards.map((card) => (
-          <div key={card.title} className="card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-slate-500 font-medium">
-                  {card.title}
-                </p>
-                <p className="text-3xl font-bold text-slate-900 mt-1">
-                  {card.value}
-                </p>
-                <p
-                  className={`text-xs mt-2 ${
-                    card.changeType === "positive"
-                      ? "text-emerald-600"
-                      : card.changeType === "negative"
-                      ? "text-red-600"
-                      : "text-slate-500"
-                  }`}
-                >
-                  {card.change}
-                </p>
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+          <p className="text-slate-500 mt-4">Chargement...</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {kpiCards.map((card) => (
+              <div key={card.title} className="card p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-slate-500 font-medium">
+                      {card.title}
+                    </p>
+                    <p className="text-3xl font-bold text-slate-900 mt-1">
+                      {card.value}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${card.iconBg}`}>
+                    <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+                  </div>
+                </div>
               </div>
-              <div className={`p-3 rounded-xl ${card.iconBg}`}>
-                <card.icon className={`w-5 h-5 ${card.color.split(" ")[1]}`} />
-              </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Content Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Absences récentes */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Absences récentes
-            </h2>
-            <CalendarDays className="w-5 h-5 text-slate-400" />
-          </div>
-          <div className="space-y-3">
-            {[
-              {
-                name: "Marie Dupont",
-                reason: "Congé annuel",
-                dates: "14-18 juil.",
-                status: "Approuvé",
-              },
-              {
-                name: "Jean Martin",
-                reason: "Maladie",
-                dates: "15 juil.",
-                status: "Justifié",
-              },
-              {
-                name: "Sophie Leroy",
-                reason: "RTT",
-                dates: "16 juil.",
-                status: "En attente",
-              },
-              {
-                name: "Pierre Dubois",
-                reason: "Congé parental",
-                dates: "14-25 juil.",
-                status: "Approuvé",
-              },
-            ].map((absence) => (
-              <div
-                key={absence.name}
-                className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-medium text-slate-600">
-                      {absence.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+          {/* Recent absences */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Dernieres absences
+              </h2>
+              <CalendarDays className="w-5 h-5 text-slate-400" />
+            </div>
+            {recentAbsences.length === 0 ? (
+              <p className="text-slate-500 text-sm">Aucune absence enregistree.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentAbsences.map((absence) => (
+                  <div
+                    key={absence.id}
+                    className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-medium text-slate-600">
+                          {absence.employees
+                            ? `${absence.employees.first_name[0]}${absence.employees.last_name[0]}`
+                            : "?"}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">
+                          {absence.employees
+                            ? `${absence.employees.last_name}, ${absence.employees.first_name}`
+                            : "Inconnu"}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {absence.absence_codes?.code} - {absence.absence_codes?.label}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-500">
+                      {new Date(absence.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      {absence.name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {absence.reason} &middot; {absence.dates}
-                    </p>
-                  </div>
-                </div>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    absence.status === "Approuvé"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : absence.status === "En attente"
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {absence.status}
-                </span>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
-
-        {/* Événements à venir */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Événements à venir
-            </h2>
-            <TrendingUp className="w-5 h-5 text-slate-400" />
-          </div>
-          <div className="space-y-3">
-            {[
-              {
-                title: "Fin de période d'essai",
-                detail: "Thomas Bernard - 20 juillet",
-                type: "warning",
-              },
-              {
-                title: "Anniversaire de travail",
-                detail: "Claire Fontaine - 5 ans le 22 juillet",
-                type: "info",
-              },
-              {
-                title: "Échéance contrat CDD",
-                detail: "Karim Benali - 31 juillet",
-                type: "alert",
-              },
-              {
-                title: "Formation obligatoire",
-                detail: "Sécurité incendie - 25 juillet",
-                type: "info",
-              },
-              {
-                title: "Indexation salariale",
-                detail: "Application prévue le 1er août",
-                type: "warning",
-              },
-            ].map((event) => (
-              <div
-                key={event.title}
-                className="flex items-start gap-3 py-2 border-b border-slate-100 last:border-0"
-              >
-                <div
-                  className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                    event.type === "alert"
-                      ? "bg-red-500"
-                      : event.type === "warning"
-                      ? "bg-amber-500"
-                      : "bg-blue-500"
-                  }`}
-                />
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    {event.title}
-                  </p>
-                  <p className="text-xs text-slate-500">{event.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

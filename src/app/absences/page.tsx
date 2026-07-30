@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CalendarDays, Plus, Filter } from "lucide-react";
+import { CalendarDays, Plus, Filter, List, Calendar, BarChart3 } from "lucide-react";
+import Link from "next/link";
 
 interface AbsenceEntry {
   id: number;
@@ -28,6 +30,13 @@ function minutesToHM(m: number | null) {
   const min = m % 60;
   return `${h}h${min.toString().padStart(2, "0")}`;
 }
+
+const tabs = [
+  { label: "Liste", href: "/absences", icon: List },
+  { label: "Calendrier", href: "/absences/calendar", icon: Calendar },
+  { label: "Soldes", href: "/absences/balances", icon: BarChart3 },
+  { label: "Nouvelle absence", href: "/absences/new", icon: Plus },
+];
 
 export default function AbsencesPage() {
   const [absences, setAbsences] = useState<AbsenceEntry[]>([]);
@@ -86,10 +95,31 @@ export default function AbsencesPage() {
             {filteredAbsences.length} absence{filteredAbsences.length > 1 ? "s" : ""} en {selectedYear}
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+        <Link
+          href="/absences/new"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+        >
           <Plus className="w-4 h-4" />
           Nouvelle absence
-        </button>
+        </Link>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+        {tabs.map((tab) => (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              tab.href === "/absences"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </Link>
+        ))}
       </div>
 
       {/* Filters */}
