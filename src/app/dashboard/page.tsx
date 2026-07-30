@@ -7,7 +7,6 @@ import {
   UserX,
   Users,
   CalendarDays,
-  TrendingUp,
 } from "lucide-react";
 
 interface RecentAbsence {
@@ -72,6 +71,7 @@ export default function DashboardPage() {
       icon: Users,
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-600",
+      href: "/employees",
     },
     {
       title: "Absents aujourd'hui",
@@ -79,6 +79,7 @@ export default function DashboardPage() {
       icon: UserX,
       iconBg: "bg-red-100",
       iconColor: "text-red-600",
+      href: "/absences",
     },
     {
       title: "Absences ce mois",
@@ -86,6 +87,7 @@ export default function DashboardPage() {
       icon: CalendarDays,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
+      href: "/absences",
     },
   ];
 
@@ -108,9 +110,9 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {kpiCards.map((card, index) => {
-              const cardContent = (
-                <div key={card.title} className="card p-5">
+            {kpiCards.map((card) => (
+              <Link key={card.title} href={card.href}>
+                <div className="card p-5 hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm text-slate-500 font-medium">
@@ -125,21 +127,16 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-              );
-              if (index === 0) {
-                return (
-                  <Link key={card.title} href="/employees">
-                    {cardContent}
-                  </Link>
-                );
-              }
-              return <div key={card.title}>{cardContent}</div>;
-            })}
+              </Link>
+            ))}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-4">
             <Link href="/employees" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
               Voir le personnel &rarr;
+            </Link>
+            <Link href="/absences" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              Voir les absences &rarr;
             </Link>
           </div>
 

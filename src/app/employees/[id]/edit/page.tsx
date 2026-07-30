@@ -218,6 +218,7 @@ export default function EditEmployeePage() {
     setSaving(false);
 
     if (updateError) {
+      console.error("Update error:", updateError);
       setError(updateError.message);
       return;
     }
