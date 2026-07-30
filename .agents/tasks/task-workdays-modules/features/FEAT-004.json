@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Implement the Remuneration module: salary scale display by sector, indexed salary calculation, and salary alerts. Replace the current placeholder page with a functional module.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Replace src/app/remuneration/page.tsx with a full module page that shows: (1) Tab navigation between 'Baremes' (salary scales), 'Indexations' (indexation history), and 'Simulations' (salary calculator), (2) Default view shows salary scales table grouped by sector from seniority_scales table",
     "Create src/app/remuneration/baremes/page.tsx - Salary scales display: (1) Fetch seniority_scales joined with sectors, (2) Display as a table grouped by sector showing years of seniority and base_salary, (3) Allow filtering by sector",
@@ -22,5 +22,5 @@
     "npm run build passes without errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Used 'as unknown as Type[]' pattern for Supabase joined query results due to TypeScript inference returning arrays for FK relations. Layout already existed at src/app/remuneration/layout.tsx."
 }
