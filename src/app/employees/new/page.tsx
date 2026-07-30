@@ -97,18 +97,33 @@ export default function NewEmployeePage() {
     setLoading(true);
 
     const payload: Record<string, unknown> = {
-      ...form,
-      sector_id: form.sector_id ? Number(form.sector_id) : null,
-      location_id: form.location_id ? Number(form.location_id) : null,
-      granted_seniority: form.granted_seniority
-        ? Number(form.granted_seniority)
-        : null,
+      title: form.title || null,
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
       date_of_birth: form.date_of_birth || null,
+      nationality: form.nationality || null,
+      national_registration: form.national_registration || null,
+      job_title: form.job_title || null,
+      contract_type: form.contract_type || null,
       date_of_hire: form.date_of_hire || null,
       end_date: form.end_date || null,
+      sector_id: form.sector_id ? Number(form.sector_id) : null,
+      location_id: form.location_id ? Number(form.location_id) : null,
+      is_inactive: form.is_inactive,
+      email: form.email || null,
+      mobile_phone: form.mobile_phone || null,
+      business_phone: form.business_phone || null,
+      home_phone: form.home_phone || null,
+      address: form.address || null,
+      postal_code: form.postal_code || null,
+      city: form.city || null,
+      province: form.province || null,
+      country: form.country || null,
+      granted_seniority: form.granted_seniority ? Number(form.granted_seniority) : null,
       granted_seniority_date: form.granted_seniority_date || null,
-      title: form.title || null,
-      contract_type: form.contract_type || null,
+      inami_number: form.inami_number || null,
+      iban: form.iban || null,
+      bic: form.bic || null,
     };
 
     const { error: insertError } = await supabase
@@ -118,11 +133,13 @@ export default function NewEmployeePage() {
     setLoading(false);
 
     if (insertError) {
+      console.error("Insert error:", insertError);
       setError(insertError.message);
       return;
     }
 
     router.push("/employees");
+    router.refresh();
   }
 
   const inputClass =
