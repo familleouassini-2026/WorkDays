@@ -27,6 +27,7 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchEmployees() {
@@ -36,7 +37,21 @@ export default function EmployeesPage() {
         .select("*, sectors(name)")
         .order("last_name", { ascending: true });
 
-      if (!error && data) {
+      if (error) {
+        console.error("Fetch with join failed, retrying without join:", error);
+        // Fallback sans join
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("employees")
+          .select("*")
+          .order("last_name", { ascending: true });
+
+        if (!fallbackError && fallbackData) {
+          setEmployees(fallbackData as unknown as Employee[]);
+        } else {
+          console.error("Fallback also failed:", fallbackError);
+          setFetchError("Impossible de charger les employés. Vérifiez la connexion.");
+        }
+      } else if (data) {
         setEmployees(data as unknown as Employee[]);
       }
       setLoading(false);
@@ -94,6 +109,13 @@ export default function EmployeesPage() {
           </button>
         </div>
       </div>
+
+      {/* Error Banner */}
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          {fetchError}
+        </div>
+      )}
 
       {/* Table */}
       <div className="card overflow-hidden">
