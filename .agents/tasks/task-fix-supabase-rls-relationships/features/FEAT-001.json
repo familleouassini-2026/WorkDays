@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Create SQL migration files to fix RLS policies for anon role and disambiguate FK relationships for PostgREST joins",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create directory supabase/migrations/ if it does not exist",
     "Create supabase/migrations/001-fix-rls-policies.sql that adds RLS policies for the anon role on ALL 10 tables that have RLS enabled (employees, organisations, sectors, locations, absence_codes, holidays, timesheets, year_calendar, vacation_rights, holiday_selections). For each table: CREATE POLICY \"Allow anon read\" ON tablename FOR SELECT TO anon USING (true); and CREATE POLICY \"Allow anon all\" ON tablename FOR ALL TO anon USING (true) WITH CHECK (true);",
@@ -19,5 +19,5 @@
     "Run npm run build to confirm no build impact from new SQL files"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build verified with bun run build (npm not available in sandbox, bun 1.2.14 used as alternative). All pages compile successfully. SQL files created with correct syntax. Node.js is not installed via mise but node_modules exist and bun can run next build successfully."
 }

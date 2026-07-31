@@ -1,0 +1,23 @@
+{
+  "project_type": "Next.js 14 App Router + Supabase + Tailwind CSS",
+  "language": "TypeScript",
+  "build_system": "npm with Next.js",
+  "test_framework": "No test framework configured",
+  "build_command": "npm run build",
+  "test_command": "No tests configured",
+  "verification_instructions": "Run npm run build to verify TypeScript compilation and Next.js build passes",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "npm install",
+  "environment_constraints": "No Docker needed. Build verification only via npm run build.",
+  "contribution_requirements": "Commit on branch fix/employees-list-data",
+  "key_patterns": "Client-side components use 'use client' directive. Supabase client created via createBrowserClient with NEXT_PUBLIC env vars (anon key, no auth). Pages use .select() with embedded joins like sectors(name). Fallback logic was added in previous commits when joins fail.",
+  "relevant_files": [
+    "supabase/schema.sql",
+    "supabase/complete-setup.sql",
+    "src/app/employees/page.tsx",
+    "src/app/employees/[id]/page.tsx",
+    "src/app/dashboard/page.tsx",
+    "src/lib/supabase/client.ts"
+  ],
+  "directory_structure": "src/app/ - Next.js app router pages (employees, dashboard, absences, etc.). supabase/ - SQL schema and seed files. src/lib/supabase/ - client utilities."
+}

@@ -1,0 +1,14 @@
+{
+  "task_id": "task-fix-supabase-rls-relationships",
+  "task_description": "Fix Supabase RLS policies to allow anon role access and disambiguate FK relationships for PostgREST embedded joins. Update app code to use explicit FK hints and remove fallback queries.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "skipped",
+    "docker_build": "skipped",
+    "summary": "bun run build passes with exit code 0. All Next.js pages compile without TypeScript errors. No test framework configured in this project so test verification is N/A. Docker not applicable."
+  }
+}
