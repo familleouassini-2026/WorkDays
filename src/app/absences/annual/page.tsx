@@ -496,13 +496,17 @@ export default function AnnualCalendarPage() {
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Calendrier annuel ${selectedYear} - ${employeeName}</title>
+<title></title>
 <style>
   @page { size: A4 portrait; margin: 10mm; }
   @media print { .page-break { page-break-before: always; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page { height: 100%; display: flex; flex-direction: column; }
+  .page-header { margin-bottom: 4px; }
+  .page-header .title { font-size: 15px; font-weight: bold; }
+  .page-header .subtitle { font-size: 12px; color: #475569; }
+  .page-footer { margin-top: auto; padding-top: 4px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 9px; color: #64748b; }
   .calendar-grid { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(6, 1fr); gap: 2px; flex: 1; }
   .month-block { border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px 3px; display: flex; flex-direction: column; }
   .month-title { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 0; }
@@ -524,10 +528,22 @@ export default function AnnualCalendarPage() {
 </head>
 <body>
   <div class="page">
+    <div class="page-header">
+      <div class="title">Calendrier annuel ${selectedYear}</div>
+      <div class="subtitle">${employeeName}</div>
+    </div>
     <div class="calendar-grid">${calendarHTML}</div>
     <div class="legend">${legendHTML}</div>
+    <div class="page-footer">
+      <span>Page 1/2</span>
+      <span>${new Date().toLocaleDateString("fr-BE")} ${new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}</span>
+    </div>
   </div>
   <div class="page page-break">
+    <div class="page-header">
+      <div class="title">Calendrier annuel ${selectedYear}</div>
+      <div class="subtitle">${employeeName}</div>
+    </div>
     <div class="detail-title">Detail des absences ${selectedYear}</div>
     <table class="detail-table">
       <thead><tr><th>Date</th><th>Code</th><th>Description</th><th>Duree</th><th>Raison</th></tr></thead>
@@ -538,6 +554,10 @@ export default function AnnualCalendarPage() {
       <thead><tr><th>Annee</th><th>Description</th><th>Type</th><th>J. acquis</th><th>J. pris</th><th>Diff. J.</th><th>H. acquises</th><th>H. prises</th><th>Diff. H.</th></tr></thead>
       <tbody>${summaryHTML}</tbody>
     </table>
+    <div class="page-footer">
+      <span>Page 2/2</span>
+      <span>${new Date().toLocaleDateString("fr-BE")} ${new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}</span>
+    </div>
   </div>
 </body>
 </html>`;
