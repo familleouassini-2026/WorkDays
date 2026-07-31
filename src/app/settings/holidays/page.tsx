@@ -66,19 +66,17 @@ export default function HolidaysPage() {
     setSaving(true);
     const supabase = createClient();
 
-    const year = new Date(formData.holiday_date + "T00:00:00").getFullYear();
-
     if (formData.id) {
-      // Update
+      // Update — 'year' is a generated column, do NOT set it
       await supabase
         .from("holidays")
-        .update({ holiday_date: formData.holiday_date, name: formData.name.trim(), year })
+        .update({ holiday_date: formData.holiday_date, name: formData.name.trim() })
         .eq("id", formData.id);
     } else {
-      // Insert
+      // Insert — 'year' is a generated column, do NOT set it
       await supabase
         .from("holidays")
-        .insert({ holiday_date: formData.holiday_date, name: formData.name.trim(), year });
+        .insert({ holiday_date: formData.holiday_date, name: formData.name.trim() });
     }
 
     setSaving(false);
