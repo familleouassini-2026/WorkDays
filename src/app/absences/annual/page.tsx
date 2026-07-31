@@ -498,29 +498,27 @@ export default function AnnualCalendarPage() {
 <meta charset="utf-8" />
 <title>Calendrier annuel ${selectedYear} - ${employeeName}</title>
 <style>
-  @page { size: A4 portrait; margin: 0 3mm 8mm 3mm; }
+  @page { size: A4 portrait; margin: 10mm; }
   @media print { .page-break { page-break-before: always; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .page { padding: 3mm 2mm 2mm 2mm; height: 100%; display: flex; flex-direction: column; }
-  .title { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
-  .subtitle { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { height: 100%; display: flex; flex-direction: column; }
   .calendar-grid { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(6, 1fr); gap: 2px; flex: 1; }
-  .month-block { border: 1px solid #e2e8f0; border-radius: 3px; padding: 2px 3px; display: flex; flex-direction: column; }
-  .month-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 1px; }
+  .month-block { border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px 3px; display: flex; flex-direction: column; }
+  .month-title { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 0; }
   .month-table { width: 100%; border-collapse: collapse; flex: 1; }
-  .month-table th { font-size: 10px; color: #64748b; padding: 1px; text-align: center; }
-  .month-table td.cell { font-size: 12px; text-align: center; padding: 1px 0; border: 1px solid #e2e8f0; position: relative; width: 14%; }
-  .month-table td.empty { border: 1px solid #f1f5f9; width: 14%; }
+  .month-table th { font-size: 10px; color: #475569; padding: 0; text-align: center; }
+  .month-table td.cell { font-size: 13px; text-align: center; padding: 0; border: 1px solid #e2e8f0; position: relative; width: 14.28%; }
+  .month-table td.empty { border: 1px solid #f1f5f9; width: 14.28%; }
   .extra { position: absolute; bottom: 0; right: 0; font-size: 7px; background: #1e293b; color: #fff; padding: 0 2px; border-radius: 2px 0 0 0; }
   .legend { margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; }
   .legend-item { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; }
   .legend-color { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #cbd5e1; display: inline-block; }
   .detail-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
-  .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
-  .detail-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 5px 8px; text-align: left; font-weight: 600; font-size: 12px; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  .detail-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 5px 8px; text-align: left; font-weight: 600; font-size: 13px; }
   .detail-table td { border: 1px solid #e2e8f0; padding: 5px 8px; }
-  .detail-table .month-header-row td { background: #e2e8f0; font-weight: bold; font-size: 13px; padding: 6px 8px; }
+  .detail-table .month-header-row td { background: #e2e8f0; font-weight: bold; font-size: 14px; padding: 6px 8px; }
   .summary-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; margin-top: 14px; }
 </style>
 </head>
