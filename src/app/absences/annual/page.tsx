@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Calendar, X, Save, Trash2 } from "lucide-react";
+import { Calendar, X, Save, Trash2, Printer } from "lucide-react";
 
 // ============================================================
 // TYPES
@@ -365,6 +365,213 @@ export default function AnnualCalendarPage() {
   ];
   const DAY_HEADERS = ["L", "M", "M", "J", "V", "S", "D"];
 
+  // Build detail rows grouped by month
+  const detailByMonth: { month: number; entries: { date: string; code: string; description: string; duree: string; reason: string }[] }[] = [];
+  for (let m = 0; m < 12; m++) {
+    const monthEntries = calendarEntries
+      .filter((e) => {
+        const d = new Date(e.absence_date);
+        return d.getMonth() === m;
+      })
+      .sort((a, b) => a.absence_date.localeCompare(b.absence_date))
+      .map((e) => {
+        const code = codeMap.get(e.absence_code_id);
+        let duree = "";
+        if (e.absence_days) duree = `${e.absence_days} j`;
+        else if (e.absence_minutes) duree = minutesToHM(e.absence_minutes);
+        return {
+          date: new Date(e.absence_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }),
+          code: code?.code || "",
+          description: code?.description || "",
+          duree,
+          reason: e.reason || "",
+        };
+      });
+    if (monthEntries.length > 0) {
+      detailByMonth.push({ month: m, entries: monthEntries });
+    }
+  }
+
+  // Get selected employee name
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId);
+  const employeeName = selectedEmployee ? `${selectedEmployee.last_name}, ${selectedEmployee.first_name}` : "";
+
+  // Print function
+  function handlePrint() {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    // Build calendar HTML for page 1
+    let calendarHTML = "";
+    for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
+      const daysInMonth = getDaysInMonth(selectedYear, monthIdx);
+      const firstDow = new Date(selectedYear, monthIdx, 1).getDay();
+      const startOffset = firstDow === 0 ? 6 : firstDow - 1;
+
+      const cells: (number | null)[] = [];
+      for (let i = 0; i < startOffset; i++) cells.push(null);
+      for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+      while (cells.length % 7 !== 0) cells.push(null);
+
+      let cellsHTML = "";
+      cells.forEach((day) => {
+        if (day === null) {
+          cellsHTML += '<td class="cell empty"></td>';
+          return;
+        }
+        const dateStr = formatDateStr(selectedYear, monthIdx, day);
+        const weekend = isWeekend(selectedYear, monthIdx, day);
+        const isHol = holidayMap.has(dateStr);
+        const dayAbs = absenceMap.get(dateStr) || [];
+
+        let bg = "";
+        let color = "";
+
+        if (isHol && dayAbs.length === 0) {
+          bg = "#fecaca"; color = "#991b1b";
+        } else if (weekend && dayAbs.length === 0) {
+          bg = "#e2e8f0"; color = "#64748b";
+        } else if (dayAbs.length === 1) {
+          const code = codeMap.get(dayAbs[0].absence_code_id);
+          if (code) { bg = code.color_hex || "#94a3b8"; color = code.text_color_hex || "#ffffff"; }
+        } else if (dayAbs.length > 1) {
+          // Stacked - use first color as bg
+          const code = codeMap.get(dayAbs[0].absence_code_id);
+          bg = code?.color_hex || "#94a3b8"; color = "#ffffff";
+        }
+
+        const style = bg ? `background:${bg};color:${color};` : "";
+        const extra = dayAbs.length > 3 ? `<span class="extra">+${dayAbs.length - 3}</span>` : "";
+        cellsHTML += `<td class="cell" style="${style}">${day}${extra}</td>`;
+      });
+
+      // Build rows from cells (7 per row)
+      let rowsHTML = "";
+      for (let i = 0; i < cells.length; i += 7) {
+        rowsHTML += `<tr>${cellsHTML.split("</td>").slice(i, i + 7).map(c => c + "</td>").join("")}</tr>`;
+      }
+
+      // Simpler approach: build rows directly
+      rowsHTML = "";
+      for (let i = 0; i < cells.length; i += 7) {
+        let rowCells = "";
+        for (let j = i; j < i + 7; j++) {
+          const day = cells[j];
+          if (day === null) {
+            rowCells += '<td class="cell empty"></td>';
+            continue;
+          }
+          const dateStr = formatDateStr(selectedYear, monthIdx, day);
+          const weekend = isWeekend(selectedYear, monthIdx, day);
+          const isHol = holidayMap.has(dateStr);
+          const dayAbs = absenceMap.get(dateStr) || [];
+
+          let bg = "";
+          let clr = "";
+
+          if (isHol && dayAbs.length === 0) {
+            bg = "#fecaca"; clr = "#991b1b";
+          } else if (weekend && dayAbs.length === 0) {
+            bg = "#e2e8f0"; clr = "#64748b";
+          } else if (dayAbs.length === 1) {
+            const code = codeMap.get(dayAbs[0].absence_code_id);
+            if (code) { bg = code.color_hex || "#94a3b8"; clr = code.text_color_hex || "#ffffff"; }
+          } else if (dayAbs.length > 1) {
+            const code = codeMap.get(dayAbs[0].absence_code_id);
+            bg = code?.color_hex || "#94a3b8"; clr = "#ffffff";
+          }
+
+          const style = bg ? `background:${bg};color:${clr};` : "";
+          const extra = dayAbs.length > 3 ? `<span class="extra">+${dayAbs.length - 3}</span>` : "";
+          rowCells += `<td class="cell" style="${style}">${day}${extra}</td>`;
+        }
+        rowsHTML += `<tr>${rowCells}</tr>`;
+      }
+
+      calendarHTML += `
+        <div class="month-block">
+          <div class="month-title">${MONTH_NAMES[monthIdx]}</div>
+          <table class="month-table">
+            <thead><tr><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th><th>D</th></tr></thead>
+            <tbody>${rowsHTML}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // Build legend HTML
+    let legendHTML = absenceCodes.map((c) =>
+      `<span class="legend-item"><span class="legend-color" style="background:${c.color_hex || "#94a3b8"}"></span>${c.code} - ${c.description}</span>`
+    ).join("");
+    legendHTML += `<span class="legend-item"><span class="legend-color" style="background:#fecaca"></span>Jour ferie</span>`;
+    legendHTML += `<span class="legend-item"><span class="legend-color" style="background:#e2e8f0"></span>Weekend</span>`;
+
+    // Build detail table HTML for page 2
+    let detailHTML = "";
+    detailByMonth.forEach((group) => {
+      detailHTML += `<tr class="month-header-row"><td colspan="5">${MONTH_NAMES[group.month]}</td></tr>`;
+      group.entries.forEach((entry) => {
+        detailHTML += `<tr><td>${entry.date}</td><td>${entry.code}</td><td>${entry.description}</td><td>${entry.duree}</td><td>${entry.reason}</td></tr>`;
+      });
+    });
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Calendrier annuel ${selectedYear} - ${employeeName}</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  @media print {
+    .page-break { page-break-before: always; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #1e293b; }
+  .page { padding: 5mm; }
+  .title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+  .subtitle { font-size: 10px; color: #64748b; margin-bottom: 8px; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .month-block { border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; }
+  .month-title { font-size: 9px; font-weight: bold; text-align: center; margin-bottom: 3px; }
+  .month-table { width: 100%; border-collapse: collapse; }
+  .month-table th { font-size: 7px; color: #64748b; padding: 1px; text-align: center; }
+  .month-table td.cell { font-size: 7px; text-align: center; padding: 2px 1px; border-radius: 2px; position: relative; }
+  .month-table td.empty { }
+  .extra { position: absolute; bottom: 0; right: 0; font-size: 5px; background: #1e293b; color: #fff; padding: 0 1px; border-radius: 1px 0 0 0; }
+  .legend { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .legend-item { display: inline-flex; align-items: center; gap: 3px; font-size: 8px; }
+  .legend-color { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #cbd5e1; display: inline-block; }
+  /* Detail table page */
+  .detail-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+  .detail-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 4px 6px; text-align: left; font-weight: 600; }
+  .detail-table td { border: 1px solid #e2e8f0; padding: 3px 6px; }
+  .detail-table .month-header-row td { background: #e2e8f0; font-weight: bold; font-size: 10px; padding: 5px 6px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="title">Calendrier annuel ${selectedYear}</div>
+    <div class="subtitle">${employeeName}</div>
+    <div class="calendar-grid">${calendarHTML}</div>
+    <div class="legend">${legendHTML}</div>
+  </div>
+  <div class="page page-break">
+    <div class="detail-title">Detail des absences ${selectedYear} - ${employeeName}</div>
+    <table class="detail-table">
+      <thead><tr><th>Date</th><th>Code</th><th>Description</th><th>Duree</th><th>Raison</th></tr></thead>
+      <tbody>${detailHTML}</tbody>
+    </table>
+  </div>
+</body>
+</html>`;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 300);
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -415,6 +622,17 @@ export default function AnnualCalendarPage() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
+
+          {/* Print button */}
+          {selectedEmployeeId && (
+            <button
+              onClick={handlePrint}
+              className="ml-auto flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimer
+            </button>
+          )}
         </div>
       </div>
 
@@ -493,6 +711,9 @@ export default function AnnualCalendarPage() {
                       }
 
                       const showStacked = dayAbsences.length > 1;
+                      const maxStripes = 3;
+                      const visibleAbsences = dayAbsences.slice(0, maxStripes);
+                      const extraCount = dayAbsences.length - maxStripes;
 
                       return (
                         <div
@@ -509,7 +730,7 @@ export default function AnnualCalendarPage() {
                         >
                           {showStacked && (
                             <div className="absolute inset-0 flex flex-col">
-                              {dayAbsences.map((a, aIdx) => {
+                              {visibleAbsences.map((a, aIdx) => {
                                 const code = codeMap.get(a.absence_code_id);
                                 return (
                                   <div
@@ -526,6 +747,11 @@ export default function AnnualCalendarPage() {
                           <span className={showStacked ? "relative z-10 text-white drop-shadow-sm" : ""}>
                             {day}
                           </span>
+                          {extraCount > 0 && (
+                            <span className="absolute bottom-0 right-0 text-[7px] bg-slate-800 text-white px-0.5 rounded-tl z-10">
+                              +{extraCount}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
@@ -558,6 +784,52 @@ export default function AnnualCalendarPage() {
               </span>
             </div>
           </div>
+
+          {/* Detail Table */}
+          {detailByMonth.length > 0 && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                <h3 className="text-sm font-semibold text-slate-700">
+                  Detail des absences {selectedYear}
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Date</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Code</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Description</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Duree</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Raison</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {detailByMonth.map((group) => (
+                      <Fragment key={group.month}>
+                        <tr className="bg-slate-100">
+                          <td colSpan={5} className="px-4 py-2 text-sm font-semibold text-slate-700">
+                            {MONTH_NAMES[group.month]}
+                          </td>
+                        </tr>
+                        {group.entries.map((entry, eIdx) => (
+                          <tr key={`${group.month}-${eIdx}`} className="hover:bg-slate-50">
+                            <td className="px-4 py-2 text-sm text-slate-600">{entry.date}</td>
+                            <td className="px-4 py-2 text-sm">
+                              <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">{entry.code}</span>
+                            </td>
+                            <td className="px-4 py-2 text-sm text-slate-900">{entry.description}</td>
+                            <td className="px-4 py-2 text-sm text-slate-600">{entry.duree}</td>
+                            <td className="px-4 py-2 text-sm text-slate-500">{entry.reason}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Summary Table */}
           {summaryRows.length > 0 && (
