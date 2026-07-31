@@ -28,7 +28,6 @@ CREATE TYPE leasing_type AS ENUM ('VOITURES', 'MOBILES', 'IMPRIMANTES');
 CREATE TABLE organisations (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  representative_id INTEGER,
   vat_number VARCHAR(50),
   registration VARCHAR(50),
   comite_paritaire VARCHAR(50),
@@ -58,7 +57,6 @@ CREATE TABLE locations (
   post_code VARCHAR(10),
   commune VARCHAR(100),
   country VARCHAR(100) DEFAULT 'Belgique',
-  responsible_id INTEGER,
   organisation_id INTEGER NOT NULL REFERENCES organisations(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -68,7 +66,6 @@ CREATE TABLE sectors (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   code_bareme VARCHAR(50),
-  manager_id INTEGER,
   mission TEXT,
   rtt_group_id INTEGER REFERENCES rtt_groups(id),
   has_rtt BOOLEAN DEFAULT true,
@@ -117,13 +114,24 @@ CREATE TABLE employees (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- FK retardées pour les références circulaires
-ALTER TABLE organisations ADD CONSTRAINT fk_org_representative 
-  FOREIGN KEY (representative_id) REFERENCES employees(id);
-ALTER TABLE locations ADD CONSTRAINT fk_location_responsible 
-  FOREIGN KEY (responsible_id) REFERENCES employees(id);
-ALTER TABLE sectors ADD CONSTRAINT fk_sector_manager 
-  FOREIGN KEY (manager_id) REFERENCES employees(id);
+-- ============================================================
+-- ENTITY RESPONSIBILITIES (remplace les FK circulaires)
+-- ============================================================
+
+CREATE TABLE entity_responsibilities (
+  id SERIAL PRIMARY KEY,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  entity_type VARCHAR(50) NOT NULL CHECK (entity_type IN ('sector', 'location', 'organisation')),
+  entity_id INTEGER NOT NULL,
+  responsibility VARCHAR(50) NOT NULL CHECK (responsibility IN ('manager', 'responsible', 'representative')),
+  start_date DATE DEFAULT CURRENT_DATE,
+  end_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(entity_type, entity_id, responsibility)
+);
+
+CREATE INDEX idx_entity_resp_employee ON entity_responsibilities(employee_id);
+CREATE INDEX idx_entity_resp_entity ON entity_responsibilities(entity_type, entity_id);
 
 -- ============================================================
 -- USERS (Auth)
@@ -421,6 +429,7 @@ ALTER TABLE timesheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE year_calendar ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vacation_rights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE holiday_selections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entity_responsibilities ENABLE ROW LEVEL SECURITY;
 
 -- Politique permissive pour commencer (à restreindre plus tard par rôle)
 CREATE POLICY "Allow all for authenticated" ON employees FOR ALL USING (true);
@@ -433,6 +442,31 @@ CREATE POLICY "Allow all for authenticated" ON timesheets FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated" ON year_calendar FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated" ON vacation_rights FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated" ON holiday_selections FOR ALL USING (true);
+CREATE POLICY "Allow all for authenticated" ON entity_responsibilities FOR ALL USING (true);
+
+-- Politiques anon (l'app utilise la clé anon sans auth)
+CREATE POLICY "Allow anon read" ON employees FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON employees FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON organisations FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON organisations FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON sectors FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON sectors FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON locations FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON locations FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON absence_codes FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON absence_codes FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON holidays FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON holidays FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON timesheets FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON timesheets FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON year_calendar FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON year_calendar FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON vacation_rights FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON vacation_rights FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON holiday_selections FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON holiday_selections FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon read" ON entity_responsibilities FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow anon all" ON entity_responsibilities FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- DONNEES INITIALES
