@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Create SQL migration files to fix RLS policies for anon role and disambiguate FK relationships for PostgREST joins",
+  "status": "in_progress",
+  "steps": [
+    "Create directory supabase/migrations/ if it does not exist",
+    "Create supabase/migrations/001-fix-rls-policies.sql that adds RLS policies for the anon role on ALL 10 tables that have RLS enabled (employees, organisations, sectors, locations, absence_codes, holidays, timesheets, year_calendar, vacation_rights, holiday_selections). For each table: CREATE POLICY \"Allow anon read\" ON tablename FOR SELECT TO anon USING (true); and CREATE POLICY \"Allow anon all\" ON tablename FOR ALL TO anon USING (true) WITH CHECK (true);",
+    "Create supabase/migrations/002-fix-ambiguous-relationships.sql that adds COMMENT ON CONSTRAINT for the circular FK relationships to help PostgREST disambiguate: fk_org_representative on organisations, fk_location_responsible on locations, fk_sector_manager on sectors. Also ensure employees.sector_id FK and employees.location_id FK have explicit named constraints (employees_sector_id_fkey, employees_location_id_fkey) for PostgREST hint syntax.",
+    "Update supabase/schema.sql to add the anon policies AFTER the existing authenticated policies. Add 10 new CREATE POLICY statements for anon read and 10 for anon all, matching what is in the migration file."
+  ],
+  "acceptance_criteria": [
+    "File supabase/migrations/001-fix-rls-policies.sql exists with 20 CREATE POLICY statements (SELECT + ALL for each of 10 tables)",
+    "File supabase/migrations/002-fix-ambiguous-relationships.sql exists with COMMENT ON CONSTRAINT statements for circular FKs",
+    "supabase/schema.sql contains the anon policies alongside existing authenticated policies",
+    "All SQL files have valid syntax (no typos in table names or policy syntax)"
+  ],
+  "verification": [
+    "Run npm run build to confirm no build impact from new SQL files"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
