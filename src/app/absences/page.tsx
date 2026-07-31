@@ -34,6 +34,7 @@ function minutesToHM(m: number | null) {
 const tabs = [
   { label: "Liste", href: "/absences", icon: List },
   { label: "Calendrier", href: "/absences/calendar", icon: Calendar },
+  { label: "Calendrier annuel", href: "/absences/annual", icon: Calendar },
   { label: "Soldes", href: "/absences/balances", icon: BarChart3 },
   { label: "Absenteisme", href: "/absences/absenteeism", icon: BarChart3 },
   { label: "Nouvelle absence", href: "/absences/new", icon: Plus },
