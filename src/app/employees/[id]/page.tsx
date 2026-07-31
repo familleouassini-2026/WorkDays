@@ -103,16 +103,31 @@ export default function EmployeeDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    async function fetch() {
+    async function fetchEmployee() {
       const supabase = createClient();
-      const { data } = await supabase
+
+      // Essayer avec join
+      const { data, error } = await supabase
         .from("employees")
         .select("*, sectors(name), locations(name)")
         .eq("id", params.id)
         .single();
 
-      if (data) setEmployee(data);
+      if (error) {
+        console.error("Fetch employee with join failed:", error);
+        // Fallback sans join
+        const { data: fallbackData } = await supabase
+          .from("employees")
+          .select("*")
+          .eq("id", params.id)
+          .single();
 
+        if (fallbackData) setEmployee(fallbackData);
+      } else if (data) {
+        setEmployee(data);
+      }
+
+      // Timesheet (inchangé)
       const { data: ts } = await supabase
         .from("timesheets")
         .select("*")
@@ -123,7 +138,7 @@ export default function EmployeeDetailPage() {
       if (ts) setTimesheet(ts);
       setLoading(false);
     }
-    fetch();
+    fetchEmployee();
   }, [params.id]);
 
   async function handleDelete() {
