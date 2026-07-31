@@ -14,7 +14,7 @@ interface RecentAbsence {
   absence_date: string;
   employee_id: number;
   employees: { first_name: string; last_name: string } | null;
-  absence_codes: { code: string; label: string } | null;
+  absence_codes: { code: string; description: string } | null;
 }
 
 export default function DashboardPage() {
@@ -50,7 +50,7 @@ export default function DashboardPage() {
           .lte("absence_date", monthEnd),
         supabase
           .from("year_calendar")
-          .select("id, absence_date, employee_id, employees!employee_id(first_name, last_name), absence_codes!absence_code_id(code, label)")
+          .select("id, absence_date, employee_id, employees!employee_id(first_name, last_name), absence_codes!absence_code_id(code, description)")
           .order("absence_date", { ascending: false })
           .limit(5),
       ]);
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                               : "Inconnu"}
                           </Link>
                           <p className="text-xs text-slate-500">
-                            {absence.absence_codes?.code} - {absence.absence_codes?.label}
+                            {absence.absence_codes?.code} - {absence.absence_codes?.description}
                           </p>
                         </div>
                       </div>
