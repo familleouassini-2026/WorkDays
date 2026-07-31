@@ -510,8 +510,8 @@ export default function AnnualCalendarPage() {
   .month-title { font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 1px; }
   .month-table { width: 100%; border-collapse: collapse; flex: 1; }
   .month-table th { font-size: 9px; color: #64748b; padding: 1px; text-align: center; }
-  .month-table td.cell { font-size: 11px; text-align: center; padding: 2px 1px; border-radius: 2px; position: relative; }
-  .month-table td.empty { }
+  .month-table td.cell { font-size: 11px; text-align: center; padding: 2px 1px; border-radius: 0; position: relative; border: 1px solid #e2e8f0; }
+  .month-table td.empty { border: 1px solid #f1f5f9; }
   .extra { position: absolute; bottom: 0; right: 0; font-size: 7px; background: #1e293b; color: #fff; padding: 0 2px; border-radius: 2px 0 0 0; }
   .legend { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
   .legend-item { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; }
