@@ -127,11 +127,20 @@
     {
       "id": "absences-balances",
       "name": "Soldes de congés",
-      "status": "partial",
+      "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#vacation-entitlement",
-      "code": ["src/app/absences/balances/page.tsx"],
+      "code": ["src/app/absences/balances/page.tsx", "src/lib/calculations.ts"],
       "accessOrigin": "extracted/queries/qry_subFormVacPDSDSummary.sql",
-      "notes": "Basique : droits vs utilisé. Manque : calcul heures/minutes, bought vacation, semaines par ancienneté"
+      "notes": "Complet : calcul ancienneté → semaines (vacation_policies) + bought vacation + heures/minutes via timesheet + consommation year_calendar. Vue vacation détaillée + vue tous codes."
+    },
+    {
+      "id": "absenteeism-policy",
+      "name": "Politique d'absentéisme",
+      "status": "implemented",
+      "spec": ".kiro/specs/business-rules.md#absenteeism-policy",
+      "code": ["src/app/absences/absenteeism/page.tsx", "src/lib/calculations.ts"],
+      "accessOrigin": "extracted/queries/qry_rpt_AbsenteeismPolicy.sql",
+      "notes": "Fenêtre glissante configurable (3/6/9/12 mois), exclusion codes V/F/PC/MAT/JF/CSS/JP/HS, comptage incidents, seuils alertes (normal/attention/critique), détail expandable par employé avec date d'expiration."
     },
     {
       "id": "remuneration-baremes",
@@ -153,12 +162,12 @@
     },
     {
       "id": "remuneration-simulateur",
-      "name": "Simulateur salaire indexé",
-      "status": "partial",
+      "name": "Simulateur salaire complet",
+      "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#salary",
-      "code": ["src/app/remuneration/simulateur/page.tsx"],
+      "code": ["src/app/remuneration/simulateur/page.tsx", "src/lib/calculations.ts"],
       "accessOrigin": "extracted/queries/qry_Sec_indexCal.sql",
-      "notes": "Base × indexation = indexé. Manque : indexation sectorielle (DProduct), augmentations personnelles, alertes"
+      "notes": "Formule complète : base(barème) × DProduct(org_indexations) × DProduct(sector_indexations) + SUM(employee_indexations). Date de simulation configurable, décomposition visuelle du calcul, historique indexations collapsible, détail augmentations personnelles."
     },
     {
       "id": "rtt-calculation",
@@ -177,15 +186,6 @@
       "code": ["src/app/remuneration/alertes/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_SectorialSalaryChanging.cls",
       "notes": "Detecte les employes dont l'anciennete change de palier cette annee. Cards expandable + tableau complet."
-    },
-    {
-      "id": "absenteeism-policy",
-      "name": "Politique d'absentéisme",
-      "status": "missing",
-      "spec": ".kiro/specs/business-rules.md#absenteeism-policy",
-      "code": [],
-      "accessOrigin": "extracted/queries/qry_rpt_AbsenteeismPolicy.sql",
-      "notes": "NON IMPLÉMENTÉ. 6 mois glissants, exclusion codes V/F/PC/JD/ML, count incidents"
     },
     {
       "id": "timesheets",
@@ -253,27 +253,6 @@
   ],
   "gaps": [
     {
-      "severity": "medium",
-      "feature": "absences-balances",
-      "description": "Le calcul des soldes ne prend pas en compte : bought vacation, heures/minutes (pas jours), semaines par ancienneté",
-      "impact": "Soldes affichés incorrects pour certains employés",
-      "accessQuery": "qry_subFormVacPDSDSummary — IIf ladder sur YearsOfService + BoughtVac"
-    },
-    {
-      "severity": "medium",
-      "feature": "absenteeism-policy",
-      "description": "La politique d'absentéisme (6 mois glissants, exclusion de certains codes) n'est pas implémentée",
-      "impact": "Pas de suivi automatique des incidents, pas de rapport pour les entretiens RH",
-      "accessQuery": "qry_rpt_AbsenteeismPolicy + qry_NumberOfIncidents"
-    },
-    {
-      "severity": "medium",
-      "feature": "remuneration-simulateur",
-      "description": "Le simulateur ne fait pas le DProduct des indexations sectorielles ni les augmentations personnelles",
-      "impact": "Le salaire affiché peut être incorrect (manque indexation sectorielle)",
-      "accessQuery": "qry_Sec_indexCal — DProduct(tbl_Cmn_Indexation) * DProduct(tbl_Sec_Indexation) * BaseSalary"
-    },
-    {
       "severity": "low",
       "feature": "governance",
       "description": "Module gouvernance pas implémenté (réunions, décisions, demandes)",
@@ -286,6 +265,20 @@
       "description": "Gestion des actifs pas implémentée",
       "impact": "Suivi véhicules/téléphones fait ailleurs (Excel?)",
       "accessQuery": "frm_Cmn_Leasing, frm_Emp_Employee_Leasing"
+    }
+  ],
+  "recentChanges": [
+    {
+      "date": "2026-07-31",
+      "pr": "#13",
+      "description": "Medium gaps comblés : (1) Soldes congés complets avec ancienneté + bought vacation + H/M, (2) Politique absentéisme 6 mois glissants, (3) Simulateur salaire DProduct org×secteur + augmentations perso",
+      "filesChanged": [
+        "src/lib/calculations.ts",
+        "src/app/absences/balances/page.tsx",
+        "src/app/absences/absenteeism/page.tsx",
+        "src/app/remuneration/simulateur/page.tsx",
+        "supabase/migrations/003-absenteeism-config-and-seed-indexations.sql"
+      ]
     }
   ]
 }

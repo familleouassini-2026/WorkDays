@@ -2,111 +2,131 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Calculator } from "lucide-react";
+import { Calculator, TrendingUp, User, Building2, Layers, Plus } from "lucide-react";
+import {
+  calculateSeniorityYears,
+  findBaseSalary,
+  calculateFullSalary,
+  type IndexationRow,
+  type EmployeeIndexationRow,
+  type SeniorityScaleRow,
+} from "@/lib/calculations";
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface Employee {
   id: number;
   first_name: string;
   last_name: string;
   sector_id: number | null;
+  date_of_hire: string | null;
   granted_seniority: number | null;
   granted_seniority_date: string | null;
-  sectors: { name: string } | null;
+  sectors: { id: number; name: string } | null;
 }
 
-interface SeniorityScale {
-  id: number;
-  sector_id: number;
-  min_seniority: number;
-  max_seniority: number;
-  base_amount: number;
-}
-
-interface Indexation {
-  id: number;
-  effective_date: string;
-  coefficient: number;
-}
-
-const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
-const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+// ============================================================
+// COMPONENT
+// ============================================================
 
 export default function SimulateurPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [scales, setScales] = useState<SeniorityScale[]>([]);
-  const [indexations, setIndexations] = useState<Indexation[]>([]);
+  const [scales, setScales] = useState<SeniorityScaleRow[]>([]);
+  const [orgIndexations, setOrgIndexations] = useState<IndexationRow[]>([]);
+  const [sectorIndexations, setSectorIndexations] = useState<IndexationRow[]>([]);
+  const [employeeIndexations, setEmployeeIndexations] = useState<EmployeeIndexationRow[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [simulationDate, setSimulationDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient();
-      const [empRes, scalesRes, indexRes] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, first_name, last_name, sector_id, granted_seniority, granted_seniority_date, sectors(name)")
-          .eq("is_inactive", false)
-          .order("last_name"),
-        supabase
-          .from("seniority_scales")
-          .select("id, sector_id, min_seniority, max_seniority, base_amount")
-          .order("min_seniority"),
-        supabase
-          .from("salary_indexations")
-          .select("id, effective_date, coefficient")
-          .order("effective_date", { ascending: true }),
-      ]);
+      const [empRes, scalesRes, orgIdxRes, secIdxRes, empIdxRes] =
+        await Promise.all([
+          supabase
+            .from("employees")
+            .select(
+              "id, first_name, last_name, sector_id, date_of_hire, granted_seniority, granted_seniority_date, sectors(id, name)"
+            )
+            .eq("is_inactive", false)
+            .order("last_name"),
+          supabase
+            .from("seniority_scales")
+            .select("id, sector_id, years, base_salary")
+            .order("years"),
+          supabase
+            .from("organisation_indexations")
+            .select("id, indexation_value, indexation_date")
+            .order("indexation_date", { ascending: true }),
+          supabase
+            .from("sector_indexations")
+            .select("id, sector_id, indexation_value, indexation_date")
+            .order("indexation_date", { ascending: true }),
+          supabase
+            .from("employee_indexations")
+            .select("id, employee_id, indexation_value, indexation_date")
+            .order("indexation_date", { ascending: true }),
+        ]);
+
       if (empRes.data) setEmployees(empRes.data as unknown as Employee[]);
-      if (scalesRes.data) setScales(scalesRes.data);
-      if (indexRes.data) setIndexations(indexRes.data);
+      if (scalesRes.data) setScales(scalesRes.data as SeniorityScaleRow[]);
+      if (orgIdxRes.data) setOrgIndexations(orgIdxRes.data as IndexationRow[]);
+      if (secIdxRes.data)
+        setSectorIndexations(secIdxRes.data as Array<IndexationRow & { sector_id: number }>);
+      if (empIdxRes.data)
+        setEmployeeIndexations(empIdxRes.data as EmployeeIndexationRow[]);
       setLoading(false);
     }
     fetchData();
   }, []);
 
   const employee = employees.find((e) => e.id === Number(selectedEmployee));
+  const refDate = new Date(simulationDate || Date.now());
 
-  // Calculate seniority in years
-  function calculateSeniority(): number {
-    if (!employee) return 0;
-    if (employee.granted_seniority != null) return employee.granted_seniority;
-    if (!employee.granted_seniority_date) return 0;
-    const startDate = new Date(employee.granted_seniority_date);
-    const now = new Date();
-    const diffYears =
-      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    return Math.floor(diffYears);
-  }
+  // Calculate seniority
+  const seniorityYears = employee
+    ? calculateSeniorityYears(
+        employee.date_of_hire,
+        employee.granted_seniority,
+        employee.granted_seniority_date,
+        refDate
+      )
+    : 0;
 
-  // Find applicable scale
-  function findScale(): SeniorityScale | null {
-    if (!employee || !employee.sector_id) return null;
-    const seniority = calculateSeniority();
-    return (
-      scales.find(
-        (s) =>
-          s.sector_id === employee.sector_id &&
-          seniority >= s.min_seniority &&
-          seniority <= s.max_seniority
-      ) || null
-    );
-  }
+  // Find base salary from scale
+  const baseSalary =
+    employee && employee.sector_id
+      ? findBaseSalary(employee.sector_id, seniorityYears, scales)
+      : null;
 
-  // Calculate cumulative indexation factor
-  function getCumulativeFactor(): number {
-    let factor = 1;
-    for (const idx of indexations) {
-      factor *= idx.coefficient;
-    }
-    return factor;
-  }
+  // Filter sector indexations for this employee's sector
+  const empSectorIndexations = employee?.sector_id
+    ? (sectorIndexations as Array<IndexationRow & { sector_id: number }>).filter(
+        (si) => (si as any).sector_id === employee.sector_id
+      )
+    : [];
 
-  const seniority = calculateSeniority();
-  const applicableScale = findScale();
-  const cumulativeFactor = getCumulativeFactor();
-  const baseAmount = applicableScale?.base_amount || 0;
-  const indexedSalary = baseAmount * cumulativeFactor;
+  // Filter personal increases for this employee
+  const empPersonalIncreases = employee
+    ? employeeIndexations.filter((ei) => ei.employee_id === employee.id)
+    : [];
+
+  // Full salary calculation
+  const salaryResult =
+    baseSalary !== null
+      ? calculateFullSalary({
+          baseSalary,
+          orgIndexations,
+          sectorIndexations: empSectorIndexations,
+          personalIncreases: empPersonalIncreases,
+          referenceDate: refDate,
+        })
+      : null;
 
   if (loading) {
     return (
@@ -121,130 +141,414 @@ export default function SimulateurPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          Simulateur de salaire
+          Simulateur de salaire complet
         </h1>
         <p className="text-slate-500 mt-1">
-          Calcul du salaire indexe par employe
+          Base × Indexation org × Indexation secteur + Augmentations
+          personnelles
         </p>
       </div>
 
+      {/* Controls */}
       <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>Selectionner un employe</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Selectionner un employe
+            </label>
             <select
               value={selectedEmployee}
               onChange={(e) => setSelectedEmployee(e.target.value)}
-              className={inputClass}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Choisir un employe</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.last_name}, {emp.first_name}
+                  {emp.sectors ? ` (${emp.sectors.name})` : ""}
                 </option>
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Date de simulation
+            </label>
+            <input
+              type="date"
+              value={simulationDate}
+              onChange={(e) => setSimulationDate(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
 
-          {employee && (
-            <div className="space-y-4 pt-4 border-t border-slate-200">
-              {/* Employee info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500 font-medium uppercase">
-                    Secteur
-                  </p>
-                  <p className="text-sm font-semibold text-slate-900 mt-1">
-                    {employee.sectors?.name || "Non defini"}
-                  </p>
+      {/* Results */}
+      {employee && (
+        <div className="space-y-4">
+          {/* Employee info cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <InfoCard
+              icon={<User className="w-4 h-4 text-blue-600" />}
+              label="Secteur"
+              value={employee.sectors?.name || "Non defini"}
+            />
+            <InfoCard
+              icon={<TrendingUp className="w-4 h-4 text-purple-600" />}
+              label="Anciennete"
+              value={`${seniorityYears} an${seniorityYears > 1 ? "s" : ""}`}
+            />
+            <InfoCard
+              icon={<Building2 className="w-4 h-4 text-emerald-600" />}
+              label="Bareme de base"
+              value={
+                baseSalary !== null
+                  ? formatEUR(baseSalary)
+                  : "Aucun bareme"
+              }
+            />
+            <InfoCard
+              icon={<Layers className="w-4 h-4 text-amber-600" />}
+              label="Augmentations perso."
+              value={
+                empPersonalIncreases.length > 0
+                  ? `${empPersonalIncreases.length} enregistree${empPersonalIncreases.length > 1 ? "s" : ""}`
+                  : "Aucune"
+              }
+            />
+          </div>
+
+          {/* Calculation breakdown */}
+          {salaryResult ? (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Calculator className="w-5 h-5 text-blue-700" />
+                <h3 className="text-lg font-semibold text-blue-900">
+                  Decomposition du calcul
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                {/* Base salary */}
+                <CalcRow
+                  label="Salaire de base (bareme)"
+                  value={formatEUR(salaryResult.baseSalary)}
+                  sublabel={`Secteur ${employee.sectors?.name || "?"}, ${seniorityYears} ans d'anciennete`}
+                />
+
+                {/* Org indexation */}
+                <CalcRow
+                  label="Indexation organisation (DProduct)"
+                  value={`× ${salaryResult.orgFactor.toFixed(6)}`}
+                  sublabel={`${orgIndexations.length} indexation${orgIndexations.length > 1 ? "s" : ""} enregistree${orgIndexations.length > 1 ? "s" : ""}`}
+                  isMultiplier
+                />
+
+                {/* Sector indexation */}
+                <CalcRow
+                  label="Indexation sectorielle (DProduct)"
+                  value={`× ${salaryResult.sectorFactor.toFixed(6)}`}
+                  sublabel={`${empSectorIndexations.length} indexation${empSectorIndexations.length > 1 ? "s" : ""} pour ce secteur`}
+                  isMultiplier
+                />
+
+                {/* Combined factor */}
+                <div className="border-t border-blue-200 pt-3">
+                  <CalcRow
+                    label="Facteur combine (org × secteur)"
+                    value={`× ${salaryResult.combinedFactor.toFixed(6)}`}
+                    isBold
+                  />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500 font-medium uppercase">
-                    Anciennete
-                  </p>
-                  <p className="text-sm font-semibold text-slate-900 mt-1">
-                    {seniority} an{seniority > 1 ? "s" : ""}
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500 font-medium uppercase">
-                    Bareme applicable
-                  </p>
-                  <p className="text-sm font-semibold text-slate-900 mt-1">
-                    {applicableScale
-                      ? `${applicableScale.base_amount.toLocaleString("fr-BE", { style: "currency", currency: "EUR" })}`
-                      : "Aucun bareme trouve"}
-                  </p>
+
+                {/* Indexed salary */}
+                <CalcRow
+                  label="Salaire indexe (base × facteur)"
+                  value={formatEUR(salaryResult.indexedSalary)}
+                  isBold
+                />
+
+                {/* Personal increases */}
+                {salaryResult.personalTotal > 0 && (
+                  <CalcRow
+                    label="Augmentations personnelles"
+                    value={`+ ${formatEUR(salaryResult.personalTotal)}`}
+                    sublabel={`Somme de ${empPersonalIncreases.length} augmentation${empPersonalIncreases.length > 1 ? "s" : ""}`}
+                    isAddition
+                  />
+                )}
+
+                {/* TOTAL */}
+                <div className="border-t-2 border-blue-300 pt-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-blue-900">
+                      Salaire total actuel
+                    </span>
+                    <span className="text-2xl font-bold text-blue-900">
+                      {formatEUR(salaryResult.totalSalary)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Calculation */}
-              {applicableScale && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Calculator className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-blue-900">
-                      Resultat du calcul
-                    </h3>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Salaire de base (bareme)</span>
-                      <span className="font-medium text-slate-900">
-                        {baseAmount.toLocaleString("fr-BE", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">
-                        Facteur d&apos;indexation cumule
-                      </span>
-                      <span className="font-medium text-slate-900">
-                        x {cumulativeFactor.toFixed(4)}
-                      </span>
-                    </div>
-                    <div className="border-t border-blue-200 pt-3 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-blue-900">
-                        Salaire indexe
-                      </span>
-                      <span className="text-xl font-bold text-blue-900">
-                        {indexedSalary.toLocaleString("fr-BE", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 bg-white/60 rounded p-3">
-                    <p className="text-xs text-slate-600 font-mono">
-                      Formule : {baseAmount.toLocaleString("fr-BE")} x{" "}
-                      {cumulativeFactor.toFixed(4)} ={" "}
-                      {indexedSalary.toLocaleString("fr-BE", {
-                        style: "currency",
-                        currency: "EUR",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {!applicableScale && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p className="text-sm text-amber-800">
-                    Aucun bareme applicable trouve pour ce secteur et cette
-                    anciennete. Verifiez que le secteur et les baremes sont
-                    correctement configures.
-                  </p>
-                </div>
-              )}
+              {/* Formula reminder */}
+              <div className="mt-5 bg-white/60 rounded-lg p-4">
+                <p className="text-xs text-slate-600 font-mono leading-relaxed">
+                  Formule : {formatEUR(salaryResult.baseSalary)} ×{" "}
+                  {salaryResult.orgFactor.toFixed(4)} (org) ×{" "}
+                  {salaryResult.sectorFactor.toFixed(4)} (secteur)
+                  {salaryResult.personalTotal > 0
+                    ? ` + ${formatEUR(salaryResult.personalTotal)} (perso)`
+                    : ""}{" "}
+                  = <strong>{formatEUR(salaryResult.totalSalary)}</strong>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+              <p className="text-amber-800">
+                Impossible de calculer : aucun bareme trouve pour ce secteur et
+                cette anciennete.
+              </p>
+              <p className="text-xs text-amber-600 mt-2">
+                Verifiez que le secteur {employee.sectors?.name || "?"} a des
+                entrees dans la table <code>seniority_scales</code> pour{" "}
+                {seniorityYears} ans.
+              </p>
             </div>
           )}
+
+          {/* Personal increases detail */}
+          {empPersonalIncreases.length > 0 && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-emerald-600" />
+                  Detail des augmentations personnelles
+                </h4>
+              </div>
+              <table className="w-full">
+                <thead className="bg-slate-50/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500">
+                      Date d&apos;effet
+                    </th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500">
+                      Montant
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {empPersonalIncreases.map((inc) => (
+                    <tr key={inc.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-sm text-slate-900">
+                        {new Date(
+                          inc.indexation_date + "T00:00:00"
+                        ).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-emerald-700 font-medium text-right">
+                        + {formatEUR(inc.indexation_value)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Indexation history (collapsible) */}
+          {(orgIndexations.length > 0 || empSectorIndexations.length > 0) && (
+            <IndexationHistory
+              orgIndexations={orgIndexations}
+              sectorIndexations={empSectorIndexations}
+              sectorName={employee.sectors?.name || ""}
+            />
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
+}
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
+
+function InfoCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        {icon}
+        <p className="text-xs text-slate-500 font-medium uppercase">{label}</p>
+      </div>
+      <p className="text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function CalcRow({
+  label,
+  value,
+  sublabel,
+  isBold,
+  isMultiplier,
+  isAddition,
+}: {
+  label: string;
+  value: string;
+  sublabel?: string;
+  isBold?: boolean;
+  isMultiplier?: boolean;
+  isAddition?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <span
+          className={`text-sm ${isBold ? "font-semibold text-blue-900" : "text-slate-700"}`}
+        >
+          {label}
+        </span>
+        {sublabel && (
+          <p className="text-xs text-slate-500 mt-0.5">{sublabel}</p>
+        )}
+      </div>
+      <span
+        className={`text-sm font-medium ${
+          isMultiplier
+            ? "text-purple-700"
+            : isAddition
+            ? "text-emerald-700"
+            : isBold
+            ? "font-bold text-blue-900"
+            : "text-slate-900"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function IndexationHistory({
+  orgIndexations,
+  sectorIndexations,
+  sectorName,
+}: {
+  orgIndexations: IndexationRow[];
+  sectorIndexations: IndexationRow[];
+  sectorName: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+      >
+        <span className="text-sm font-medium text-slate-700">
+          Historique des indexations ({orgIndexations.length} org +{" "}
+          {sectorIndexations.length} secteur)
+        </span>
+        <span className="text-xs text-slate-500">
+          {isOpen ? "Masquer" : "Afficher"}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-slate-200 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Org indexations */}
+          <div>
+            <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Organisation
+            </h5>
+            {orgIndexations.length === 0 ? (
+              <p className="text-xs text-slate-400">Aucune indexation org.</p>
+            ) : (
+              <div className="space-y-1">
+                {orgIndexations.map((idx) => (
+                  <div
+                    key={idx.id}
+                    className="flex justify-between text-xs text-slate-600"
+                  >
+                    <span>
+                      {new Date(
+                        idx.indexation_date + "T00:00:00"
+                      ).toLocaleDateString("fr-FR", {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <span className="font-mono">
+                      {idx.indexation_value.toFixed(6)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sector indexations */}
+          <div>
+            <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Secteur ({sectorName})
+            </h5>
+            {sectorIndexations.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                Aucune indexation sectorielle.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {sectorIndexations.map((idx) => (
+                  <div
+                    key={idx.id}
+                    className="flex justify-between text-xs text-slate-600"
+                  >
+                    <span>
+                      {new Date(
+                        idx.indexation_date + "T00:00:00"
+                      ).toLocaleDateString("fr-FR", {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <span className="font-mono">
+                      {idx.indexation_value.toFixed(6)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function formatEUR(amount: number): string {
+  return amount.toLocaleString("fr-BE", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
