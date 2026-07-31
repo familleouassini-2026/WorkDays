@@ -71,6 +71,15 @@ interface SummaryRow {
   hoursDiff: number;
 }
 
+interface ModalEntry {
+  id: number | null;
+  absence_code_id: number | null;
+  absence_minutes: string;
+  absence_days: string;
+  reason: string;
+  _deleted?: boolean;
+}
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -119,11 +128,7 @@ export default function AnnualCalendarPage() {
 
   // Edit modal
   const [editDate, setEditDate] = useState<string | null>(null);
-  const [editCodeId, setEditCodeId] = useState<number | null>(null);
-  const [editMinutes, setEditMinutes] = useState<string>("");
-  const [editDays, setEditDays] = useState<string>("");
-  const [editReason, setEditReason] = useState<string>("");
-  const [editExistingId, setEditExistingId] = useState<number | null>(null);
+  const [modalEntries, setModalEntries] = useState<ModalEntry[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Load sectors and absence codes on mount
@@ -220,55 +225,104 @@ export default function AnnualCalendarPage() {
     setEditDate(dateStr);
     const entries = absenceMap.get(dateStr);
     if (entries && entries.length > 0) {
-      const entry = entries[0];
-      setEditExistingId(entry.id);
-      setEditCodeId(entry.absence_code_id);
-      setEditMinutes(entry.absence_minutes ? String(entry.absence_minutes) : "");
-      setEditDays(entry.absence_days ? String(entry.absence_days) : "");
-      setEditReason(entry.reason || "");
+      setModalEntries(
+        entries.map((entry) => ({
+          id: entry.id,
+          absence_code_id: entry.absence_code_id,
+          absence_minutes: entry.absence_minutes ? String(entry.absence_minutes) : "",
+          absence_days: entry.absence_days ? String(entry.absence_days) : "",
+          reason: entry.reason || "",
+        }))
+      );
     } else {
-      setEditExistingId(null);
-      setEditCodeId(absenceCodes.length > 0 ? absenceCodes[0].id : null);
-      setEditMinutes("");
-      setEditDays("");
-      setEditReason("");
+      setModalEntries([
+        {
+          id: null,
+          absence_code_id: absenceCodes.length > 0 ? absenceCodes[0].id : null,
+          absence_minutes: "",
+          absence_days: "",
+          reason: "",
+        },
+      ]);
     }
   }
 
   function closeEdit() {
     setEditDate(null);
-    setEditExistingId(null);
+    setModalEntries([]);
   }
 
-  async function handleSave() {
-    if (!editDate || !editCodeId || !selectedEmployeeId) return;
+  function addModalEntry() {
+    setModalEntries((prev) => [
+      ...prev,
+      {
+        id: null,
+        absence_code_id: absenceCodes.length > 0 ? absenceCodes[0].id : null,
+        absence_minutes: "",
+        absence_days: "",
+        reason: "",
+      },
+    ]);
+  }
+
+  function removeModalEntry(index: number) {
+    setModalEntries((prev) => {
+      const entry = prev[index];
+      if (entry.id) {
+        // Mark existing DB entry for deletion
+        return prev.map((e, i) => (i === index ? { ...e, _deleted: true } : e));
+      }
+      // Remove new (unsaved) entry from list
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function updateModalEntry(index: number, field: string, value: string | number | null) {
+    setModalEntries((prev) =>
+      prev.map((e, i) => (i === index ? { ...e, [field]: value } : e))
+    );
+  }
+
+  async function handleSaveAll() {
+    if (!editDate || !selectedEmployeeId) return;
     setSaving(true);
     const supabase = createClient();
-    const payload = {
-      year: selectedYear,
-      absence_date: editDate,
-      employee_id: selectedEmployeeId,
-      absence_code_id: editCodeId,
-      absence_minutes: editMinutes ? Number(editMinutes) : null,
-      absence_days: editDays ? Number(editDays) : null,
-      reason: editReason || null,
-    };
 
-    if (editExistingId) {
-      await supabase.from("year_calendar").update(payload).eq("id", editExistingId);
-    } else {
-      await supabase.from("year_calendar").insert(payload);
+    const toDelete = modalEntries.filter((e) => e._deleted && e.id);
+    const toUpdate = modalEntries.filter((e) => !e._deleted && e.id && e.absence_code_id);
+    const toInsert = modalEntries.filter((e) => !e._deleted && !e.id && e.absence_code_id);
+
+    // Delete removed entries
+    for (const entry of toDelete) {
+      await supabase.from("year_calendar").delete().eq("id", entry.id!);
     }
-    setSaving(false);
-    closeEdit();
-    loadCalendarData();
-  }
 
-  async function handleDelete() {
-    if (!editExistingId) return;
-    setSaving(true);
-    const supabase = createClient();
-    await supabase.from("year_calendar").delete().eq("id", editExistingId);
+    // Update existing entries
+    for (const entry of toUpdate) {
+      await supabase
+        .from("year_calendar")
+        .update({
+          absence_code_id: entry.absence_code_id!,
+          absence_minutes: entry.absence_minutes ? Number(entry.absence_minutes) : null,
+          absence_days: entry.absence_days ? Number(entry.absence_days) : null,
+          reason: entry.reason || null,
+        })
+        .eq("id", entry.id!);
+    }
+
+    // Insert new entries
+    for (const entry of toInsert) {
+      await supabase.from("year_calendar").insert({
+        year: selectedYear,
+        absence_date: editDate,
+        employee_id: selectedEmployeeId,
+        absence_code_id: entry.absence_code_id!,
+        absence_minutes: entry.absence_minutes ? Number(entry.absence_minutes) : null,
+        absence_days: entry.absence_days ? Number(entry.absence_days) : null,
+        reason: entry.reason || null,
+      });
+    }
+
     setSaving(false);
     closeEdit();
     loadCalendarData();
@@ -414,36 +468,64 @@ export default function AnnualCalendarPage() {
                       let textColor = "";
                       let title = "";
 
-                      if (dayAbsences.length > 0) {
+                      if (isHoliday && dayAbsences.length === 0) {
+                        bgColor = "#fecaca";
+                        textColor = "#991b1b";
+                        title = holidayMap.get(dateStr) || "Jour ferie";
+                      } else if (weekend && dayAbsences.length === 0) {
+                        bgColor = "#e2e8f0";
+                        textColor = "#64748b";
+                      } else if (dayAbsences.length === 1) {
                         const code = codeMap.get(dayAbsences[0].absence_code_id);
                         if (code) {
                           bgColor = code.color_hex || "#94a3b8";
                           textColor = code.text_color_hex || "#ffffff";
                           title = `${code.code} - ${code.description}`;
                         }
-                      } else if (isHoliday) {
-                        bgColor = "#fecaca";
-                        textColor = "#991b1b";
-                        title = holidayMap.get(dateStr) || "Jour ferie";
-                      } else if (weekend) {
-                        bgColor = "#e2e8f0";
-                        textColor = "#64748b";
+                      } else if (dayAbsences.length > 1) {
+                        title = dayAbsences
+                          .map((a) => {
+                            const code = codeMap.get(a.absence_code_id);
+                            return code ? `${code.code}` : "";
+                          })
+                          .filter(Boolean)
+                          .join(", ");
                       }
+
+                      const showStacked = dayAbsences.length > 1;
 
                       return (
                         <div
                           key={`d-${day}`}
                           onClick={() => !weekend && openEdit(dateStr)}
                           title={title}
-                          className={`w-full aspect-square flex items-center justify-center text-[10px] font-medium rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-blue-400 ${
+                          className={`w-full aspect-square flex items-center justify-center text-[10px] font-medium rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-blue-400 relative overflow-hidden ${
                             weekend && !dayAbsences.length ? "cursor-default hover:ring-0" : ""
                           }`}
                           style={{
-                            backgroundColor: bgColor || undefined,
-                            color: textColor || undefined,
+                            backgroundColor: !showStacked ? bgColor || undefined : undefined,
+                            color: !showStacked ? textColor || undefined : undefined,
                           }}
                         >
-                          {day}
+                          {showStacked && (
+                            <div className="absolute inset-0 flex flex-col">
+                              {dayAbsences.map((a, aIdx) => {
+                                const code = codeMap.get(a.absence_code_id);
+                                return (
+                                  <div
+                                    key={aIdx}
+                                    className="flex-1"
+                                    style={{
+                                      backgroundColor: code?.color_hex || "#94a3b8",
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+                          <span className={showStacked ? "relative z-10 text-white drop-shadow-sm" : ""}>
+                            {day}
+                          </span>
                         </div>
                       );
                     })}
@@ -545,7 +627,7 @@ export default function AnnualCalendarPage() {
       {/* Edit Modal */}
       {editDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900">
                 {new Date(editDate + "T00:00:00").toLocaleDateString("fr-BE", {
@@ -561,87 +643,151 @@ export default function AnnualCalendarPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Code selection */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Type d&apos;absence
-                </label>
-                <select
-                  value={editCodeId || ""}
-                  onChange={(e) => setEditCodeId(Number(e.target.value))}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  {absenceCodes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} - {c.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {modalEntries.map((entry, idx) => {
+                if (entry._deleted) return null;
+                const selectedCode = entry.absence_code_id
+                  ? codeMap.get(entry.absence_code_id)
+                  : null;
+                const timeUnit = selectedCode?.time_unit;
 
-              {/* Minutes */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Minutes
-                </label>
-                <input
-                  type="number"
-                  value={editMinutes}
-                  onChange={(e) => setEditMinutes(e.target.value)}
-                  placeholder="Ex: 480 pour 8h"
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+                return (
+                  <div
+                    key={idx}
+                    className="border border-slate-200 rounded-lg p-3 space-y-3 bg-slate-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">
+                        Absence {idx + 1}
+                      </span>
+                      <button
+                        onClick={() => removeModalEntry(idx)}
+                        className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700"
+                        title="Supprimer cette absence"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
 
-              {/* Days */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Jours
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={editDays}
-                  onChange={(e) => setEditDays(e.target.value)}
-                  placeholder="Ex: 1"
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+                    {/* Code selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Type d&apos;absence
+                      </label>
+                      <select
+                        value={entry.absence_code_id || ""}
+                        onChange={(e) =>
+                          updateModalEntry(idx, "absence_code_id", e.target.value ? Number(e.target.value) : null)
+                        }
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">-- Choisir --</option>
+                        {absenceCodes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.code} - {c.description}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-              {/* Reason */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Raison
-                </label>
-                <input
-                  type="text"
-                  value={editReason}
-                  onChange={(e) => setEditReason(e.target.value)}
-                  placeholder="Optionnel"
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+                    {/* Minutes field - shown when time_unit is HOURS_MINUTES */}
+                    {timeUnit === "HOURS_MINUTES" && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Minutes
+                        </label>
+                        <input
+                          type="number"
+                          value={entry.absence_minutes}
+                          onChange={(e) => updateModalEntry(idx, "absence_minutes", e.target.value)}
+                          placeholder="Ex: 480 pour 8h"
+                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    {/* Days field - shown when time_unit is DAYS */}
+                    {timeUnit === "DAYS" && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Jours
+                        </label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={entry.absence_days}
+                          onChange={(e) => updateModalEntry(idx, "absence_days", e.target.value)}
+                          placeholder="Ex: 1"
+                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    {/* Show both fields if time_unit is not set */}
+                    {!timeUnit && entry.absence_code_id && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Minutes
+                          </label>
+                          <input
+                            type="number"
+                            value={entry.absence_minutes}
+                            onChange={(e) => updateModalEntry(idx, "absence_minutes", e.target.value)}
+                            placeholder="Ex: 480 pour 8h"
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Jours
+                          </label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={entry.absence_days}
+                            onChange={(e) => updateModalEntry(idx, "absence_days", e.target.value)}
+                            placeholder="Ex: 1"
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* Reason */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Raison
+                      </label>
+                      <input
+                        type="text"
+                        value={entry.reason}
+                        onChange={(e) => updateModalEntry(idx, "reason", e.target.value)}
+                        placeholder="Optionnel"
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add another absence button */}
+              <button
+                onClick={addModalEntry}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
+              >
+                + Ajouter une absence
+              </button>
 
               {/* Actions */}
               <div className="flex items-center gap-3 pt-2">
                 <button
-                  onClick={handleSave}
-                  disabled={saving || !editCodeId}
+                  onClick={handleSaveAll}
+                  disabled={saving}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
-                  {editExistingId ? "Modifier" : "Ajouter"}
+                  Enregistrer
                 </button>
-                {editExistingId && (
-                  <button
-                    onClick={handleDelete}
-                    disabled={saving}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Supprimer
-                  </button>
-                )}
                 <button
                   onClick={closeEdit}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
