@@ -11,7 +11,7 @@ import {
 
 interface RecentAbsence {
   id: number;
-  date: string;
+  absence_date: string;
   employee_id: number;
   employees: { first_name: string; last_name: string } | null;
   absence_codes: { code: string; label: string } | null;
@@ -42,16 +42,16 @@ export default function DashboardPage() {
         supabase
           .from("year_calendar")
           .select("id", { count: "exact", head: true })
-          .eq("date", todayStr),
+          .eq("absence_date", todayStr),
         supabase
           .from("year_calendar")
           .select("id", { count: "exact", head: true })
-          .gte("date", monthStart)
-          .lte("date", monthEnd),
+          .gte("absence_date", monthStart)
+          .lte("absence_date", monthEnd),
         supabase
           .from("year_calendar")
-          .select("id, date, employee_id, employees(first_name, last_name), absence_codes(code, label)")
-          .order("date", { ascending: false })
+          .select("id, absence_date, employee_id, employees!employee_id(first_name, last_name), absence_codes!absence_code_id(code, label)")
+          .order("absence_date", { ascending: false })
           .limit(5),
       ]);
 
@@ -181,7 +181,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <span className="text-xs text-slate-500">
-                        {new Date(absence.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                        {new Date(absence.absence_date + "T00:00:00").toLocaleDateString("fr-FR", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",

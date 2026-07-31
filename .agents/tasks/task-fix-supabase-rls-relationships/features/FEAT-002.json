@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Update app code to use explicit FK hints in Supabase select queries and remove fallback logic",
+  "status": "in_progress",
+  "steps": [
+    "In src/app/employees/page.tsx: Change .select(\"*, sectors(name)\") to .select(\"*, sectors!sector_id(name)\"). Remove the entire fallback block (the if(error) block that does a second query without joins). Keep the error handling but simplify to just set the error state.",
+    "In src/app/employees/[id]/page.tsx: Change .select(\"*, sectors(name), locations(name)\") to .select(\"*, sectors!sector_id(name), locations!location_id(name)\"). Remove the fallback block that does a second query without joins.",
+    "In src/app/dashboard/page.tsx: Change the year_calendar select from .select(\"id, date, employee_id, employees(first_name, last_name), absence_codes(code, label)\") to .select(\"id, date, employee_id, employees!employee_id(first_name, last_name), absence_codes!absence_code_id(code, label)\"). Keep the field 'date' in the select (already there as 'date' which maps to absence_date column or date column - verify the schema: year_calendar has absence_date not date, so check if there is an alias or if the code uses wrong column name). The year_calendar table has 'absence_date' not 'date'. The dashboard code references 'date' - need to fix to 'absence_date' and update the interface and template accordingly.",
+    "Run npm run build to verify all TypeScript compiles correctly after changes"
+  ],
+  "acceptance_criteria": [
+    "src/app/employees/page.tsx uses sectors!sector_id in select and has no fallback query",
+    "src/app/employees/[id]/page.tsx uses sectors!sector_id and locations!location_id in select and has no fallback query",
+    "src/app/dashboard/page.tsx uses employees!employee_id and absence_codes!absence_code_id in select",
+    "The dashboard page correctly references absence_date (the actual column) instead of date",
+    "npm run build passes without errors"
+  ],
+  "verification": [
+    "Run npm run build and confirm exit code 0 with no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

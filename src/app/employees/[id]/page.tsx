@@ -106,23 +106,14 @@ export default function EmployeeDetailPage() {
     async function fetchEmployee() {
       const supabase = createClient();
 
-      // Essayer avec join
       const { data, error } = await supabase
         .from("employees")
-        .select("*, sectors(name), locations(name)")
+        .select("*, sectors!sector_id(name), locations!location_id(name)")
         .eq("id", params.id)
         .single();
 
       if (error) {
-        console.error("Fetch employee with join failed:", error);
-        // Fallback sans join
-        const { data: fallbackData } = await supabase
-          .from("employees")
-          .select("*")
-          .eq("id", params.id)
-          .single();
-
-        if (fallbackData) setEmployee(fallbackData);
+        console.error("Error fetching employee:", error);
       } else if (data) {
         setEmployee(data);
       }

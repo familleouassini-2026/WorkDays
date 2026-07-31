@@ -34,23 +34,12 @@ export default function EmployeesPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("employees")
-        .select("*, sectors(name)")
+        .select("*, sectors!sector_id(name)")
         .order("last_name", { ascending: true });
 
       if (error) {
-        console.error("Fetch with join failed, retrying without join:", error);
-        // Fallback sans join
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("employees")
-          .select("*")
-          .order("last_name", { ascending: true });
-
-        if (!fallbackError && fallbackData) {
-          setEmployees(fallbackData as unknown as Employee[]);
-        } else {
-          console.error("Fallback also failed:", fallbackError);
-          setFetchError("Impossible de charger les employés. Vérifiez la connexion.");
-        }
+        console.error("Error fetching employees:", error);
+        setFetchError("Impossible de charger les employes. Verifiez la connexion.");
       } else if (data) {
         setEmployees(data as unknown as Employee[]);
       }
