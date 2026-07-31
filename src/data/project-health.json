@@ -225,12 +225,12 @@
     },
     {
       "id": "reports-pdf",
-      "name": "Rapports PDF",
-      "status": "missing",
+      "name": "Rapports (CSV + PDF)",
+      "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#reports",
-      "code": [],
+      "code": ["src/app/reports/page.tsx"],
       "accessOrigin": "extracted/reports_all.md",
-      "notes": "NON IMPLÉMENTÉ. Absences par employé, politique absentéisme, absences par mois"
+      "notes": "3 rapports (absences/employe, absences/mois, apercu salarial) + export CSV + export PDF (window.print). Selecteur annee."
     },
     {
       "id": "auth",
@@ -244,23 +244,14 @@
     {
       "id": "settings-sectors",
       "name": "Gestion des secteurs",
-      "status": "missing",
+      "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#settings",
-      "code": [],
+      "code": ["src/app/settings/sectors/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_Secteurs.cls",
-      "notes": "NON IMPLÉMENTÉ. CRUD secteurs avec barèmes, RTT group, chef de secteur, indexations"
+      "notes": "CRUD secteurs (nom, code bareme, groupe RTT, IFIC) avec edit/delete. Lien depuis /settings."
     }
   ],
-  "gaps": [
-
-    {
-      "severity": "low",
-      "feature": "leasing",
-      "description": "Gestion des actifs pas implémentée",
-      "impact": "Suivi véhicules/téléphones fait ailleurs (Excel?)",
-      "accessQuery": "frm_Cmn_Leasing, frm_Emp_Employee_Leasing"
-    }
-  ],
+  "gaps": [],
   "recentChanges": [
     {
       "date": "2026-07-31",

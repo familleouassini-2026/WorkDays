@@ -113,6 +113,40 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function exportPDF() {
+    if (!reportData || !activeReport) return;
+    const reportTitle = reports.find((r) => r.id === activeReport)?.label || "Rapport";
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    let tableHtml = "";
+    if (activeReport === "absences-employee") {
+      tableHtml = `<table><thead><tr><th>Employe</th><th>Code</th><th>Description</th><th>Jours</th><th>Heures</th></tr></thead><tbody>`;
+      for (const row of reportData as AbsenceReport[]) {
+        const hours = row.total_minutes > 0 ? `${Math.floor(row.total_minutes / 60)}h${(row.total_minutes % 60).toString().padStart(2, "0")}` : "—";
+        tableHtml += `<tr><td>${row.employee_name}</td><td>${row.code}</td><td>${row.code_description}</td><td>${row.total_days || "—"}</td><td>${hours}</td></tr>`;
+      }
+      tableHtml += `</tbody></table>`;
+    } else if (activeReport === "absences-monthly") {
+      const mNames = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"];
+      tableHtml = `<table><thead><tr><th>Mois</th><th>Nombre d'absences</th></tr></thead><tbody>`;
+      for (const row of reportData as MonthlySummary[]) {
+        tableHtml += `<tr><td>${mNames[row.month - 1]}</td><td>${row.count}</td></tr>`;
+      }
+      tableHtml += `</tbody></table>`;
+    } else if (activeReport === "salary-overview") {
+      tableHtml = `<table><thead><tr><th>Employe</th><th>Secteur</th><th>Embauche</th><th>Anciennete eff.</th></tr></thead><tbody>`;
+      for (const row of reportData as any[]) {
+        tableHtml += `<tr><td>${row.last_name}, ${row.first_name}</td><td>${row.sectors?.name || "—"}</td><td>${row.date_of_hire || "—"}</td><td>${row.granted_seniority_date || row.date_of_hire || "—"}</td></tr>`;
+      }
+      tableHtml += `</tbody></table>`;
+    }
+
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>${reportTitle} - ${selectedYear}</title><style>body{font-family:system-ui,sans-serif;padding:40px;color:#1e293b}h1{font-size:20px;margin-bottom:4px}p{color:#64748b;font-size:13px;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f1f5f9;text-align:left;padding:8px 12px;border-bottom:2px solid #e2e8f0;font-weight:600;text-transform:uppercase;font-size:11px;color:#64748b}td{padding:8px 12px;border-bottom:1px solid #f1f5f9}tr:hover{background:#f8fafc}@media print{body{padding:20px}}</style></head><body><h1>${reportTitle}</h1><p>WorkDays — Annee ${selectedYear} — Genere le ${new Date().toLocaleDateString("fr-FR")}</p>${tableHtml}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 300);
+  }
+
   const monthNames = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"];
 
   return (
@@ -155,7 +189,8 @@ export default function ReportsPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-700">Resultat — {selectedYear}</h3>
-            <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><Download className="w-3.5 h-3.5" />Exporter CSV</button>
+            <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><Download className="w-3.5 h-3.5" />CSV</button>
+            <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Download className="w-3.5 h-3.5" />PDF</button>
           </div>
 
           {activeReport === "absences-employee" && (
