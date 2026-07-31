@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "fix",
   "description": "Update app code to use explicit FK hints in Supabase select queries and remove fallback logic",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "In src/app/employees/page.tsx: Change .select(\"*, sectors(name)\") to .select(\"*, sectors!sector_id(name)\"). Remove the entire fallback block (the if(error) block that does a second query without joins). Keep the error handling but simplify to just set the error state.",
     "In src/app/employees/[id]/page.tsx: Change .select(\"*, sectors(name), locations(name)\") to .select(\"*, sectors!sector_id(name), locations!location_id(name)\"). Remove the fallback block that does a second query without joins.",
@@ -20,5 +20,5 @@
     "Run npm run build and confirm exit code 0 with no TypeScript errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All changes applied successfully. bun run build passes with exit code 0. Used bun instead of npm as npm is not available in this environment. The FEAT-001.json was already modified in the working tree (not staged by this commit)."
 }
