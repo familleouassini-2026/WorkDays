@@ -249,10 +249,39 @@
       "code": ["src/app/settings/sectors/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_Secteurs.cls",
       "notes": "CRUD secteurs (nom, code bareme, groupe RTT, IFIC) avec edit/delete. Lien depuis /settings."
+    },
+    {
+      "id": "settings-holidays",
+      "name": "Gestion des jours feries",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#settings",
+      "code": ["src/app/settings/holidays/page.tsx"],
+      "accessOrigin": null,
+      "notes": "CRUD jours feries (filtre annee, table date/jour/nom, add/edit/delete modal, seed 2026-2027 Belgique). Lien depuis /settings."
+    },
+    {
+      "id": "absences-annual-calendar",
+      "name": "Calendrier annuel individuel",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#absences",
+      "code": ["src/app/absences/annual/page.tsx"],
+      "accessOrigin": "extracted/vba_modules/Form_frm_YearCalendar.cls",
+      "notes": "Vue 12 mois par employe. 3 sections toujours visibles (calendrier, detail, recap). Multi-absence par jour (bandes empilees max 3 + badge +N). Jours feries rouge, weekends gris. Modal warning jour ferie. Impression A4 couleur 2 pages."
     }
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-07-31",
+      "pr": "#27",
+      "description": "Calendrier annuel rewrite (3 sections toujours visibles, multi-absence, impression A4 2 pages, warning jour ferie) + CRUD jours feries (/settings/holidays) + migration 007 seed Belgique 2026-2027",
+      "filesChanged": [
+        "src/app/absences/annual/page.tsx",
+        "src/app/settings/holidays/page.tsx",
+        "src/app/settings/page.tsx",
+        "supabase/migrations/007-holidays-2026-2027.sql"
+      ]
+    },
     {
       "date": "2026-07-31",
       "pr": "#14",
