@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet, BookOpen, TrendingUp, Calculator } from "lucide-react";
+import { Wallet, BookOpen, TrendingUp, Calculator, AlertTriangle } from "lucide-react";
 
 const tabs = [
   {
@@ -21,6 +21,12 @@ const tabs = [
     href: "/remuneration/simulateur",
     icon: Calculator,
     description: "Calculer le salaire indexe d'un employe",
+  },
+  {
+    label: "Alertes augmentation",
+    href: "/remuneration/alertes",
+    icon: AlertTriangle,
+    description: "Employes atteignant un nouveau palier d'anciennete",
   },
 ];
 
@@ -49,7 +55,7 @@ export default function RemunerationPage() {
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {tabs.map((tab) => (
           <Link
             key={tab.href}
