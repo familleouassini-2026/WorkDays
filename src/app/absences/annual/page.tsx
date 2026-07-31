@@ -526,13 +526,11 @@ export default function AnnualCalendarPage() {
 </head>
 <body>
   <div class="page">
-    <div class="title">Calendrier annuel ${selectedYear}</div>
-    <div class="subtitle">${employeeName}</div>
     <div class="calendar-grid">${calendarHTML}</div>
     <div class="legend">${legendHTML}</div>
   </div>
   <div class="page page-break">
-    <div class="detail-title">Detail des absences ${selectedYear} - ${employeeName}</div>
+    <div class="detail-title">Detail des absences ${selectedYear}</div>
     <table class="detail-table">
       <thead><tr><th>Date</th><th>Code</th><th>Description</th><th>Duree</th><th>Raison</th></tr></thead>
       <tbody>${detailHTML}</tbody>
