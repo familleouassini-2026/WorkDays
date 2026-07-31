@@ -1,4 +1,5 @@
 import { Settings } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   return (
@@ -13,10 +14,10 @@ export default function SettingsPage() {
           <h3 className="font-semibold text-slate-900">Organisation</h3>
           <p className="text-sm text-slate-500 mt-1">Nom, adresse, logo, coordonnées</p>
         </div>
-        <div className="card p-6">
+        <Link href="/settings/sectors" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <h3 className="font-semibold text-slate-900">Secteurs & Groupes RTT</h3>
           <p className="text-sm text-slate-500 mt-1">Gérer les secteurs et leurs groupes RTT</p>
-        </div>
+        </Link>
         <div className="card p-6">
           <h3 className="font-semibold text-slate-900">Codes d&apos;absence</h3>
           <p className="text-sm text-slate-500 mt-1">Types d&apos;absence, couleurs, unités de temps</p>

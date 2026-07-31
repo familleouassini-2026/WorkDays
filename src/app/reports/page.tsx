@@ -1,20 +1,240 @@
-import { BarChart3 } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { BarChart3, Download, Calendar, Users, TrendingUp, FileText } from "lucide-react";
+
+interface AbsenceReport { employee_name: string; code: string; code_description: string; total_days: number; total_minutes: number; }
+interface MonthlySummary { month: number; count: number; }
 
 export default function ReportsPage() {
+  const [activeReport, setActiveReport] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  const reports = [
+    { id: "absences-employee", label: "Absences par employe", description: "Total absences par type et par employe pour l'annee", icon: Users, color: "text-blue-600 bg-blue-50" },
+    { id: "absences-monthly", label: "Absences par mois", description: "Nombre d'absences par mois (tous employes)", icon: Calendar, color: "text-emerald-600 bg-emerald-50" },
+    { id: "salary-overview", label: "Apercu salarial", description: "Salaire de base et anciennete par employe", icon: TrendingUp, color: "text-purple-600 bg-purple-50" },
+  ];
+
+  async function generateReport(reportId: string) {
+    setActiveReport(reportId);
+    setLoading(true);
+    const supabase = createClient();
+
+    if (reportId === "absences-employee") {
+      const { data } = await supabase
+        .from("year_calendar")
+        .select("employee_id, absence_code_id, absence_minutes, absence_days, employees(first_name, last_name), absence_codes(code, description)")
+        .eq("year", selectedYear);
+
+      if (data) {
+        const grouped: Record<string, AbsenceReport> = {};
+        for (const row of data as any[]) {
+          const key = `${row.employee_id}-${row.absence_code_id}`;
+          if (!grouped[key]) {
+            grouped[key] = {
+              employee_name: row.employees ? `${row.employees.last_name}, ${row.employees.first_name}` : "?",
+              code: row.absence_codes?.code || "?",
+              code_description: row.absence_codes?.description || "",
+              total_days: 0,
+              total_minutes: 0,
+            };
+          }
+          grouped[key].total_days += row.absence_days || 0;
+          grouped[key].total_minutes += row.absence_minutes || 0;
+        }
+        setReportData(Object.values(grouped).sort((a, b) => a.employee_name.localeCompare(b.employee_name)));
+      }
+    } else if (reportId === "absences-monthly") {
+      const { data } = await supabase
+        .from("year_calendar")
+        .select("absence_date")
+        .eq("year", selectedYear);
+
+      if (data) {
+        const months: Record<number, number> = {};
+        for (const row of data) {
+          const m = new Date(row.absence_date + "T00:00:00").getMonth() + 1;
+          months[m] = (months[m] || 0) + 1;
+        }
+        const summary: MonthlySummary[] = Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          count: months[i + 1] || 0,
+        }));
+        setReportData(summary);
+      }
+    } else if (reportId === "salary-overview") {
+      const { data } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, date_of_hire, granted_seniority_date, sector_id, sectors(name)")
+        .eq("is_inactive", false)
+        .order("last_name");
+
+      setReportData(data || []);
+    }
+
+    setLoading(false);
+  }
+
+  function exportCSV() {
+    if (!reportData || !activeReport) return;
+    let csv = "";
+
+    if (activeReport === "absences-employee") {
+      csv = "Employe,Code,Description,Jours,Minutes\n";
+      for (const row of reportData as AbsenceReport[]) {
+        csv += `"${row.employee_name}","${row.code}","${row.code_description}",${row.total_days},${row.total_minutes}\n`;
+      }
+    } else if (activeReport === "absences-monthly") {
+      const monthNames = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
+      csv = "Mois,Absences\n";
+      for (const row of reportData as MonthlySummary[]) {
+        csv += `${monthNames[row.month - 1]},${row.count}\n`;
+      }
+    } else if (activeReport === "salary-overview") {
+      csv = "Employe,Secteur,Date embauche,Anciennete effective\n";
+      for (const row of reportData as any[]) {
+        csv += `"${row.last_name}, ${row.first_name}","${row.sectors?.name || ""}","${row.date_of_hire || ""}","${row.granted_seniority_date || row.date_of_hire || ""}"\n`;
+      }
+    }
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rapport-${activeReport}-${selectedYear}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const monthNames = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Rapports</h1>
-        <p className="text-slate-500 mt-1">Rapports d&apos;absences, de salaires et statistiques</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Rapports</h1>
+          <p className="text-slate-500 mt-1">Generez et exportez des rapports RH</p>
+        </div>
+        <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+          {years.map((y) => (<option key={y} value={y}>{y}</option>))}
+        </select>
       </div>
 
-      <div className="card p-12 text-center">
-        <BarChart3 className="w-12 h-12 text-slate-300 mx-auto" />
-        <h3 className="text-lg font-medium text-slate-700 mt-4">Centre de rapports</h3>
-        <p className="text-slate-500 mt-2 max-w-md mx-auto">
-          Générez des rapports d&apos;absences par employé, des statistiques trimestrielles et des projections salariales. Export en PDF et Excel.
-        </p>
+      {/* Report selection */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {reports.map((report) => {
+          const Icon = report.icon;
+          const isActive = activeReport === report.id;
+          return (
+            <button key={report.id} onClick={() => generateReport(report.id)} className={`text-left rounded-lg border p-5 transition-all ${isActive ? "border-blue-400 ring-2 ring-blue-100 bg-blue-50/30" : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${report.color}`}><Icon className="w-5 h-5" /></div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{report.label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{report.description}</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Report output */}
+      {loading && (
+        <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" /><p className="text-slate-500 mt-4">Generation...</p></div>
+      )}
+
+      {!loading && reportData && activeReport && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-700">Resultat — {selectedYear}</h3>
+            <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><Download className="w-3.5 h-3.5" />Exporter CSV</button>
+          </div>
+
+          {activeReport === "absences-employee" && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Employe</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Code</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Jours</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Heures</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(reportData as AbsenceReport[]).map((row, i) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-sm text-slate-900 font-medium">{row.employee_name}</td>
+                      <td className="px-4 py-2 text-sm text-slate-600"><span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">{row.code}</span> {row.code_description}</td>
+                      <td className="px-4 py-2 text-sm text-slate-900 text-right">{row.total_days > 0 ? row.total_days : "—"}</td>
+                      <td className="px-4 py-2 text-sm text-slate-900 text-right">{row.total_minutes > 0 ? `${Math.floor(row.total_minutes / 60)}h${(row.total_minutes % 60).toString().padStart(2, "0")}` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {(reportData as AbsenceReport[]).length === 0 && <p className="text-center py-6 text-sm text-slate-500">Aucune absence enregistree pour {selectedYear}.</p>}
+            </div>
+          )}
+
+          {activeReport === "absences-monthly" && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
+              <div className="grid grid-cols-12 gap-2 items-end h-48">
+                {(reportData as MonthlySummary[]).map((row) => {
+                  const max = Math.max(...(reportData as MonthlySummary[]).map((r) => r.count), 1);
+                  const height = max > 0 ? (row.count / max) * 100 : 0;
+                  return (
+                    <div key={row.month} className="flex flex-col items-center gap-1">
+                      <span className="text-xs font-bold text-slate-700">{row.count}</span>
+                      <div className="w-full bg-blue-500 rounded-t" style={{ height: `${height}%`, minHeight: row.count > 0 ? "4px" : "0" }} />
+                      <span className="text-xs text-slate-500">{monthNames[row.month - 1].slice(0, 3)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeReport === "salary-overview" && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Employe</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Secteur</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Embauche</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Anciennete eff.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(reportData as any[]).map((emp) => (
+                    <tr key={emp.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-sm text-slate-900 font-medium">{emp.last_name}, {emp.first_name}</td>
+                      <td className="px-4 py-2 text-sm text-slate-600">{emp.sectors?.name || "—"}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500 text-center">{emp.date_of_hire ? new Date(emp.date_of_hire + "T00:00:00").toLocaleDateString("fr-FR") : "—"}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500 text-center">{(emp.granted_seniority_date || emp.date_of_hire) ? new Date((emp.granted_seniority_date || emp.date_of_hire) + "T00:00:00").toLocaleDateString("fr-FR") : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!activeReport && !loading && (
+        <div className="bg-white rounded-lg border p-12 text-center">
+          <FileText className="w-12 h-12 text-slate-300 mx-auto" />
+          <p className="text-slate-500 mt-4">Selectionnez un rapport ci-dessus pour le generer.</p>
+        </div>
+      )}
     </div>
   );
 }
