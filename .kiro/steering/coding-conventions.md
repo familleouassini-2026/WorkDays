@@ -69,3 +69,11 @@ import { createClient } from '@/lib/supabase/server'
 - Commit messages: `type: description` (feat, fix, chore, docs, refactor)
 - Branch naming: `feature/description`, `fix/description`, `docs/description`
 - Keep commits focused and atomic
+
+## Workflow de traçabilité
+
+À chaque PR livrée, mettre à jour `src/data/project-health.json` :
+- Mettre à jour le statut des features impactées (missing → partial → implemented)
+- Ajouter les notes de ce qui a été fait
+- Mettre à jour les gaps si un gap est résolu ou réduit
+- Mettre à jour `lastUpdated`
