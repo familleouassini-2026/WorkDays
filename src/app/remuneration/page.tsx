@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet, BookOpen, TrendingUp, Calculator } from "lucide-react";
+import { BookOpen, TrendingUp, Calculator, AlertTriangle } from "lucide-react";
 
 const tabs = [
   {
@@ -21,6 +21,12 @@ const tabs = [
     href: "/remuneration/simulateur",
     icon: Calculator,
     description: "Calculer le salaire indexe d'un employe",
+  },
+  {
+    label: "Alertes augmentation",
+    href: "/remuneration/alertes",
+    icon: AlertTriangle,
+    description: "Employes dont l'anciennete atteint un nouveau palier cette annee",
   },
 ];
 

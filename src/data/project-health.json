@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-07-31",
+  "lastUpdated": "2025-07-31",
   "architecture": {
     "steering": [
       {
@@ -172,11 +172,11 @@
     {
       "id": "salary-alerts",
       "name": "Alertes augmentation salaire",
-      "status": "missing",
+      "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#salary",
-      "code": [],
+      "code": ["src/app/remuneration/alertes/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_SectorialSalaryChanging.cls",
-      "notes": "NON IMPLÉMENTÉ. Détecte les employés dont l'ancienneté change de palier cette année"
+      "notes": "Detection des employes dont l'anciennete atteint un nouveau palier cette annee. Calcul complet avec indexations org/secteur/perso."
     },
     {
       "id": "absenteeism-policy",
@@ -258,13 +258,6 @@
       "description": "Le calcul RTT est la fonctionnalité la plus complexe du prototype Access et n'est pas du tout implémenté",
       "impact": "Les employés ne voient pas leur droit RTT. Le HR doit calculer manuellement.",
       "accessQuery": "Qry_RTTCalc — prorata par anniversaire, seuil d'âge par secteur, ajusté au % temps de travail"
-    },
-    {
-      "severity": "high",
-      "feature": "salary-alerts",
-      "description": "Pas d'alerte quand un employé atteint un nouveau palier d'ancienneté (= augmentation à notifier)",
-      "impact": "Risque de manquer une augmentation légale obligatoire",
-      "accessQuery": "Contacts Extended → SectorialChanging <> 0 + DateOfSeniorityAlert"
     },
     {
       "severity": "medium",
