@@ -1,47 +1,42 @@
-# WorkDays - Contexte Projet
+# WorkDays - Project Context
 
-## Description
-WorkDays est une application web RH pour la Maison Médicale de Forest ASBL (Belgique).
-Convertie depuis un prototype MS Access vers une app web moderne.
+## What is WorkDays?
 
-## Stack technique
-- **Frontend** : Next.js 14 (App Router) + Tailwind CSS
-- **Backend/DB** : Supabase (PostgreSQL hébergé)
-- **Déploiement** : Vercel (auto-deploy depuis GitHub)
-- **Langue UI** : Français (contexte RH belge francophone)
+WorkDays is a web-based HR management application for the **Maison Medicale de Forest ASBL** (Belgium). It manages employees, absences/leave, timesheets, salary scales, organization structure, leasing assets, and governance (meetings/decisions/requests).
 
-## Supabase
-- URL : https://jqfaclixnraugzmcrylp.supabase.co
-- 26 tables déployées, RLS désactivé temporairement
-- Données réelles : 33 employés, 20 secteurs, 11 codes absence, horaires, barèmes
+## Origin
 
-## Modules implémentés
-- Dashboard (KPIs placeholder)
-- Personnel : liste, ajout (/employees/new), détail avec onglets (/employees/[id]), suppression
-- Absences : liste filtrée par année/type/nom, groupée par mois, codes couleur
-- Horaires : tableau des timesheets actifs avec heures/jour et % temps plein
-- Pages placeholder : Rémunération, Actifs, Gouvernance, Rapports, Paramètres
+The application is being rebuilt from an MS Access prototype (`WorkDays_v0.001 - 20241101.accdb`) into a modern web application. The Access prototype served as requirements discovery - we extract the intent and business rules, then redesign from scratch using modern patterns.
 
-## Modules à développer (par priorité)
-1. Édition employé (/employees/[id]/edit)
-2. Absences : calendrier interactif, réservation (wizard), soldes de congés
-3. Rémunération : salaire indexé = barème × Π(indexations) + augmentations personnelles
-4. RTT : calcul basé sur âge, prorata anniversaire, ajusté au % temps de travail
-5. Auth Supabase (login, rôles : ADMIN, HR_MANAGER, SECTOR_MANAGER, EMPLOYEE)
-6. Gouvernance : CRUD réunions/décisions/demandes
-7. Rapports PDF
-8. Dashboard dynamique
+## Organization Context
 
-## Règles métier belges
-- Comité paritaire 330.01.54 (secteur soins de santé)
-- RTT basé sur l'âge (pas l'ancienneté), proraté par date d'anniversaire
-- Salaire = barème(secteur, ancienneté) × produit(indexations org) × produit(indexations secteur) + somme(augmentations personnelles)
-- Congés par ancienneté : ≤1an=1sem, 1-7=2sem, 7-14=3sem, 14-24=4sem, 25+=5sem (configurable via vacation_policies)
-- Ancienneté effective = granted_seniority_date ?? date_of_hire
-- Temps en minutes (pas en dates Access style 1899-12-30)
+- Belgian healthcare organization (comite paritaire 330.01.54, secteur soins de sante)
+- ~33 active employees across 20 sectors
+- 11 absence codes with specific time types
+- UI language: French (Belgian HR context)
+- Regulatory: Belgian labor law applies (RTT, seniority, vacation entitlement)
 
-## Conventions de code
-- Code en anglais, UI en français
-- Composants "use client" pour les pages interactives
-- Supabase client via @/lib/supabase/client (browser) et @/lib/supabase/server (server)
-- Tailwind pour tout le styling (pas de CSS modules)
+## Current State (Deployed Modules)
+
+- **Dashboard**: KPI placeholders
+- **Personnel**: list, add (`/employees/new`), detail with tabs (`/employees/[id]`), delete
+- **Absences**: list filtered by year/type/name, grouped by month, color-coded
+- **Horaires**: active timesheets table with hours/day and % full-time
+- **Placeholder pages**: Remuneration, Actifs, Gouvernance, Rapports, Parametres
+
+## Supabase Instance
+
+- URL: `https://jqfaclixnraugzmcrylp.supabase.co`
+- 26 tables deployed, RLS temporarily disabled
+- Real data: 33 employees, 20 sectors, 11 absence codes, schedules, salary scales
+
+## Modules to Develop (by priority)
+
+1. Employee edit (`/employees/[id]/edit`)
+2. Absences: interactive calendar, booking wizard, leave balances
+3. Remuneration: indexed salary display and calculation
+4. RTT: age-based calculation with prorated entitlement
+5. Supabase Auth (login, roles)
+6. Governance: meetings/decisions/requests CRUD
+7. PDF reports
+8. Dynamic dashboard with KPIs
