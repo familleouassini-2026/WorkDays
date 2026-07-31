@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Clock } from "lucide-react";
+import { Clock, Calculator } from "lucide-react";
+import Link from "next/link";
 
 interface TimesheetRow {
   id: number;
@@ -55,11 +56,20 @@ export default function SchedulesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Horaires</h1>
-        <p className="text-slate-500 mt-1">
-          Horaires hebdomadaires des employés ({timesheets.length} horaire{timesheets.length > 1 ? "s" : ""} actif{timesheets.length > 1 ? "s" : ""})
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Horaires</h1>
+          <p className="text-slate-500 mt-1">
+            Horaires hebdomadaires des employés ({timesheets.length} horaire{timesheets.length > 1 ? "s" : ""} actif{timesheets.length > 1 ? "s" : ""})
+          </p>
+        </div>
+        <Link
+          href="/schedules/rtt"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Calculator className="w-4 h-4" />
+          Calcul RTT
+        </Link>
       </div>
 
       {timesheets.length === 0 ? (

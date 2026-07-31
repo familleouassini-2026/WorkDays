@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-07-31",
+  "lastUpdated": "2025-01-20",
   "architecture": {
     "steering": [
       {
@@ -163,11 +163,11 @@
     {
       "id": "rtt-calculation",
       "name": "Calcul RTT",
-      "status": "missing",
+      "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#rtt",
-      "code": [],
+      "code": ["src/app/schedules/rtt/page.tsx"],
       "accessOrigin": "extracted/queries/Qry_RTTCalc.sql",
-      "notes": "NON IMPLÉMENTÉ. Logique : âge-based, prorata par anniversaire, ajusté au % temps de travail"
+      "notes": "Calcul complet : age-based, prorata anniversaire, ajuste % temps travail."
     },
     {
       "id": "salary-alerts",
@@ -252,13 +252,6 @@
     }
   ],
   "gaps": [
-    {
-      "severity": "high",
-      "feature": "rtt-calculation",
-      "description": "Le calcul RTT est la fonctionnalité la plus complexe du prototype Access et n'est pas du tout implémenté",
-      "impact": "Les employés ne voient pas leur droit RTT. Le HR doit calculer manuellement.",
-      "accessQuery": "Qry_RTTCalc — prorata par anniversaire, seuil d'âge par secteur, ajusté au % temps de travail"
-    },
     {
       "severity": "high",
       "feature": "salary-alerts",
