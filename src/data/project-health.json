@@ -208,11 +208,11 @@
     {
       "id": "governance",
       "name": "Gouvernance (réunions/décisions/demandes)",
-      "status": "missing",
+      "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#governance",
-      "code": [],
+      "code": ["src/app/governance/page.tsx", "src/app/governance/meetings/page.tsx", "src/app/governance/decisions/page.tsx", "src/app/governance/requests/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Log_Requests.cls",
-      "notes": "NON IMPLÉMENTÉ. CRUD meetings + decisions + requests avec workflow"
+      "notes": "Dashboard + 3 sous-modules : Réunions (CRUD + participants + agenda HTML), Décisions (CRUD + décideurs + liens réunion/demande), Demandes (CRUD + workflow statut + actions inline accept/reject/complete + filtre + deadline overdue)."
     },
     {
       "id": "leasing",
@@ -252,13 +252,7 @@
     }
   ],
   "gaps": [
-    {
-      "severity": "low",
-      "feature": "governance",
-      "description": "Module gouvernance pas implémenté (réunions, décisions, demandes)",
-      "impact": "Pas critique pour le quotidien RH, mais important pour la traçabilité des décisions",
-      "accessQuery": "frm_Log_Requests, frm_Log_Decision"
-    },
+
     {
       "severity": "low",
       "feature": "leasing",
@@ -268,6 +262,18 @@
     }
   ],
   "recentChanges": [
+    {
+      "date": "2026-07-31",
+      "pr": "#14",
+      "description": "Module Gouvernance complet : dashboard + Réunions CRUD (agenda, participants) + Décisions CRUD (liens réunion/demande, décideurs) + Demandes CRUD (workflow statut, actions inline, deadline overdue) + RLS migration",
+      "filesChanged": [
+        "src/app/governance/page.tsx",
+        "src/app/governance/meetings/page.tsx",
+        "src/app/governance/decisions/page.tsx",
+        "src/app/governance/requests/page.tsx",
+        "supabase/migrations/004-governance-rls-policies.sql"
+      ]
+    },
     {
       "date": "2026-07-31",
       "pr": "#13",
