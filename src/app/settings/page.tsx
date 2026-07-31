@@ -30,10 +30,10 @@ export default function SettingsPage() {
           <h3 className="font-semibold text-slate-900">Utilisateurs & Rôles</h3>
           <p className="text-sm text-slate-500 mt-1">Gérer les accès et permissions</p>
         </div>
-        <div className="card p-6">
+        <Link href="/settings/holidays" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <h3 className="font-semibold text-slate-900">Jours fériés</h3>
           <p className="text-sm text-slate-500 mt-1">Configurer les jours fériés par année</p>
-        </div>
+        </Link>
       </div>
     </div>
   );

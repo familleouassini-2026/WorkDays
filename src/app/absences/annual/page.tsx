@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Calendar, X, Save, Trash2, Printer } from "lucide-react";
+import { Calendar, X, Save, Trash2, Printer, AlertTriangle } from "lucide-react";
 
 // ============================================================
 // TYPES
@@ -47,6 +47,7 @@ interface Holiday {
   name: string;
   year: number;
 }
+
 
 interface VacationRight {
   id: number;
@@ -99,10 +100,12 @@ function formatDateStr(year: number, month: number, day: number): string {
 
 function minutesToHM(m: number): string {
   if (!m) return "0h00";
-  const h = Math.floor(m / 60);
-  const min = m % 60;
-  return `${h}h${min.toString().padStart(2, "0")}`;
+  const h = Math.floor(Math.abs(m) / 60);
+  const min = Math.abs(m) % 60;
+  const sign = m < 0 ? "-" : "";
+  return `${sign}${h}h${min.toString().padStart(2, "0")}`;
 }
+
 
 // ============================================================
 // MAIN COMPONENT
@@ -130,6 +133,8 @@ export default function AnnualCalendarPage() {
   const [editDate, setEditDate] = useState<string | null>(null);
   const [modalEntries, setModalEntries] = useState<ModalEntry[]>([]);
   const [saving, setSaving] = useState(false);
+  const [holidayWarning, setHolidayWarning] = useState<string | null>(null);
+
 
   // Load sectors and absence codes on mount
   useEffect(() => {
@@ -167,6 +172,7 @@ export default function AnnualCalendarPage() {
     }
     loadEmployees();
   }, [selectedSectorId]);
+
 
   // Load calendar data when employee and year are selected
   const loadCalendarData = useCallback(async () => {
@@ -220,8 +226,15 @@ export default function AnnualCalendarPage() {
   const codeMap = new Map<number, AbsenceCode>();
   absenceCodes.forEach((c) => codeMap.set(c.id, c));
 
-  // Open edit panel for a date
+
+  // Open edit panel for a date — with holiday warning
   function openEdit(dateStr: string) {
+    const holName = holidayMap.get(dateStr);
+    if (holName) {
+      setHolidayWarning(holName);
+    } else {
+      setHolidayWarning(null);
+    }
     setEditDate(dateStr);
     const entries = absenceMap.get(dateStr);
     if (entries && entries.length > 0) {
@@ -250,6 +263,7 @@ export default function AnnualCalendarPage() {
   function closeEdit() {
     setEditDate(null);
     setModalEntries([]);
+    setHolidayWarning(null);
   }
 
   function addModalEntry() {
@@ -269,10 +283,8 @@ export default function AnnualCalendarPage() {
     setModalEntries((prev) => {
       const entry = prev[index];
       if (entry.id) {
-        // Mark existing DB entry for deletion
         return prev.map((e, i) => (i === index ? { ...e, _deleted: true } : e));
       }
-      // Remove new (unsaved) entry from list
       return prev.filter((_, i) => i !== index);
     });
   }
@@ -283,6 +295,7 @@ export default function AnnualCalendarPage() {
     );
   }
 
+
   async function handleSaveAll() {
     if (!editDate || !selectedEmployeeId) return;
     setSaving(true);
@@ -292,12 +305,9 @@ export default function AnnualCalendarPage() {
     const toUpdate = modalEntries.filter((e) => !e._deleted && e.id && e.absence_code_id);
     const toInsert = modalEntries.filter((e) => !e._deleted && !e.id && e.absence_code_id);
 
-    // Delete removed entries
     for (const entry of toDelete) {
       await supabase.from("year_calendar").delete().eq("id", entry.id!);
     }
-
-    // Update existing entries
     for (const entry of toUpdate) {
       await supabase
         .from("year_calendar")
@@ -309,8 +319,6 @@ export default function AnnualCalendarPage() {
         })
         .eq("id", entry.id!);
     }
-
-    // Insert new entries
     for (const entry of toInsert) {
       await supabase.from("year_calendar").insert({
         year: selectedYear,
@@ -328,22 +336,20 @@ export default function AnnualCalendarPage() {
     loadCalendarData();
   }
 
+
   // Build summary data
   const summaryRows: SummaryRow[] = absenceCodes
     .map((code) => {
       const right = vacationRights.find((r) => r.absence_code_id === code.id);
       const entries = calendarEntries.filter((e) => e.absence_code_id === code.id);
-
       const daysTaken = entries.reduce((sum, e) => sum + (e.absence_days || 0), 0);
       const minutesTaken = entries.reduce((sum, e) => sum + (e.absence_minutes || 0), 0);
-
       const daysEntitled = right ? right.days : 0;
       const hoursEntitled = right ? right.hours * 60 + right.minutes : 0;
 
       if (daysEntitled === 0 && hoursEntitled === 0 && daysTaken === 0 && minutesTaken === 0) {
         return null;
       }
-
       return {
         codeId: code.id,
         code: code.code,
@@ -365,14 +371,12 @@ export default function AnnualCalendarPage() {
   ];
   const DAY_HEADERS = ["L", "M", "M", "J", "V", "S", "D"];
 
+
   // Build detail rows grouped by month
   const detailByMonth: { month: number; entries: { date: string; code: string; description: string; duree: string; reason: string }[] }[] = [];
   for (let m = 0; m < 12; m++) {
     const monthEntries = calendarEntries
-      .filter((e) => {
-        const d = new Date(e.absence_date);
-        return d.getMonth() === m;
-      })
+      .filter((e) => new Date(e.absence_date).getMonth() === m)
       .sort((a, b) => a.absence_date.localeCompare(b.absence_date))
       .map((e) => {
         const code = codeMap.get(e.absence_code_id);
@@ -396,12 +400,13 @@ export default function AnnualCalendarPage() {
   const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId);
   const employeeName = selectedEmployee ? `${selectedEmployee.last_name}, ${selectedEmployee.first_name}` : "";
 
-  // Print function
+
+  // Print function — Page 1: Calendar, Page 2: Detail + Recap
   function handlePrint() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    // Build calendar HTML for page 1
+    // Build calendar HTML
     let calendarHTML = "";
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
       const daysInMonth = getDaysInMonth(selectedYear, monthIdx);
@@ -413,73 +418,23 @@ export default function AnnualCalendarPage() {
       for (let d = 1; d <= daysInMonth; d++) cells.push(d);
       while (cells.length % 7 !== 0) cells.push(null);
 
-      let cellsHTML = "";
-      cells.forEach((day) => {
-        if (day === null) {
-          cellsHTML += '<td class="cell empty"></td>';
-          return;
-        }
-        const dateStr = formatDateStr(selectedYear, monthIdx, day);
-        const weekend = isWeekend(selectedYear, monthIdx, day);
-        const isHol = holidayMap.has(dateStr);
-        const dayAbs = absenceMap.get(dateStr) || [];
-
-        let bg = "";
-        let color = "";
-
-        if (isHol && dayAbs.length === 0) {
-          bg = "#fecaca"; color = "#991b1b";
-        } else if (weekend && dayAbs.length === 0) {
-          bg = "#e2e8f0"; color = "#64748b";
-        } else if (dayAbs.length === 1) {
-          const code = codeMap.get(dayAbs[0].absence_code_id);
-          if (code) { bg = code.color_hex || "#94a3b8"; color = code.text_color_hex || "#ffffff"; }
-        } else if (dayAbs.length > 1) {
-          // Stacked - use first color as bg
-          const code = codeMap.get(dayAbs[0].absence_code_id);
-          bg = code?.color_hex || "#94a3b8"; color = "#ffffff";
-        }
-
-        const style = bg ? `background:${bg};color:${color};` : "";
-        const extra = dayAbs.length > 3 ? `<span class="extra">+${dayAbs.length - 3}</span>` : "";
-        cellsHTML += `<td class="cell" style="${style}">${day}${extra}</td>`;
-      });
-
-      // Build rows from cells (7 per row)
       let rowsHTML = "";
-      for (let i = 0; i < cells.length; i += 7) {
-        rowsHTML += `<tr>${cellsHTML.split("</td>").slice(i, i + 7).map(c => c + "</td>").join("")}</tr>`;
-      }
-
-      // Simpler approach: build rows directly
-      rowsHTML = "";
       for (let i = 0; i < cells.length; i += 7) {
         let rowCells = "";
         for (let j = i; j < i + 7; j++) {
           const day = cells[j];
-          if (day === null) {
-            rowCells += '<td class="cell empty"></td>';
-            continue;
-          }
+          if (day === null) { rowCells += '<td class="cell empty"></td>'; continue; }
           const dateStr = formatDateStr(selectedYear, monthIdx, day);
           const weekend = isWeekend(selectedYear, monthIdx, day);
           const isHol = holidayMap.has(dateStr);
           const dayAbs = absenceMap.get(dateStr) || [];
 
-          let bg = "";
-          let clr = "";
-
-          if (isHol && dayAbs.length === 0) {
-            bg = "#fecaca"; clr = "#991b1b";
-          } else if (weekend && dayAbs.length === 0) {
-            bg = "#e2e8f0"; clr = "#64748b";
-          } else if (dayAbs.length === 1) {
+          let bg = ""; let clr = "";
+          if (dayAbs.length >= 1) {
             const code = codeMap.get(dayAbs[0].absence_code_id);
             if (code) { bg = code.color_hex || "#94a3b8"; clr = code.text_color_hex || "#ffffff"; }
-          } else if (dayAbs.length > 1) {
-            const code = codeMap.get(dayAbs[0].absence_code_id);
-            bg = code?.color_hex || "#94a3b8"; clr = "#ffffff";
-          }
+          } else if (isHol) { bg = "#fecaca"; clr = "#991b1b"; }
+          else if (weekend) { bg = "#e2e8f0"; clr = "#64748b"; }
 
           const style = bg ? `background:${bg};color:${clr};` : "";
           const extra = dayAbs.length > 3 ? `<span class="extra">+${dayAbs.length - 3}</span>` : "";
@@ -495,25 +450,47 @@ export default function AnnualCalendarPage() {
             <thead><tr><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th><th>D</th></tr></thead>
             <tbody>${rowsHTML}</tbody>
           </table>
-        </div>
-      `;
+        </div>`;
     }
 
-    // Build legend HTML
+
+    // Legend
     let legendHTML = absenceCodes.map((c) =>
       `<span class="legend-item"><span class="legend-color" style="background:${c.color_hex || "#94a3b8"}"></span>${c.code} - ${c.description}</span>`
     ).join("");
     legendHTML += `<span class="legend-item"><span class="legend-color" style="background:#fecaca"></span>Jour ferie</span>`;
     legendHTML += `<span class="legend-item"><span class="legend-color" style="background:#e2e8f0"></span>Weekend</span>`;
 
-    // Build detail table HTML for page 2
+    // Detail table
     let detailHTML = "";
-    detailByMonth.forEach((group) => {
-      detailHTML += `<tr class="month-header-row"><td colspan="5">${MONTH_NAMES[group.month]}</td></tr>`;
-      group.entries.forEach((entry) => {
-        detailHTML += `<tr><td>${entry.date}</td><td>${entry.code}</td><td>${entry.description}</td><td>${entry.duree}</td><td>${entry.reason}</td></tr>`;
+    if (detailByMonth.length > 0) {
+      detailByMonth.forEach((group) => {
+        detailHTML += `<tr class="month-header-row"><td colspan="5">${MONTH_NAMES[group.month]}</td></tr>`;
+        group.entries.forEach((entry) => {
+          detailHTML += `<tr><td>${entry.date}</td><td>${entry.code}</td><td>${entry.description}</td><td>${entry.duree}</td><td>${entry.reason}</td></tr>`;
+        });
       });
-    });
+    } else {
+      detailHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b;">Aucune absence enregistree</td></tr>`;
+    }
+
+    // Summary table
+    let summaryHTML = "";
+    if (summaryRows.length > 0) {
+      summaryRows.forEach((row) => {
+        summaryHTML += `<tr>
+          <td>${selectedYear}</td><td>${row.code} - ${row.description}</td>
+          <td style="text-align:center">${row.timeUnit === "HOURS_MINUTES" ? "H/M" : "Jours"}</td>
+          <td style="text-align:right">${row.daysEntitled}</td><td style="text-align:right">${row.daysTaken}</td>
+          <td style="text-align:right;color:${row.daysDiff < 0 ? "#dc2626" : "#16a34a"}">${row.daysDiff}</td>
+          <td style="text-align:right">${minutesToHM(row.hoursEntitled)}</td><td style="text-align:right">${minutesToHM(row.hoursTaken)}</td>
+          <td style="text-align:right;color:${row.hoursDiff < 0 ? "#dc2626" : "#16a34a"}">${minutesToHM(row.hoursDiff)}</td>
+        </tr>`;
+      });
+    } else {
+      summaryHTML = `<tr><td colspan="9" style="text-align:center;padding:20px;color:#64748b;">Aucun droit configure</td></tr>`;
+    }
+
 
     const htmlContent = `<!DOCTYPE html>
 <html>
@@ -522,11 +499,9 @@ export default function AnnualCalendarPage() {
 <title>Calendrier annuel ${selectedYear} - ${employeeName}</title>
 <style>
   @page { size: A4 landscape; margin: 10mm; }
-  @media print {
-    .page-break { page-break-before: always; }
-  }
+  @media print { .page-break { page-break-before: always; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 9px; color: #1e293b; }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page { padding: 5mm; }
   .title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
   .subtitle { font-size: 10px; color: #64748b; margin-bottom: 8px; }
@@ -541,12 +516,12 @@ export default function AnnualCalendarPage() {
   .legend { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
   .legend-item { display: inline-flex; align-items: center; gap: 3px; font-size: 8px; }
   .legend-color { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #cbd5e1; display: inline-block; }
-  /* Detail table page */
-  .detail-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
-  .detail-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+  .detail-title { font-size: 13px; font-weight: bold; margin-bottom: 6px; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 9px; margin-bottom: 16px; }
   .detail-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 4px 6px; text-align: left; font-weight: 600; }
   .detail-table td { border: 1px solid #e2e8f0; padding: 3px 6px; }
   .detail-table .month-header-row td { background: #e2e8f0; font-weight: bold; font-size: 10px; padding: 5px 6px; }
+  .summary-title { font-size: 13px; font-weight: bold; margin-bottom: 6px; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -562,6 +537,11 @@ export default function AnnualCalendarPage() {
       <thead><tr><th>Date</th><th>Code</th><th>Description</th><th>Duree</th><th>Raison</th></tr></thead>
       <tbody>${detailHTML}</tbody>
     </table>
+    <div class="summary-title">Recapitulatif ${selectedYear}</div>
+    <table class="detail-table">
+      <thead><tr><th>Annee</th><th>Description</th><th>Type</th><th>J. acquis</th><th>J. pris</th><th>Diff. J.</th><th>H. acquises</th><th>H. prises</th><th>Diff. H.</th></tr></thead>
+      <tbody>${summaryHTML}</tbody>
+    </table>
   </div>
 </body>
 </html>`;
@@ -572,20 +552,18 @@ export default function AnnualCalendarPage() {
     setTimeout(() => { printWindow.print(); }, 300);
   }
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Calendrier annuel</h1>
-        <p className="text-slate-500 mt-1">
-          Vue annuelle des absences par employe
-        </p>
+        <p className="text-slate-500 mt-1">Vue annuelle des absences par employe</p>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-4">
-          {/* Sector */}
           <select
             value={selectedSectorId || ""}
             onChange={(e) => setSelectedSectorId(e.target.value ? Number(e.target.value) : null)}
@@ -597,7 +575,6 @@ export default function AnnualCalendarPage() {
             ))}
           </select>
 
-          {/* Employee */}
           <select
             value={selectedEmployeeId || ""}
             onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : null)}
@@ -612,7 +589,6 @@ export default function AnnualCalendarPage() {
             ))}
           </select>
 
-          {/* Year */}
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
@@ -622,8 +598,9 @@ export default function AnnualCalendarPage() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-
         </div>
+
+        {/* Print button — always below filters */}
         {selectedEmployeeId && (
           <div className="mt-3 pt-3 border-t border-slate-200">
             <button
@@ -645,7 +622,8 @@ export default function AnnualCalendarPage() {
         </div>
       )}
 
-      {/* Calendar Grid - 12 months */}
+
+      {/* SECTION 1: Calendar Grid — ALWAYS visible */}
       {!loading && selectedEmployeeId && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
@@ -653,7 +631,6 @@ export default function AnnualCalendarPage() {
               const daysInMonth = getDaysInMonth(selectedYear, monthIdx);
               const firstDow = new Date(selectedYear, monthIdx, 1).getDay();
               const startOffset = firstDow === 0 ? 6 : firstDow - 1;
-
               const cells: (number | null)[] = [];
               for (let i = 0; i < startOffset; i++) cells.push(null);
               for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -664,20 +641,14 @@ export default function AnnualCalendarPage() {
                   <h3 className="text-sm font-semibold text-slate-700 mb-2 text-center">
                     {MONTH_NAMES[monthIdx]}
                   </h3>
-                  {/* Day headers */}
                   <div className="grid grid-cols-7 gap-0.5 mb-1">
                     {DAY_HEADERS.map((d, i) => (
-                      <div key={i} className="text-[10px] text-slate-400 text-center font-medium">
-                        {d}
-                      </div>
+                      <div key={i} className="text-[10px] text-slate-400 text-center font-medium">{d}</div>
                     ))}
                   </div>
-                  {/* Day cells */}
                   <div className="grid grid-cols-7 gap-0.5">
                     {cells.map((day, idx) => {
-                      if (day === null) {
-                        return <div key={`e-${idx}`} className="w-full aspect-square" />;
-                      }
+                      if (day === null) return <div key={`e-${idx}`} className="w-full aspect-square" />;
                       const dateStr = formatDateStr(selectedYear, monthIdx, day);
                       const weekend = isWeekend(selectedYear, monthIdx, day);
                       const isHoliday = holidayMap.has(dateStr);
@@ -688,27 +659,15 @@ export default function AnnualCalendarPage() {
                       let title = "";
 
                       if (isHoliday && dayAbsences.length === 0) {
-                        bgColor = "#fecaca";
-                        textColor = "#991b1b";
+                        bgColor = "#fecaca"; textColor = "#991b1b";
                         title = holidayMap.get(dateStr) || "Jour ferie";
                       } else if (weekend && dayAbsences.length === 0) {
-                        bgColor = "#e2e8f0";
-                        textColor = "#64748b";
+                        bgColor = "#e2e8f0"; textColor = "#64748b";
                       } else if (dayAbsences.length === 1) {
                         const code = codeMap.get(dayAbsences[0].absence_code_id);
-                        if (code) {
-                          bgColor = code.color_hex || "#94a3b8";
-                          textColor = code.text_color_hex || "#ffffff";
-                          title = `${code.code} - ${code.description}`;
-                        }
+                        if (code) { bgColor = code.color_hex || "#94a3b8"; textColor = code.text_color_hex || "#ffffff"; title = `${code.code} - ${code.description}`; }
                       } else if (dayAbsences.length > 1) {
-                        title = dayAbsences
-                          .map((a) => {
-                            const code = codeMap.get(a.absence_code_id);
-                            return code ? `${code.code}` : "";
-                          })
-                          .filter(Boolean)
-                          .join(", ");
+                        title = dayAbsences.map((a) => codeMap.get(a.absence_code_id)?.code).filter(Boolean).join(", ");
                       }
 
                       const showStacked = dayAbsences.length > 1;
@@ -719,11 +678,9 @@ export default function AnnualCalendarPage() {
                       return (
                         <div
                           key={`d-${day}`}
-                          onClick={() => !weekend && openEdit(dateStr)}
+                          onClick={() => openEdit(dateStr)}
                           title={title}
-                          className={`w-full aspect-square flex items-center justify-center text-[10px] font-medium rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-blue-400 relative overflow-hidden ${
-                            weekend && !dayAbsences.length ? "cursor-default hover:ring-0" : ""
-                          }`}
+                          className={`w-full aspect-square flex items-center justify-center text-[10px] font-medium rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-blue-400 relative overflow-hidden`}
                           style={{
                             backgroundColor: !showStacked ? bgColor || undefined : undefined,
                             color: !showStacked ? textColor || undefined : undefined,
@@ -733,25 +690,13 @@ export default function AnnualCalendarPage() {
                             <div className="absolute inset-0 flex flex-col">
                               {visibleAbsences.map((a, aIdx) => {
                                 const code = codeMap.get(a.absence_code_id);
-                                return (
-                                  <div
-                                    key={aIdx}
-                                    className="flex-1"
-                                    style={{
-                                      backgroundColor: code?.color_hex || "#94a3b8",
-                                    }}
-                                  />
-                                );
+                                return <div key={aIdx} className="flex-1" style={{ backgroundColor: code?.color_hex || "#94a3b8" }} />;
                               })}
                             </div>
                           )}
-                          <span className={showStacked ? "relative z-10 text-white drop-shadow-sm" : ""}>
-                            {day}
-                          </span>
+                          <span className={showStacked ? "relative z-10 text-white drop-shadow-sm" : ""}>{day}</span>
                           {extraCount > 0 && (
-                            <span className="absolute bottom-0 right-0 text-[7px] bg-slate-800 text-white px-0.5 rounded-tl z-10">
-                              +{extraCount}
-                            </span>
+                            <span className="absolute bottom-0 right-0 text-[7px] bg-slate-800 text-white px-0.5 rounded-tl z-10">+{extraCount}</span>
                           )}
                         </div>
                       );
@@ -768,10 +713,7 @@ export default function AnnualCalendarPage() {
             <div className="flex flex-wrap gap-3">
               {absenceCodes.map((c) => (
                 <span key={c.id} className="inline-flex items-center gap-1.5 text-xs">
-                  <span
-                    className="w-4 h-4 rounded-sm border border-slate-200"
-                    style={{ backgroundColor: c.color_hex || "#94a3b8" }}
-                  />
+                  <span className="w-4 h-4 rounded-sm border border-slate-200" style={{ backgroundColor: c.color_hex || "#94a3b8" }} />
                   <span className="text-slate-700">{c.code} - {c.description}</span>
                 </span>
               ))}
@@ -786,14 +728,15 @@ export default function AnnualCalendarPage() {
             </div>
           </div>
 
-          {/* Detail Table */}
-          {detailByMonth.length > 0 && (
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-                <h3 className="text-sm font-semibold text-slate-700">
-                  Detail des absences {selectedYear}
-                </h3>
-              </div>
+
+          {/* SECTION 2: Detail des absences — ALWAYS visible */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-sm font-semibold text-slate-700">
+                Detail des absences {selectedYear}
+              </h3>
+            </div>
+            {detailByMonth.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
@@ -829,17 +772,22 @@ export default function AnnualCalendarPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-
-          {/* Summary Table */}
-          {summaryRows.length > 0 && (
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-                <h3 className="text-sm font-semibold text-slate-700">
-                  Recapitulatif {selectedYear}
-                </h3>
+            ) : (
+              <div className="px-4 py-8 text-center text-sm text-slate-400">
+                Aucune absence enregistree pour {selectedYear}
               </div>
+            )}
+          </div>
+
+
+          {/* SECTION 3: Recapitulatif — ALWAYS visible */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-sm font-semibold text-slate-700">
+                Recapitulatif {selectedYear}
+              </h3>
+            </div>
+            {summaryRows.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
@@ -859,7 +807,6 @@ export default function AnnualCalendarPage() {
                     {summaryRows.map((row) => {
                       const daysDiffClass = row.daysDiff < 0 ? "text-red-600 font-semibold" : row.daysDiff > 0 ? "text-emerald-600" : "";
                       const hoursDiffClass = row.hoursDiff < 0 ? "text-red-600 font-semibold" : row.hoursDiff > 0 ? "text-emerald-600" : "";
-
                       return (
                         <tr key={row.codeId} className="hover:bg-slate-50">
                           <td className="px-4 py-3 text-sm text-slate-600">{selectedYear}</td>
@@ -882,12 +829,17 @@ export default function AnnualCalendarPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="px-4 py-8 text-center text-sm text-slate-400">
+                Aucun droit de conge configure pour {selectedYear}
+              </div>
+            )}
+          </div>
         </>
       )}
 
-      {/* Empty state */}
+
+      {/* Empty state — no employee selected */}
       {!loading && !selectedEmployeeId && (
         <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
           <Calendar className="w-12 h-12 text-slate-300 mx-auto" />
@@ -904,10 +856,7 @@ export default function AnnualCalendarPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900">
                 {new Date(editDate + "T00:00:00").toLocaleDateString("fr-BE", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
+                  weekday: "long", day: "numeric", month: "long", year: "numeric",
                 })}
               </h3>
               <button onClick={closeEdit} className="p-1 hover:bg-slate-100 rounded-lg">
@@ -915,156 +864,110 @@ export default function AnnualCalendarPage() {
               </button>
             </div>
 
+            {/* Holiday warning banner */}
+            {holidayWarning && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Jour ferie : {holidayWarning}</p>
+                  <p className="text-xs text-amber-700 mt-0.5">Vous pouvez quand meme enregistrer une absence ce jour.</p>
+                </div>
+              </div>
+            )}
+
+
             <div className="space-y-4">
               {modalEntries.map((entry, idx) => {
                 if (entry._deleted) return null;
-                const selectedCode = entry.absence_code_id
-                  ? codeMap.get(entry.absence_code_id)
-                  : null;
+                const selectedCode = entry.absence_code_id ? codeMap.get(entry.absence_code_id) : null;
                 const timeUnit = selectedCode?.time_unit;
 
                 return (
-                  <div
-                    key={idx}
-                    className="border border-slate-200 rounded-lg p-3 space-y-3 bg-slate-50"
-                  >
+                  <div key={idx} className="border border-slate-200 rounded-lg p-3 space-y-3 bg-slate-50">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500 uppercase">
-                        Absence {idx + 1}
-                      </span>
-                      <button
-                        onClick={() => removeModalEntry(idx)}
-                        className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700"
-                        title="Supprimer cette absence"
-                      >
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Absence {idx + 1}</span>
+                      <button onClick={() => removeModalEntry(idx)} className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700" title="Supprimer">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {/* Code selection */}
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Type d&apos;absence
-                      </label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Type d&apos;absence</label>
                       <select
                         value={entry.absence_code_id || ""}
-                        onChange={(e) =>
-                          updateModalEntry(idx, "absence_code_id", e.target.value ? Number(e.target.value) : null)
-                        }
+                        onChange={(e) => updateModalEntry(idx, "absence_code_id", e.target.value ? Number(e.target.value) : null)}
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         <option value="">-- Choisir --</option>
                         {absenceCodes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.code} - {c.description}
-                          </option>
+                          <option key={c.id} value={c.id}>{c.code} - {c.description}</option>
                         ))}
                       </select>
                     </div>
 
-                    {/* Minutes field - shown when time_unit is HOURS_MINUTES */}
                     {timeUnit === "HOURS_MINUTES" && (
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                          Minutes
-                        </label>
-                        <input
-                          type="number"
-                          value={entry.absence_minutes}
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Minutes</label>
+                        <input type="number" value={entry.absence_minutes}
                           onChange={(e) => updateModalEntry(idx, "absence_minutes", e.target.value)}
                           placeholder="Ex: 480 pour 8h"
-                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
+                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                       </div>
                     )}
 
-                    {/* Days field - shown when time_unit is DAYS */}
                     {timeUnit === "DAYS" && (
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                          Jours
-                        </label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={entry.absence_days}
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Jours</label>
+                        <input type="number" step="0.5" value={entry.absence_days}
                           onChange={(e) => updateModalEntry(idx, "absence_days", e.target.value)}
                           placeholder="Ex: 1"
-                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
+                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                       </div>
                     )}
 
-                    {/* Show both fields if time_unit is not set */}
                     {!timeUnit && entry.absence_code_id && (
                       <>
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
-                            Minutes
-                          </label>
-                          <input
-                            type="number"
-                            value={entry.absence_minutes}
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Minutes</label>
+                          <input type="number" value={entry.absence_minutes}
                             onChange={(e) => updateModalEntry(idx, "absence_minutes", e.target.value)}
                             placeholder="Ex: 480 pour 8h"
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
-                            Jours
-                          </label>
-                          <input
-                            type="number"
-                            step="0.5"
-                            value={entry.absence_days}
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Jours</label>
+                          <input type="number" step="0.5" value={entry.absence_days}
                             onChange={(e) => updateModalEntry(idx, "absence_days", e.target.value)}
                             placeholder="Ex: 1"
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                         </div>
                       </>
                     )}
 
-                    {/* Reason */}
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Raison
-                      </label>
-                      <input
-                        type="text"
-                        value={entry.reason}
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Raison</label>
+                      <input type="text" value={entry.reason}
                         onChange={(e) => updateModalEntry(idx, "reason", e.target.value)}
                         placeholder="Optionnel"
-                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
                   </div>
                 );
               })}
 
-              {/* Add another absence button */}
-              <button
-                onClick={addModalEntry}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
-              >
+              <button onClick={addModalEntry}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:border-blue-400 hover:text-blue-600 transition-colors">
                 + Ajouter une absence
               </button>
 
-              {/* Actions */}
               <div className="flex items-center gap-3 pt-2">
-                <button
-                  onClick={handleSaveAll}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                >
+                <button onClick={handleSaveAll} disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                   <Save className="w-4 h-4" />
                   Enregistrer
                 </button>
-                <button
-                  onClick={closeEdit}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
+                <button onClick={closeEdit}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">
                   Annuler
                 </button>
               </div>
