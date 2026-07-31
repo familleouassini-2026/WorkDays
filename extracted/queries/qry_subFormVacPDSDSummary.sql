@@ -1,0 +1,7 @@
+-- Query: qry_subFormVacPDSDSummary
+-- Type: SELECT
+
+SELECT [tbl_Emp_Employees].EmployeeID, [tbl_Emp_Employees].EmpDateOfHire, ([Forms]![frm_YearCalendar]![cboYear])-Year([EmpDateOfHire]) AS YearsOfService, tbluBoughtVacation.BoughtVac, IIf([YearsOfService]<=0,0,IIf([YearsOfService]<=1,1,IIf([YearsOfService]<=7,2,IIf([YearsOfService]<=14,3,IIf([YearsOfService]<=24,4,IIf([YearsOfService]>=25,5))))))+IIf([BoughtVac]=True,1,0) AS TotalVacWeeks, 40*Nz([TotalVacWeeks],0) AS TotalVacHours, Nz([SumOfVacation],0) AS TotalVacHoursUsed, [TotalVacHours]-Nz([SumOfVacation],0) AS VacHoursLeft, tbluBoughtVacation.BoughtYear, 3 AS TotallPersonalDays, 3-Nz([SumOfSick],0) AS PersonalDaysLeft, 3 AS TotalSickDays, 3-Nz([SumOfSick],0) AS SickDaysLeft
+FROM (((tbl_Emp_Employees LEFT JOIN qry_subFormVacPDSDSummary_PSD_Left ON [tbl_Emp_Employees].EmployeeID=qry_subFormVacPDSDSummary_PSD_Left.EmployeeID) LEFT JOIN qry_subFormVacPDSDSummary_Vac_Left ON [tbl_Emp_Employees].EmployeeID=qry_subFormVacPDSDSummary_Vac_Left.EmployeeID) LEFT JOIN qry_subFormVacPDSDSummary_PD_Left ON [tbl_Emp_Employees].EmployeeID=qry_subFormVacPDSDSummary_PD_Left.EmployeeID) INNER JOIN tbluBoughtVacation ON [tbl_Emp_Employees].EmployeeID=tbluBoughtVacation.EmployeeID
+WHERE (((Year([BoughtYear]))=([Forms]![frm_YearCalendar]![cboYear])))
+GROUP BY [tbl_Emp_Employees].EmployeeID, [tbl_Emp_Employees].EmpDateOfHire, tbluBoughtVacation.BoughtVac, Nz([SumOfVacation],0), tbluBoughtVacation.BoughtYear, qry_subFormVacPDSDSummary_PD_Left.[SumOfSick], qry_subFormVacPDSDSummary_PSD_Left.SumOfSick;
