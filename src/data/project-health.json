@@ -217,11 +217,11 @@
     {
       "id": "leasing",
       "name": "Gestion des actifs (leasing)",
-      "status": "missing",
+      "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#assets",
-      "code": [],
+      "code": ["src/app/assets/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Cmn_Leasing.cls",
-      "notes": "NON IMPLÉMENTÉ. Véhicules, téléphones, imprimantes + assignation employés"
+      "notes": "CRUD actifs (véhicules/téléphones/imprimantes) avec grille cards, filtre par type, badge assigné/disponible, formulaire création + assignation employé. Seed data: 8 véhicules."
     },
     {
       "id": "reports-pdf",
