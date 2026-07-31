@@ -1,0 +1,305 @@
+{
+  "lastUpdated": "2026-07-31",
+  "architecture": {
+    "steering": [
+      {
+        "file": ".kiro/steering/project-context.md",
+        "title": "Contexte projet",
+        "description": "Quoi est WorkDays, qui l'utilise, état actuel du projet",
+        "type": "steering",
+        "reason": "Donne le contexte à Kiro en début de session pour éviter de re-expliquer"
+      },
+      {
+        "file": ".kiro/steering/architecture.md",
+        "title": "Architecture technique",
+        "description": "Stack (Next.js 14 + Supabase + Tailwind), patterns, structure des dossiers",
+        "type": "steering",
+        "reason": "Décisions permanentes qui ne changent pas — guide chaque ligne de code"
+      },
+      {
+        "file": ".kiro/steering/coding-conventions.md",
+        "title": "Conventions de code",
+        "description": "Style, nommage, patterns obligatoires, langue (code EN, UI FR)",
+        "type": "steering",
+        "reason": "Cohérence du code entre sessions et entre développeurs"
+      }
+    ],
+    "specs": [
+      {
+        "file": ".kiro/specs/business-rules.md",
+        "title": "Règles métier belges",
+        "description": "RTT (âge-based), salaire indexé (DProduct), congés par ancienneté, politique absentéisme",
+        "type": "spec",
+        "reason": "Source de vérité pour TOUTE la logique de calcul — si un calcul est faux, c'est ici qu'on corrige"
+      },
+      {
+        "file": ".kiro/specs/feature-specifications.md",
+        "title": "Spécifications fonctionnelles",
+        "description": "UX redesign, architecture d'information, design de chaque module",
+        "type": "spec",
+        "reason": "Définit ce qu'on construit — chaque page de l'app doit correspondre à une section ici"
+      },
+      {
+        "file": ".kiro/specs/implementation-phases.md",
+        "title": "Phases d'implémentation",
+        "description": "Roadmap priorisée : Foundation → Absences → Salaires → RTT → Gouvernance → Rapports",
+        "type": "spec",
+        "reason": "Évite de sauter des étapes ou d'implémenter des features non prioritaires"
+      }
+    ],
+    "docs": [
+      {
+        "file": "docs/database-schema.md",
+        "title": "Schema base de données",
+        "description": "26 tables PostgreSQL, relations FK, ENUMs, index",
+        "type": "documentation",
+        "reason": "Référence pour comprendre la structure des données"
+      },
+      {
+        "file": "docs/deployment.md",
+        "title": "Guide de déploiement",
+        "description": "GitHub → Vercel (auto-deploy on merge) + Supabase (migrations manuelles)",
+        "type": "documentation",
+        "reason": "Procédure de mise en production"
+      }
+    ],
+    "reference": [
+      {
+        "file": "docs/reference/access-analysis.md",
+        "title": "Analyse critique du prototype Access",
+        "description": "50 formulaires, 32 queries, 4300 lignes VBA analysés — problèmes identifiés + redesign",
+        "type": "reference",
+        "reason": "Comprendre POURQUOI on a fait certains choix et ce que l'Access faisait"
+      },
+      {
+        "file": "docs/reference/access-database-documentation.md",
+        "title": "Documentation DB Access originale",
+        "description": "33 tables Access avec colonnes, types, relations",
+        "type": "reference",
+        "reason": "Comparer avec notre nouveau schema pour vérifier qu'on n'a rien oublié"
+      },
+      {
+        "file": "extracted/",
+        "title": "Exports bruts Access",
+        "description": "VBA modules, SQL queries, forms, reports, macros — extraction automatique",
+        "type": "reference",
+        "reason": "Source de vérité du prototype — quand on doute d'une logique, on regarde ici"
+      }
+    ]
+  },
+  "features": [
+    {
+      "id": "employees-crud",
+      "name": "Gestion des employés",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#people",
+      "code": ["src/app/employees/page.tsx", "src/app/employees/[id]/page.tsx", "src/app/employees/[id]/edit/page.tsx", "src/app/employees/new/page.tsx"],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Emp_Employee Details.cls",
+      "notes": "Liste, détail (4 onglets), ajout, édition, suppression"
+    },
+    {
+      "id": "absences-list",
+      "name": "Liste des absences",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#absences",
+      "code": ["src/app/absences/page.tsx"],
+      "accessOrigin": "extracted/queries/qry_rpt_AbsencesForYear.sql",
+      "notes": "Filtres année/type/nom, groupement par mois"
+    },
+    {
+      "id": "absences-calendar",
+      "name": "Calendrier des absences",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#absences",
+      "code": ["src/app/absences/calendar/page.tsx"],
+      "accessOrigin": "extracted/vba_modules/Form_frm_YearCalendar.cls",
+      "notes": "Grille mensuelle, navigation, couleurs par code"
+    },
+    {
+      "id": "absences-booking",
+      "name": "Réservation d'absence",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#absences",
+      "code": ["src/app/absences/new/page.tsx"],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Abs_HolidayInputForm.cls",
+      "notes": "Wizard : employé → code → dates → durée. Écriture atomique avec rollback."
+    },
+    {
+      "id": "absences-balances",
+      "name": "Soldes de congés",
+      "status": "partial",
+      "spec": ".kiro/specs/business-rules.md#vacation-entitlement",
+      "code": ["src/app/absences/balances/page.tsx"],
+      "accessOrigin": "extracted/queries/qry_subFormVacPDSDSummary.sql",
+      "notes": "Basique : droits vs utilisé. Manque : calcul heures/minutes, bought vacation, semaines par ancienneté"
+    },
+    {
+      "id": "remuneration-baremes",
+      "name": "Barèmes salariaux",
+      "status": "implemented",
+      "spec": ".kiro/specs/business-rules.md#salary",
+      "code": ["src/app/remuneration/baremes/page.tsx"],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Sal_Seniority.cls",
+      "notes": "Table seniority_scales par secteur"
+    },
+    {
+      "id": "remuneration-indexations",
+      "name": "Historique indexations",
+      "status": "implemented",
+      "spec": ".kiro/specs/business-rules.md#salary",
+      "code": ["src/app/remuneration/indexations/page.tsx"],
+      "accessOrigin": "extracted/queries/qry_Sec_indexCal.sql",
+      "notes": "Tableau chronologique avec facteur cumulé"
+    },
+    {
+      "id": "remuneration-simulateur",
+      "name": "Simulateur salaire indexé",
+      "status": "partial",
+      "spec": ".kiro/specs/business-rules.md#salary",
+      "code": ["src/app/remuneration/simulateur/page.tsx"],
+      "accessOrigin": "extracted/queries/qry_Sec_indexCal.sql",
+      "notes": "Base × indexation = indexé. Manque : indexation sectorielle (DProduct), augmentations personnelles, alertes"
+    },
+    {
+      "id": "rtt-calculation",
+      "name": "Calcul RTT",
+      "status": "missing",
+      "spec": ".kiro/specs/business-rules.md#rtt",
+      "code": [],
+      "accessOrigin": "extracted/queries/Qry_RTTCalc.sql",
+      "notes": "NON IMPLÉMENTÉ. Logique : âge-based, prorata par anniversaire, ajusté au % temps de travail"
+    },
+    {
+      "id": "salary-alerts",
+      "name": "Alertes augmentation salaire",
+      "status": "missing",
+      "spec": ".kiro/specs/business-rules.md#salary",
+      "code": [],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Sec_SectorialSalaryChanging.cls",
+      "notes": "NON IMPLÉMENTÉ. Détecte les employés dont l'ancienneté change de palier cette année"
+    },
+    {
+      "id": "absenteeism-policy",
+      "name": "Politique d'absentéisme",
+      "status": "missing",
+      "spec": ".kiro/specs/business-rules.md#absenteeism-policy",
+      "code": [],
+      "accessOrigin": "extracted/queries/qry_rpt_AbsenteeismPolicy.sql",
+      "notes": "NON IMPLÉMENTÉ. 6 mois glissants, exclusion codes V/F/PC/JD/ML, count incidents"
+    },
+    {
+      "id": "timesheets",
+      "name": "Horaires hebdomadaires",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#time",
+      "code": ["src/app/schedules/page.tsx"],
+      "accessOrigin": "extracted/vba_modules/Form_frm_TimeSheet.cls",
+      "notes": "Tableau des timesheets actifs avec total/jour et % temps plein"
+    },
+    {
+      "id": "dashboard",
+      "name": "Dashboard dynamique",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#dashboard",
+      "code": ["src/app/dashboard/page.tsx"],
+      "accessOrigin": null,
+      "notes": "KPIs Supabase (employés actifs, absences today/mois), dernières absences"
+    },
+    {
+      "id": "governance",
+      "name": "Gouvernance (réunions/décisions/demandes)",
+      "status": "missing",
+      "spec": ".kiro/specs/feature-specifications.md#governance",
+      "code": [],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Log_Requests.cls",
+      "notes": "NON IMPLÉMENTÉ. CRUD meetings + decisions + requests avec workflow"
+    },
+    {
+      "id": "leasing",
+      "name": "Gestion des actifs (leasing)",
+      "status": "missing",
+      "spec": ".kiro/specs/feature-specifications.md#assets",
+      "code": [],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Cmn_Leasing.cls",
+      "notes": "NON IMPLÉMENTÉ. Véhicules, téléphones, imprimantes + assignation employés"
+    },
+    {
+      "id": "reports-pdf",
+      "name": "Rapports PDF",
+      "status": "missing",
+      "spec": ".kiro/specs/feature-specifications.md#reports",
+      "code": [],
+      "accessOrigin": "extracted/reports_all.md",
+      "notes": "NON IMPLÉMENTÉ. Absences par employé, politique absentéisme, absences par mois"
+    },
+    {
+      "id": "auth",
+      "name": "Authentification et rôles",
+      "status": "missing",
+      "spec": ".kiro/specs/feature-specifications.md#security",
+      "code": [],
+      "accessOrigin": null,
+      "notes": "NON IMPLÉMENTÉ. Login Supabase Auth, rôles : Admin, HR Manager, Sector Manager, Employee"
+    },
+    {
+      "id": "settings-sectors",
+      "name": "Gestion des secteurs",
+      "status": "missing",
+      "spec": ".kiro/specs/feature-specifications.md#settings",
+      "code": [],
+      "accessOrigin": "extracted/vba_modules/Form_frm_Sec_Secteurs.cls",
+      "notes": "NON IMPLÉMENTÉ. CRUD secteurs avec barèmes, RTT group, chef de secteur, indexations"
+    }
+  ],
+  "gaps": [
+    {
+      "severity": "high",
+      "feature": "rtt-calculation",
+      "description": "Le calcul RTT est la fonctionnalité la plus complexe du prototype Access et n'est pas du tout implémenté",
+      "impact": "Les employés ne voient pas leur droit RTT. Le HR doit calculer manuellement.",
+      "accessQuery": "Qry_RTTCalc — prorata par anniversaire, seuil d'âge par secteur, ajusté au % temps de travail"
+    },
+    {
+      "severity": "high",
+      "feature": "salary-alerts",
+      "description": "Pas d'alerte quand un employé atteint un nouveau palier d'ancienneté (= augmentation à notifier)",
+      "impact": "Risque de manquer une augmentation légale obligatoire",
+      "accessQuery": "Contacts Extended → SectorialChanging <> 0 + DateOfSeniorityAlert"
+    },
+    {
+      "severity": "medium",
+      "feature": "absences-balances",
+      "description": "Le calcul des soldes ne prend pas en compte : bought vacation, heures/minutes (pas jours), semaines par ancienneté",
+      "impact": "Soldes affichés incorrects pour certains employés",
+      "accessQuery": "qry_subFormVacPDSDSummary — IIf ladder sur YearsOfService + BoughtVac"
+    },
+    {
+      "severity": "medium",
+      "feature": "absenteeism-policy",
+      "description": "La politique d'absentéisme (6 mois glissants, exclusion de certains codes) n'est pas implémentée",
+      "impact": "Pas de suivi automatique des incidents, pas de rapport pour les entretiens RH",
+      "accessQuery": "qry_rpt_AbsenteeismPolicy + qry_NumberOfIncidents"
+    },
+    {
+      "severity": "medium",
+      "feature": "remuneration-simulateur",
+      "description": "Le simulateur ne fait pas le DProduct des indexations sectorielles ni les augmentations personnelles",
+      "impact": "Le salaire affiché peut être incorrect (manque indexation sectorielle)",
+      "accessQuery": "qry_Sec_indexCal — DProduct(tbl_Cmn_Indexation) * DProduct(tbl_Sec_Indexation) * BaseSalary"
+    },
+    {
+      "severity": "low",
+      "feature": "governance",
+      "description": "Module gouvernance pas implémenté (réunions, décisions, demandes)",
+      "impact": "Pas critique pour le quotidien RH, mais important pour la traçabilité des décisions",
+      "accessQuery": "frm_Log_Requests, frm_Log_Decision"
+    },
+    {
+      "severity": "low",
+      "feature": "leasing",
+      "description": "Gestion des actifs pas implémentée",
+      "impact": "Suivi véhicules/téléphones fait ailleurs (Excel?)",
+      "accessQuery": "frm_Cmn_Leasing, frm_Emp_Employee_Leasing"
+    }
+  ]
+}
