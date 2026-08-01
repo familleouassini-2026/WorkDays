@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
+  ArrowUpRight,
   Mail,
   Phone,
   Smartphone,
@@ -22,6 +23,10 @@ import {
   CalendarDays,
   PlusCircle,
   User,
+  ChevronDown,
+  ChevronUp,
+  Calculator,
+  Award,
 } from "lucide-react";
 import {
   calculateSeniorityYears,
@@ -100,6 +105,25 @@ interface AssetAssignment {
   assets: { type: string; name: string; identifier: string; status: string } | null;
 }
 
+interface EmployeeIndexation {
+  id: number;
+  amount: number;
+  effective_date: string;
+  description: string | null;
+}
+
+interface AbsenceSummaryRow {
+  code: string;
+  description: string;
+  color_hex: string;
+  text_color_hex: string;
+  days_entitled: number;
+  hours_entitled: number;
+  minutes_entitled: number;
+  days_taken: number;
+  minutes_taken: number;
+}
+
 // ---------- HELPERS ----------
 
 function formatDate(d: string | null) {
@@ -134,7 +158,14 @@ export default function EmployeeProfilePage() {
   const [rttTotal, setRttTotal] = useState<number | null>(null);
   const [salary, setSalary] = useState<number | null>(null);
   const [assets, setAssets] = useState<AssetAssignment[]>([]);
+  const [indexations, setIndexations] = useState<EmployeeIndexation[]>([]);
+  const [absenceSummary, setAbsenceSummary] = useState<AbsenceSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Expandable sections state
+  const [seniorityOpen, setSeniorityOpen] = useState(false);
+  const [augmentationsOpen, setAugmentationsOpen] = useState(false);
+  const [absenceSummaryOpen, setAbsenceSummaryOpen] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -249,6 +280,80 @@ export default function EmployeeProfilePage() {
         .is("end_date", null);
       if (assetData) setAssets(assetData as unknown as AssetAssignment[]);
 
+      // Fetch employee indexations (augmentations)
+      const { data: empIndexations } = await supabase
+        .from("employee_indexations")
+        .select("id, amount, effective_date, description")
+        .eq("employee_id", empId)
+        .order("effective_date", { ascending: false });
+      if (empIndexations) setIndexations(empIndexations as EmployeeIndexation[]);
+
+      // Fetch absence summary: vacation_rights + year_calendar usage for current year
+      const { data: allRights } = await supabase
+        .from("vacation_rights")
+        .select("days, hours, minutes, absence_code_id, absence_codes(id, code, description, color_hex, text_color_hex)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear);
+
+      const { data: allUsage } = await supabase
+        .from("year_calendar")
+        .select("absence_days, absence_minutes, absence_code_id, absence_codes(id, code, description, color_hex, text_color_hex)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear);
+
+      if (allRights || allUsage) {
+        const summaryMap: Record<number, AbsenceSummaryRow> = {};
+
+        // Build from rights
+        if (allRights) {
+          for (const r of allRights as unknown as Array<{ days: number | null; hours: number | null; minutes: number | null; absence_code_id: number; absence_codes: { id: number; code: string; description: string; color_hex: string; text_color_hex: string } | null }>) {
+            if (!r.absence_codes) continue;
+            const codeId = r.absence_code_id;
+            if (!summaryMap[codeId]) {
+              summaryMap[codeId] = {
+                code: r.absence_codes.code,
+                description: r.absence_codes.description,
+                color_hex: r.absence_codes.color_hex,
+                text_color_hex: r.absence_codes.text_color_hex,
+                days_entitled: 0,
+                hours_entitled: 0,
+                minutes_entitled: 0,
+                days_taken: 0,
+                minutes_taken: 0,
+              };
+            }
+            summaryMap[codeId].days_entitled += r.days || 0;
+            summaryMap[codeId].hours_entitled += r.hours || 0;
+            summaryMap[codeId].minutes_entitled += r.minutes || 0;
+          }
+        }
+
+        // Add usage
+        if (allUsage) {
+          for (const u of allUsage as unknown as Array<{ absence_days: number | null; absence_minutes: number | null; absence_code_id: number; absence_codes: { id: number; code: string; description: string; color_hex: string; text_color_hex: string } | null }>) {
+            if (!u.absence_codes) continue;
+            const codeId = u.absence_code_id;
+            if (!summaryMap[codeId]) {
+              summaryMap[codeId] = {
+                code: u.absence_codes.code,
+                description: u.absence_codes.description,
+                color_hex: u.absence_codes.color_hex,
+                text_color_hex: u.absence_codes.text_color_hex,
+                days_entitled: 0,
+                hours_entitled: 0,
+                minutes_entitled: 0,
+                days_taken: 0,
+                minutes_taken: 0,
+              };
+            }
+            summaryMap[codeId].days_taken += u.absence_days || 0;
+            summaryMap[codeId].minutes_taken += u.absence_minutes || 0;
+          }
+        }
+
+        setAbsenceSummary(Object.values(summaryMap));
+      }
+
       setLoading(false);
     }
     loadData();
@@ -332,10 +437,14 @@ export default function EmployeeProfilePage() {
       {/* ===== KPI CARDS GRID ===== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Card Contrat */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <Link
+          href={`/employees/${employee.id}/edit`}
+          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-blue-300 hover:shadow-md transition-all group"
+        >
           <div className="flex items-center gap-2 mb-3">
             <Briefcase className="w-4 h-4 text-blue-600" />
             <h3 className="text-sm font-semibold text-slate-700">Contrat</h3>
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -359,13 +468,17 @@ export default function EmployeeProfilePage() {
               <span className="font-medium text-slate-900">{formatDate(employee.date_of_hire)}</span>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Card Salaire */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <Link
+          href="/remuneration/simulateur"
+          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-green-300 hover:shadow-md transition-all group"
+        >
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-green-600" />
             <h3 className="text-sm font-semibold text-slate-700">Salaire</h3>
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-bold text-slate-900">
@@ -376,13 +489,17 @@ export default function EmployeeProfilePage() {
           {!salary && (
             <p className="text-xs text-slate-400 mt-2">Bar&egrave;me non configur&eacute; pour ce secteur</p>
           )}
-        </div>
+        </Link>
 
         {/* Card Conges */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <Link
+          href="/absences/balances"
+          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-amber-300 hover:shadow-md transition-all group"
+        >
           <div className="flex items-center gap-2 mb-3">
             <TreePalm className="w-4 h-4 text-amber-600" />
             <h3 className="text-sm font-semibold text-slate-700">Cong&eacute;s (V)</h3>
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-900">
@@ -401,13 +518,17 @@ export default function EmployeeProfilePage() {
           {vacTotal === 0 && (
             <p className="text-xs text-slate-400 mt-2">Aucun droit configur&eacute; pour cette ann&eacute;e</p>
           )}
-        </div>
+        </Link>
 
         {/* Card RTT */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <Link
+          href="/schedules/rtt"
+          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-purple-300 hover:shadow-md transition-all group"
+        >
           <div className="flex items-center gap-2 mb-3">
             <Timer className="w-4 h-4 text-purple-600" />
             <h3 className="text-sm font-semibold text-slate-700">RTT ({new Date().getFullYear()})</h3>
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-bold text-slate-900">
@@ -415,13 +536,17 @@ export default function EmployeeProfilePage() {
             </span>
             <span className="text-xs text-slate-500">utilis&eacute;es</span>
           </div>
-        </div>
+        </Link>
 
         {/* Card Absences recentes */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <Link
+          href="/absences/annual"
+          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-red-300 hover:shadow-md transition-all group"
+        >
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle className="w-4 h-4 text-red-500" />
             <h3 className="text-sm font-semibold text-slate-700">Absences r&eacute;centes</h3>
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           {recentAbsences.length > 0 ? (
             <div className="space-y-2">
@@ -441,13 +566,17 @@ export default function EmployeeProfilePage() {
           ) : (
             <p className="text-xs text-slate-400">Aucune absence enregistr&eacute;e</p>
           )}
-        </div>
+        </Link>
 
         {/* Card Actifs assignes */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <Link
+          href="/assets"
+          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-slate-400 hover:shadow-md transition-all group"
+        >
           <div className="flex items-center gap-2 mb-3">
             <Car className="w-4 h-4 text-slate-600" />
             <h3 className="text-sm font-semibold text-slate-700">Actifs assign&eacute;s</h3>
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           {assets.length > 0 ? (
             <div className="space-y-2">
@@ -463,6 +592,204 @@ export default function EmployeeProfilePage() {
             </div>
           ) : (
             <p className="text-xs text-slate-400">Aucun actif assign&eacute;</p>
+          )}
+        </Link>
+      </div>
+
+      {/* ===== EXPANDABLE SECTIONS ===== */}
+      <div className="space-y-3">
+        {/* Anciennete */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+          <button
+            onClick={() => setSeniorityOpen(!seniorityOpen)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-blue-600" />
+              <h3 className="text-sm font-semibold text-slate-700">Anciennet&eacute;</h3>
+            </div>
+            {seniorityOpen ? (
+              <ChevronUp className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+          {seniorityOpen && (
+            <div className="px-4 pb-4 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-sm">
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">Date d&apos;entr&eacute;e</span>
+                  <span className="font-medium text-slate-900">{formatDate(employee.date_of_hire)}</span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">Anciennet&eacute; accord&eacute;e</span>
+                  <span className="font-medium text-slate-900">
+                    {employee.granted_seniority != null ? `${employee.granted_seniority} an${employee.granted_seniority > 1 ? "s" : ""}` : "Aucune"}
+                  </span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">Date accord&eacute;e</span>
+                  <span className="font-medium text-slate-900">{formatDate(employee.granted_seniority_date)}</span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">Anciennet&eacute; acquise (calcul&eacute;e)</span>
+                  <span className="font-medium text-slate-900">
+                    {(() => {
+                      const years = calculateSeniorityYears(
+                        employee.date_of_hire,
+                        employee.granted_seniority,
+                        employee.granted_seniority_date
+                      );
+                      return `${years} an${years > 1 ? "s" : ""}`;
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">Date effective de d&eacute;but</span>
+                  <span className="font-medium text-slate-900">
+                    {formatDate(employee.granted_seniority_date || employee.date_of_hire)}
+                  </span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">Situation actuelle</span>
+                  <span className="font-medium text-slate-900">
+                    {employee.is_inactive ? "Inactif" : "Actif"}
+                    {employee.end_date ? ` (fin: ${formatDate(employee.end_date)})` : ""}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Augmentations */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+          <button
+            onClick={() => setAugmentationsOpen(!augmentationsOpen)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+              <h3 className="text-sm font-semibold text-slate-700">Augmentations</h3>
+              {indexations.length > 0 && (
+                <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                  {indexations.length}
+                </span>
+              )}
+            </div>
+            {augmentationsOpen ? (
+              <ChevronUp className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+          {augmentationsOpen && (
+            <div className="px-4 pb-4 border-t border-slate-100">
+              {indexations.length > 0 ? (
+                <div className="mt-3">
+                  <div className="space-y-2">
+                    {indexations.map((idx) => (
+                      <div key={idx.id} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-700">
+                            +{idx.amount.toFixed(2)} &euro;
+                          </span>
+                          {idx.description && (
+                            <span className="text-xs text-slate-400">{idx.description}</span>
+                          )}
+                        </div>
+                        <span className="text-slate-500 text-xs">{formatDate(idx.effective_date)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-700">Total cumul&eacute;</span>
+                    <span className="text-sm font-bold text-green-700">
+                      +{indexations.reduce((sum, idx) => sum + idx.amount, 0).toFixed(2)} &euro;
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 mt-3">Aucune augmentation personnelle enregistr&eacute;e</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Absences Sommaire */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+          <button
+            onClick={() => setAbsenceSummaryOpen(!absenceSummaryOpen)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-amber-600" />
+              <h3 className="text-sm font-semibold text-slate-700">Absences Sommaire ({new Date().getFullYear()})</h3>
+            </div>
+            {absenceSummaryOpen ? (
+              <ChevronUp className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+          {absenceSummaryOpen && (
+            <div className="px-4 pb-4 border-t border-slate-100">
+              {absenceSummary.length > 0 ? (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 pr-2 font-semibold text-slate-600">Code</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">J. acquis</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">J. pris</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">Diff J.</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">H. acquises</th>
+                        <th className="text-right py-2 px-2 font-semibold text-slate-600">H. prises</th>
+                        <th className="text-right py-2 pl-2 font-semibold text-slate-600">Diff H.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {absenceSummary.map((row) => {
+                        const totalEntitledMinutes = (row.hours_entitled * 60) + row.minutes_entitled;
+                        const diffDays = row.days_entitled - row.days_taken;
+                        const diffMinutes = totalEntitledMinutes - row.minutes_taken;
+                        return (
+                          <tr key={row.code} className="border-b border-slate-50 last:border-0">
+                            <td className="py-2 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                                  style={{ backgroundColor: row.color_hex || "#94a3b8" }}
+                                />
+                                <span className="font-medium text-slate-700" title={row.description}>
+                                  {row.code}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="text-right py-2 px-2 text-slate-600">{row.days_entitled || "-"}</td>
+                            <td className="text-right py-2 px-2 text-slate-600">{row.days_taken || "-"}</td>
+                            <td className={`text-right py-2 px-2 font-medium ${diffDays < 0 ? "text-red-600" : "text-slate-700"}`}>
+                              {row.days_entitled > 0 || row.days_taken > 0 ? diffDays : "-"}
+                            </td>
+                            <td className="text-right py-2 px-2 text-slate-600">
+                              {totalEntitledMinutes > 0 ? formatHoursMinutes(totalEntitledMinutes) : "-"}
+                            </td>
+                            <td className="text-right py-2 px-2 text-slate-600">
+                              {row.minutes_taken > 0 ? formatHoursMinutes(row.minutes_taken) : "-"}
+                            </td>
+                            <td className={`text-right py-2 pl-2 font-medium ${diffMinutes < 0 ? "text-red-600" : "text-slate-700"}`}>
+                              {totalEntitledMinutes > 0 || row.minutes_taken > 0 ? formatHoursMinutes(diffMinutes) : "-"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 mt-3">Aucune donn&eacute;e d&apos;absence pour cette ann&eacute;e</p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -559,6 +886,12 @@ export default function EmployeeProfilePage() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
         >
           <CalendarDays className="w-4 h-4" /> Calendrier annuel
+        </Link>
+        <Link
+          href="/remuneration/simulateur"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
+        >
+          <Calculator className="w-4 h-4" /> Simulateur salaire
         </Link>
         <Link
           href={`/employees/${employee.id}/edit`}

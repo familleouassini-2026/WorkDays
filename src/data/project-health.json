@@ -95,7 +95,7 @@
       "spec": ".kiro/specs/feature-specifications.md#people",
       "code": ["src/app/employees/page.tsx", "src/app/employees/[id]/page.tsx", "src/app/employees/[id]/edit/page.tsx", "src/app/employees/new/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Emp_Employee Details.cls",
-      "notes": "Liste, détail (dashboard KPI), ajout, édition, suppression. Page profil redesignée en single-scroll avec 6 cards KPI, section détails, et quick actions."
+      "notes": "Liste, détail (dashboard KPI), ajout, édition, suppression. Page profil v2: 6 cards KPI cliquables (liens vers modules), 3 sections expandables (Ancienneté, Augmentations, Absences Sommaire), quick actions enrichies (Encoder absence, Calendrier annuel, Simulateur salaire, Éditer). Mobile-first 1col/2col."
     },
     {
       "id": "absences-list",
@@ -271,6 +271,15 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-01",
+      "pr": "#39",
+      "description": "Profil employé v2 : 6 cards KPI cliquables (liens vers modules avec icône ArrowUpRight), 3 panneaux expandables (Ancienneté calcul complet, Augmentations avec total cumulé, Absences Sommaire tableau jours/heures acquis vs pris), quick actions enrichies (+Simulateur salaire). Fetch employee_indexations + absence summary dans useEffect.",
+      "filesChanged": [
+        "src/app/employees/[id]/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-01",
       "pr": "#38",
