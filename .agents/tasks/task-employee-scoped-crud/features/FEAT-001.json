@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create employee-scoped Timesheets CRUD sub-page at /employees/[id]/timesheets. Allows managing all timesheets (active and historical) for a single employee with add, edit inline, delete, and set-active functionality.",
+  "status": "in_progress",
+  "steps": [
+    "Create directory src/app/employees/[id]/timesheets/",
+    "Create src/app/employees/[id]/timesheets/page.tsx as a 'use client' page following the inline CRUD pattern from src/app/assets/page.tsx",
+    "Page header: back link to /employees/[id], employee name, title 'Horaires'",
+    "Fetch all timesheets for this employee from supabase .from('timesheets').select('*').eq('employee_id', id).order('is_active', {ascending: false}).order('start_date', {ascending: false})",
+    "Display timesheets as a list/table: 7 day columns (minutes -> Xh00 format), total, full_time_minutes, % temps, is_active badge, start_date, end_date, comment",
+    "Add form (toggle with + button): day inputs (number minutes for each day of week), full_time_minutes (default 2280), start_date, end_date, comment. On save, insert into timesheets table with employee_id.",
+    "Edit inline: clicking a row or pencil icon opens the form pre-filled with that timesheet's values. On save, update the row.",
+    "Delete with confirm dialog (window.confirm in French)",
+    "Set Active button: sets this timesheet is_active=true and all others for this employee is_active=false (only one active at a time)",
+    "Use minutesToHM helper (reuse pattern from profile page) for display",
+    "Mobile-first layout: card-based on small screens, table on md+. Use Tailwind responsive classes.",
+    "Use lucide-react icons: Clock, Plus, Pencil, Trash2, Check, ArrowLeft"
+  ],
+  "acceptance_criteria": [
+    "Page loads at /employees/[id]/timesheets showing all timesheets for that employee",
+    "User can add a new timesheet with day-by-day minutes, full_time_minutes, dates, and comment",
+    "User can edit any existing timesheet inline",
+    "User can delete a timesheet with confirmation",
+    "User can set one timesheet as active (deactivating others)",
+    "Active timesheet is visually distinguished (badge or highlight)",
+    "Back link returns to /employees/[id]",
+    "Page compiles without TypeScript errors in next build"
+  ],
+  "verification": [
+    "Run `cd /projects/sandbox/WorkDays && npx next build` and confirm no build errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
