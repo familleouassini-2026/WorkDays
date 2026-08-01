@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create employee-scoped Timesheets CRUD sub-page at /employees/[id]/timesheets. Allows managing all timesheets (active and historical) for a single employee with add, edit inline, delete, and set-active functionality.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create directory src/app/employees/[id]/timesheets/",
     "Create src/app/employees/[id]/timesheets/page.tsx as a 'use client' page following the inline CRUD pattern from src/app/assets/page.tsx",
@@ -31,5 +31,5 @@
     "Run `cd /projects/sandbox/WorkDays && npx next build` and confirm no build errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build compiles successfully with no TypeScript errors. Pre-existing error on /employees/new (Supabase env vars missing during static generation) is unrelated. Node v22 via nvm is required to run the build: export NVM_DIR=/root/.nvm && . $NVM_DIR/nvm.sh && nvm use 22. npm install was run to create node_modules."
 }
