@@ -1,0 +1,51 @@
+employee_name;event_date;event_type;description;raw_text
+BIOUCAS Lidia;2026-05-17;bareme;Changement barème 11 ans;MAI=chgt Brut 11ans!
+BLOIN Chloé;2026-05-31;fin_conge_parental;Fin congé parental;Fin Congé parental le 31/05/26
+BLOIN Chloé;2026-06-01;credit_temps;Enchaîne avec crédit temps;fin congé parental et enchaînera avec un crédit temps
+BOUZRATI Chaïmae;2026-03-05;accouchement;Accouchement;a accouché le 5/3/26
+BOUZRATI Chaïmae;2026-03-05;ecartement;Écartement total avant accouchement;ECARTEMENT TOTAL
+BOUZRATI Chaïmae;2026-05-28;allaitement_debut;Début congé allaitement;Début congé d allaitement
+BOUZRATI Chaïmae;2026-08-05;allaitement_fin;Fin congé allaitement + reprise;Fin de congé d allaitement et reprise le 5/8/26
+CZAPNIK Deborah;2026-09-01;rtt_reset;Nouveau cycle RTT 64h;64h àp du 1/9
+DELEM Françoise;2026-01-01;contrat_flexi;Contrat flexi du 01/01 au 31/01/26;contrat flexi du 01/01 au 31/01/26
+DELEM Françoise;2026-03-29;fin_contrat;Fin de contrat;fin de contrat
+STEFANIDIS Athanasia;2026-02-15;debut_preavis;Début préavis (démission);Début préavis
+STEFANIDIS Athanasia;2026-04-05;fin_preavis;Fin préavis 7 semaines;Fin de préavis le 05/04/2026
+GHADDIH Naïma;2026-01-07;chgt_horaire;Changement horaire;chgt horaire àp du 7/1/26
+GHADDIH Naïma;2027-01-06;fin_mi_temps;Fin mi-temps;Fin mi-temps 6/1/27
+GORRENDIAYE Adjuah;2026-06-01;no_bareme_change;Pas de changement brut 20 ans;pas chgt de brut 20ans!
+ION Roxana;2026-03-16;ecartement;Écartement total;écartement total à partir du 16/03/26 au 23/07/26
+ION Roxana;2026-07-15;accouchement;Accouchement;accouché le 15/7
+ION Roxana;2026-10-28;fin_maternite;Fin congé de maternité;Fin congé de maternité!!
+ION Roxana;2027-01-25;fin_allaitement;Fin congé allaitement;Fin congé d allaitement!
+KABANGU Céline;2026-02-06;accouchement;Accouchement;date d accouchement ce jour !!!
+KABANGU Céline;2026-05-02;allaitement_debut;Début congé allaitement;allaitement du 2/05/26 au 23/06/26
+KABANGU Céline;2026-06-23;allaitement_fin;Fin allaitement;début congé d allaitement au 23/06/26
+KABANGU Céline;2026-06-25;conge_parental_debut;Congé parental temps plein;congé parental temps plein du 25/06/26 au 24/08/2026
+KABANGU Céline;2026-08-24;conge_parental_fin;Fin congé parental;fin congé parental
+KABANGU Céline;2026-09-28;conge_parental_partiel;CP 7h36 off mercredi;congé parental off ce jour
+LACROIX Astrid;2026-01-08;reprise_partielle;Reprise à 15h12/sem;reprise partielle de 15h12 à partir du 8/1/26
+LACROIX Astrid;2026-02-01;arret_icp;Arrêt ICP (crédit temps);arrêt de son ICP àp 01/02/26
+LACROIX Astrid;2026-03-01;reprise_20h54;Reprise à 20h54/sem;reprise 20h54 à partir du 02/03/26
+LACROIX Astrid;2026-04-01;reprise_30h24;Reprise à 30h24 + 7h36 CT;Astrid va reprendre à 30h24 à partir du 01/04/26
+LACROIX Astrid;2026-08-03;debut_preavis;Début préavis 13 semaines;début préavis du 3/8 au 31/10
+LACROIX Astrid;2026-10-31;fin_preavis;Fin préavis;fin préavis de 13sem
+MALOENS Emilie;2026-01-01;fin_allaitement;Fin congé allaitement;Fin congé d allaitement
+MALOENS Emilie;2026-02-28;mutuelle;Passe sur mutuelle;passe sur la mutuelle
+OUCHENE Rachida;2026-01-06;reprise;Reprise après maladie longue (38h);reprise ce jour à 38h malade depuis 22/09/2023
+OULAD Bouchra;2026-01-01;formation;Webinar actualités sociales;webinar actualités sociales 9h-11h
+PANYANDY Shanti;2026-01-22;accident_travail;Accident sur chemin du travail;accident sur le chemin du t.
+PANYANDY Shanti;2026-07-31;fin_cdd;Fin CDD;fin cdd le 31/07/26
+EL NAEB Allae;2025-10-06;debut_cdd;Début CDD;1an déjà CDD
+EL NAEB Allae;2026-10-05;fin_cdd;Fin CDD;Fin de CDD
+LE BOEDEC Bleuenn;2026-09-08;fin_cdd;Fin CDD;fin 8/9/26
+MOHAM ABDIR Arafo;2026-01-05;fin_maternite;Fin congé maternité + retour;Fin congé de maternité
+ZBIRNEA S;2026-04-30;fin_contrat;Rupture commun accord;Fin de contrat par rupture de commun accord!
+SOLLAMI Graziella;2026-02-01;chgt_horaire;Ne travaille que Je+Ve (19h/sem);à partir du 1er février je ne travaillerai que le jeudi et le vendredi
+HUIJSKENS Cindy;2027-05-31;fin_credit_temps;Fin crédit temps;Fin crédit temps le 31/05/2027
+IOVAN Carmen;2026-01-23;cfr;Congé familial rémunéré fils malade;cfr fils malade
+SIBOMANA Alphonse;2026-12-08;formation;Formation Licencier un collaborateur;formation Licencier un collaborateur
+RWAB Janvière;2026-01-06;formation;Formation conseiller prévention niveau III;Formation de base conseiller en prévention niveau III
+ELOUEHABI Chaimae;2026-06-30;fin_cdd;Fin prolongation CDD;Prolongement CDD jusqu au 30/06/2026
+DE SAN Diane;2027-05-02;fin_conge_parental;Fin CP;Fin Congé parental le 02/05/27
+YAVAS Fadime;2026-04-22;jf_paye;JF 01/05 payé via correction;JF du 01/05 payé ce 22/04
