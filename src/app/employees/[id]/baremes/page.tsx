@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, Award, ExternalLink } from "lucide-react";
+import { ArrowLeft, Award, ExternalLink, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { calculateSeniorityYears } from "@/lib/calculations";
 
 // ---------- TYPES ----------
@@ -34,6 +34,7 @@ export default function EmployeeBaremesPage() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [scales, setScales] = useState<SeniorityScale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [formulaOpen, setFormulaOpen] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -113,6 +114,33 @@ export default function EmployeeBaremesPage() {
         <h1 className="text-2xl font-bold text-slate-900">
           Bar&egrave;me salarial - {employee.first_name} {employee.last_name}
         </h1>
+      </div>
+
+      {/* Info banner */}
+      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-blue-800">Logique de calcul du salaire</h4>
+            <p className="text-sm text-blue-700 mt-1">
+              Le salaire est calcul&eacute; &agrave; partir du bar&egrave;me de base (selon anciennet&eacute; et secteur), multipli&eacute; par le produit des indexations g&eacute;n&eacute;rales et sectorielles, puis additionn&eacute; des augmentations personnelles.
+            </p>
+            <button
+              onClick={() => setFormulaOpen(!formulaOpen)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 mt-2"
+            >
+              {formulaOpen ? "Masquer la formule" : "Voir la formule"}
+              {formulaOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {formulaOpen && (
+              <div className="mt-2 bg-white/60 rounded-md p-3 border border-blue-100">
+                <p className="text-xs font-mono text-blue-800 leading-relaxed">
+                  Salaire = Base(bar&egrave;me) &times; &Pi;Product(org) &times; &Pi;Product(secteur) + &Sigma;(augmentations)
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Current situation */}

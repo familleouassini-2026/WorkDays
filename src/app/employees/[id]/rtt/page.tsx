@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, Calculator, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calculator, ExternalLink, Info, ChevronDown, ChevronUp } from "lucide-react";
 
 // ---------- TYPES ----------
 
@@ -54,6 +54,7 @@ export default function EmployeeRTTPage() {
   const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
   const [loading, setLoading] = useState(true);
   const [noRTT, setNoRTT] = useState(false);
+  const [formulaOpen, setFormulaOpen] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -214,6 +215,33 @@ export default function EmployeeRTTPage() {
         <h1 className="text-2xl font-bold text-slate-900">
           RTT - {employee.first_name} {employee.last_name}
         </h1>
+      </div>
+
+      {/* Info banner */}
+      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-blue-800">Comment &ccedil;a marche ?</h4>
+            <p className="text-sm text-blue-700 mt-1">
+              Le calcul RTT est bas&eacute; sur l&apos;&acirc;ge de l&apos;employ&eacute; au moment de son anniversaire. Le total est proratis&eacute; selon le mois de naissance (portion avant/apr&egrave;s anniversaire) puis ajust&eacute; au pourcentage de temps de travail effectif.
+            </p>
+            <button
+              onClick={() => setFormulaOpen(!formulaOpen)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 mt-2"
+            >
+              {formulaOpen ? "Masquer la formule" : "Voir la formule"}
+              {formulaOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {formulaOpen && (
+              <div className="mt-2 bg-white/60 rounded-md p-3 border border-blue-100">
+                <p className="text-xs font-mono text-blue-800 leading-relaxed">
+                  RTT = (mois_avant/12 &times; heures_N-1) + (mois_apr&egrave;s/12 &times; heures_N) &times; %_temps_travail
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Employee info card */}

@@ -663,6 +663,14 @@ export default function EmployeeProfilePage() {
                   </span>
                 </div>
               </div>
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <Link
+                  href={`/employees/${employee.id}/edit`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Modifier
+                </Link>
+              </div>
             </div>
           )}
         </div>
