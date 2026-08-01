@@ -493,7 +493,7 @@ export default function EmployeeProfilePage() {
 
         {/* Card Conges */}
         <Link
-          href="/absences/balances"
+          href={`/employees/${employee.id}/vacation-rights`}
           className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-amber-300 hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-2 mb-3">
@@ -522,7 +522,7 @@ export default function EmployeeProfilePage() {
 
         {/* Card RTT */}
         <Link
-          href="/schedules/rtt"
+          href={`/employees/${employee.id}/timesheets`}
           className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-purple-300 hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-2 mb-3">
@@ -540,7 +540,7 @@ export default function EmployeeProfilePage() {
 
         {/* Card Absences recentes */}
         <Link
-          href="/absences/annual"
+          href={`/employees/${employee.id}/absences`}
           className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-red-300 hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-2 mb-3">
@@ -570,7 +570,7 @@ export default function EmployeeProfilePage() {
 
         {/* Card Actifs assignes */}
         <Link
-          href="/assets"
+          href={`/employees/${employee.id}/assets`}
           className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-slate-400 hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-2 mb-3">
@@ -708,9 +708,23 @@ export default function EmployeeProfilePage() {
                       +{indexations.reduce((sum, idx) => sum + idx.amount, 0).toFixed(2)} &euro;
                     </span>
                   </div>
+                  <Link
+                    href={`/employees/${employee.id}/augmentations`}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
+                  >
+                    G&eacute;rer les augmentations <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400 mt-3">Aucune augmentation personnelle enregistr&eacute;e</p>
+                <div className="mt-3">
+                  <p className="text-xs text-slate-400">Aucune augmentation personnelle enregistr&eacute;e</p>
+                  <Link
+                    href={`/employees/${employee.id}/augmentations`}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
+                  >
+                    G&eacute;rer les augmentations <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               )}
             </div>
           )}
@@ -785,9 +799,23 @@ export default function EmployeeProfilePage() {
                       })}
                     </tbody>
                   </table>
+                  <Link
+                    href={`/employees/${employee.id}/absences`}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
+                  >
+                    Voir toutes les absences <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400 mt-3">Aucune donn&eacute;e d&apos;absence pour cette ann&eacute;e</p>
+                <div className="mt-3">
+                  <p className="text-xs text-slate-400">Aucune donn&eacute;e d&apos;absence pour cette ann&eacute;e</p>
+                  <Link
+                    href={`/employees/${employee.id}/absences`}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
+                  >
+                    Voir toutes les absences <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               )}
             </div>
           )}
@@ -856,9 +884,23 @@ export default function EmployeeProfilePage() {
                 Total : <strong className="text-slate-700">{minutesToHM(totalMinutes)}</strong>/sem
                 {pctFullTime && <> &bull; <strong className="text-blue-600">{pctFullTime}%</strong></>}
               </p>
+              <Link
+                href={`/employees/${employee.id}/timesheets`}
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
+              >
+                G&eacute;rer les horaires <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           ) : (
-            <p className="text-xs text-slate-400">Aucun horaire d&eacute;fini</p>
+            <div>
+              <p className="text-xs text-slate-400">Aucun horaire d&eacute;fini</p>
+              <Link
+                href={`/employees/${employee.id}/timesheets`}
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
+              >
+                G&eacute;rer les horaires <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           )}
         </div>
 
@@ -882,10 +924,10 @@ export default function EmployeeProfilePage() {
           <PlusCircle className="w-4 h-4" /> Encoder absence
         </Link>
         <Link
-          href="/absences/annual"
+          href={`/employees/${employee.id}/absences`}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
         >
-          <CalendarDays className="w-4 h-4" /> Calendrier annuel
+          <CalendarDays className="w-4 h-4" /> Absences
         </Link>
         <Link
           href="/remuneration/simulateur"
