@@ -44,22 +44,22 @@ export default function BaremesPage() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const filteredScales = selectedSector
-    ? scales.filter((s) => s.sectors?.name === selectedSector)
-    : scales;
-
-  const groupedBySector: Record<string, { sectorId: number; scales: SeniorityScale[] }> = {};
-  filteredScales.forEach((scale) => {
-    const sectorName = scale.sectors?.name || "Sans secteur";
-    if (!groupedBySector[sectorName]) {
-      groupedBySector[sectorName] = { sectorId: scale.sector_id, scales: [] };
-    }
-    groupedBySector[sectorName].scales.push(scale);
+  // Build map: sectorId -> scales[]
+  const scalesBySectorId: Record<number, SeniorityScale[]> = {};
+  scales.forEach((s) => {
+    if (!scalesBySectorId[s.sector_id]) scalesBySectorId[s.sector_id] = [];
+    scalesBySectorId[s.sector_id].push(s);
   });
+
+  // Filter sectors if selector active
+  const visibleSectors = selectedSector
+    ? sectors.filter((s) => s.name === selectedSector)
+    : sectors;
+
+  // Sort alphabetically
+  const sortedSectors = [...visibleSectors].sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   async function handleAdd(sectorId: number) {
     if (newYears < 0 || newSalary <= 0) return;
@@ -71,6 +71,7 @@ export default function BaremesPage() {
       setNewYears(0);
       setNewSalary(0);
       await fetchData();
+      // Keep addingSectorId set so user can continue adding
     }
   }
 
@@ -80,19 +81,14 @@ export default function BaremesPage() {
       .from("seniority_scales")
       .update({ years: editYears, base_salary: editSalary })
       .eq("id", id);
-    if (!error) {
-      setEditingId(null);
-      await fetchData();
-    }
+    if (!error) { setEditingId(null); await fetchData(); }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Supprimer ce palier ? Cette action est irreversible.")) return;
     const supabase = createClient();
     const { error } = await supabase.from("seniority_scales").delete().eq("id", id);
-    if (!error) {
-      await fetchData();
-    }
+    if (!error) { await fetchData(); }
   }
 
   function startEdit(scale: SeniorityScale) {
@@ -105,12 +101,8 @@ export default function BaremesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Baremes salariaux
-          </h1>
-          <p className="text-slate-500 mt-1">
-            Grilles de remuneration par secteur et anciennete
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">Baremes salariaux</h1>
+          <p className="text-slate-500 mt-1">Grilles de remuneration par secteur et anciennete</p>
         </div>
         <select
           value={selectedSector}
@@ -119,9 +111,7 @@ export default function BaremesPage() {
         >
           <option value="">Tous les secteurs</option>
           {sectors.map((s) => (
-            <option key={s.id} value={s.name}>
-              {s.name}
-            </option>
+            <option key={s.id} value={s.name}>{s.name}</option>
           ))}
         </select>
       </div>
@@ -129,220 +119,136 @@ export default function BaremesPage() {
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
-          <p className="text-slate-500 mt-4">Chargement...</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {filteredScales.length === 0 && (
-            <div className="bg-white rounded-lg border p-8 text-center">
-              <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="text-slate-500 mt-3">Aucun bareme existant pour ce filtre.</p>
-              <p className="text-xs text-slate-400 mt-1">Utilisez les boutons ci-dessous pour creer des paliers.</p>
-            </div>
-          )}
-          {Object.entries(groupedBySector).sort(([a], [b]) => a.localeCompare(b, "fr")).map(([sectorName, { sectorId, scales: sectorScales }]) => (
-            <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700">{sectorName}</h3>
-                  <p className="text-xs text-slate-500">{sectorScales.length} palier{sectorScales.length > 1 ? "s" : ""}</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setAddingSectorId(addingSectorId === sectorId ? null : sectorId);
-                    setNewYears(0);
-                    setNewSalary(0);
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Ajouter un palier
-                </button>
-              </div>
+        <div className="space-y-4">
+          {sortedSectors.map((sector) => {
+            const sectorScales = scalesBySectorId[sector.id] || [];
+            const isAdding = addingSectorId === sector.id;
 
-              {/* Add row form */}
-              {addingSectorId === sectorId && (
-                <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
-                  <input
-                    type="number"
-                    min={0}
-                    value={newYears}
-                    onChange={(e) => setNewYears(Number(e.target.value))}
-                    placeholder="Annees"
-                    className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={newSalary || ""}
-                    onChange={(e) => setNewSalary(Number(e.target.value))}
-                    placeholder="Salaire de base"
-                    className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => handleAdd(sectorId)}
-                    className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setAddingSectorId(null)}
-                    className="p-1.5 text-slate-400 hover:bg-slate-100 rounded"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
-                        Anciennete (ans)
-                      </th>
-                      <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
-                        Salaire de base
-                      </th>
-                      <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase w-24">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {sectorScales.map((scale) => (
-                      <tr key={scale.id} className="hover:bg-slate-50">
-                        {editingId === scale.id ? (
-                          <>
-                            <td className="px-4 py-2">
-                              <input
-                                type="number"
-                                min={0}
-                                value={editYears}
-                                onChange={(e) => setEditYears(Number(e.target.value))}
-                                className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              <input
-                                type="number"
-                                min={0}
-                                step={0.01}
-                                value={editSalary}
-                                onChange={(e) => setEditSalary(Number(e.target.value))}
-                                className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none"
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => handleEdit(scale.id)}
-                                  className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => setEditingId(null)}
-                                  className="p-1.5 text-slate-400 hover:bg-slate-100 rounded"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-4 py-2 text-sm text-slate-700">
-                              {scale.years} an{scale.years > 1 ? "s" : ""}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-slate-900 font-medium text-right">
-                              {scale.base_salary.toLocaleString("fr-BE", {
-                                style: "currency",
-                                currency: "EUR",
-                              })}
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => startEdit(scale)}
-                                  className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
-                                  title="Modifier"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(scale.id)}
-                                  className="p-1.5 text-red-600 hover:bg-red-100 rounded"
-                                  title="Supprimer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-
-          {/* Sectors without any bareme */}
-          {(() => {
-            const sectorsWithBareme = new Set(Object.values(groupedBySector).map(g => g.sectorId));
-            const sectorsWithout = sectors.filter(s => !sectorsWithBareme.has(s.id) && (!selectedSector || s.name === selectedSector));
-            if (sectorsWithout.length === 0) return null;
             return (
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Secteurs sans bareme</h3>
-                <div className="space-y-2">
-                  {sectorsWithout.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                      <span className="text-sm text-slate-600">{s.name}</span>
-                      {addingSectorId === s.id ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={0}
-                            value={newYears}
-                            onChange={(e) => setNewYears(Number(e.target.value))}
-                            placeholder="Annees"
-                            className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={newSalary || ""}
-                            onChange={(e) => setNewSalary(Number(e.target.value))}
-                            placeholder="Salaire"
-                            className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                          />
-                          <button onClick={() => handleAdd(s.id)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded">
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setAddingSectorId(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => { setAddingSectorId(s.id); setNewYears(0); setNewSalary(0); }}
-                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Creer le bareme
-                        </button>
-                      )}
-                    </div>
-                  ))}
+              <div key={sector.id} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                {/* Sector header */}
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700">{sector.name}</h3>
+                    <p className="text-xs text-slate-500">
+                      {sectorScales.length > 0
+                        ? `${sectorScales.length} palier${sectorScales.length > 1 ? "s" : ""}`
+                        : "Aucun palier"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setAddingSectorId(isAdding ? null : sector.id);
+                      setNewYears(0);
+                      setNewSalary(0);
+                    }}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      isAdding
+                        ? "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
+                  >
+                    {isAdding ? (
+                      <><X className="w-3.5 h-3.5" /> Fermer</>
+                    ) : (
+                      <><Plus className="w-3.5 h-3.5" /> Ajouter un palier</>
+                    )}
+                  </button>
                 </div>
+
+                {/* Add form */}
+                {isAdding && (
+                  <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap items-center gap-3">
+                    <input
+                      type="number"
+                      min={0}
+                      value={newYears}
+                      onChange={(e) => setNewYears(Number(e.target.value))}
+                      placeholder="Annees"
+                      className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={newSalary || ""}
+                      onChange={(e) => setNewSalary(Number(e.target.value))}
+                      placeholder="Salaire de base"
+                      className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleAdd(sector.id)}
+                      disabled={newSalary <= 0}
+                      className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                )}
+
+                {/* Table */}
+                {sectorScales.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Anciennete (ans)</th>
+                          <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Salaire de base</th>
+                          <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase w-24">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {sectorScales.map((scale) => (
+                          <tr key={scale.id} className="hover:bg-slate-50">
+                            {editingId === scale.id ? (
+                              <>
+                                <td className="px-4 py-2">
+                                  <input type="number" min={0} value={editYears} onChange={(e) => setEditYears(Number(e.target.value))}
+                                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none" />
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <input type="number" min={0} step={0.01} value={editSalary} onChange={(e) => setEditSalary(Number(e.target.value))}
+                                    className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none" />
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button onClick={() => handleEdit(scale.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded"><Check className="w-4 h-4" /></button>
+                                    <button onClick={() => setEditingId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded"><X className="w-4 h-4" /></button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-4 py-2 text-sm text-slate-700">{scale.years} an{scale.years > 1 ? "s" : ""}</td>
+                                <td className="px-4 py-2 text-sm text-slate-900 font-medium text-right">
+                                  {scale.base_salary.toLocaleString("fr-BE", { style: "currency", currency: "EUR" })}
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button onClick={() => startEdit(scale)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded" title="Modifier"><Pencil className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleDelete(scale.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Empty state for sector with no scales */}
+                {sectorScales.length === 0 && !isAdding && (
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-xs text-slate-400">Aucun palier configure pour ce secteur</p>
+                  </div>
+                )}
               </div>
             );
-          })()}
+          })}
         </div>
       )}
     </div>
