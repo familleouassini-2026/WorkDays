@@ -2,44 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { BookOpen, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Clock, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 
-interface SeniorityScale {
+interface RTTEntitlement {
   id: number;
   sector_id: number;
-  years: number;
-  base_salary: number;
+  seniority_start: number;
+  hours_per_year: number;
   sectors: { name: string } | null;
 }
 
 interface Sector {
   id: number;
   name: string;
+  has_rtt: boolean;
 }
 
-export default function BaremesPage() {
-  const [scales, setScales] = useState<SeniorityScale[]>([]);
+export default function RTTEntitlementsPage() {
+  const [entitlements, setEntitlements] = useState<RTTEntitlement[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [selectedSector, setSelectedSector] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editYears, setEditYears] = useState<number>(0);
-  const [editSalary, setEditSalary] = useState<number>(0);
+  const [editSeniorityStart, setEditSeniorityStart] = useState<number>(0);
+  const [editHoursPerYear, setEditHoursPerYear] = useState<number>(0);
   const [addingSectorId, setAddingSectorId] = useState<number | null>(null);
-  const [newYears, setNewYears] = useState<number>(0);
-  const [newSalary, setNewSalary] = useState<number>(0);
+  const [newSeniorityStart, setNewSeniorityStart] = useState<number>(0);
+  const [newHoursPerYear, setNewHoursPerYear] = useState<number>(0);
 
   async function fetchData() {
     const supabase = createClient();
-    const [scalesRes, sectorsRes] = await Promise.all([
+    const [entRes, sectorsRes] = await Promise.all([
       supabase
-        .from("seniority_scales")
-        .select("id, sector_id, years, base_salary, sectors(name)")
+        .from("rtt_entitlements")
+        .select("id, sector_id, seniority_start, hours_per_year, sectors(name)")
         .order("sector_id")
-        .order("years"),
-      supabase.from("sectors").select("id, name").order("name"),
+        .order("seniority_start"),
+      supabase.from("sectors").select("id, name, has_rtt").order("name"),
     ]);
-    if (scalesRes.data) setScales(scalesRes.data as unknown as SeniorityScale[]);
+    if (entRes.data) setEntitlements(entRes.data as unknown as RTTEntitlement[]);
     if (sectorsRes.data) setSectors(sectorsRes.data);
     setLoading(false);
   }
@@ -48,28 +49,30 @@ export default function BaremesPage() {
     fetchData();
   }, []);
 
-  const filteredScales = selectedSector
-    ? scales.filter((s) => s.sectors?.name === selectedSector)
-    : scales;
+  const rttSectors = sectors.filter((s) => s.has_rtt);
 
-  const groupedBySector: Record<string, { sectorId: number; scales: SeniorityScale[] }> = {};
-  filteredScales.forEach((scale) => {
-    const sectorName = scale.sectors?.name || "Sans secteur";
+  const filteredEntitlements = selectedSector
+    ? entitlements.filter((e) => e.sectors?.name === selectedSector)
+    : entitlements;
+
+  const groupedBySector: Record<string, { sectorId: number; entitlements: RTTEntitlement[] }> = {};
+  filteredEntitlements.forEach((ent) => {
+    const sectorName = ent.sectors?.name || "Sans secteur";
     if (!groupedBySector[sectorName]) {
-      groupedBySector[sectorName] = { sectorId: scale.sector_id, scales: [] };
+      groupedBySector[sectorName] = { sectorId: ent.sector_id, entitlements: [] };
     }
-    groupedBySector[sectorName].scales.push(scale);
+    groupedBySector[sectorName].entitlements.push(ent);
   });
 
   async function handleAdd(sectorId: number) {
-    if (newYears < 0 || newSalary <= 0) return;
+    if (newSeniorityStart < 0 || newHoursPerYear <= 0) return;
     const supabase = createClient();
     const { error } = await supabase
-      .from("seniority_scales")
-      .insert({ sector_id: sectorId, years: newYears, base_salary: newSalary });
+      .from("rtt_entitlements")
+      .insert({ sector_id: sectorId, seniority_start: newSeniorityStart, hours_per_year: newHoursPerYear });
     if (!error) {
-      setNewYears(0);
-      setNewSalary(0);
+      setNewSeniorityStart(0);
+      setNewHoursPerYear(0);
       await fetchData();
     }
   }
@@ -77,8 +80,8 @@ export default function BaremesPage() {
   async function handleEdit(id: number) {
     const supabase = createClient();
     const { error } = await supabase
-      .from("seniority_scales")
-      .update({ years: editYears, base_salary: editSalary })
+      .from("rtt_entitlements")
+      .update({ seniority_start: editSeniorityStart, hours_per_year: editHoursPerYear })
       .eq("id", id);
     if (!error) {
       setEditingId(null);
@@ -87,29 +90,27 @@ export default function BaremesPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!window.confirm("Supprimer ce palier ? Cette action est irreversible.")) return;
+    if (!window.confirm("Supprimer cette tranche ? Cette action est irreversible.")) return;
     const supabase = createClient();
-    const { error } = await supabase.from("seniority_scales").delete().eq("id", id);
+    const { error } = await supabase.from("rtt_entitlements").delete().eq("id", id);
     if (!error) {
       await fetchData();
     }
   }
 
-  function startEdit(scale: SeniorityScale) {
-    setEditingId(scale.id);
-    setEditYears(scale.years);
-    setEditSalary(scale.base_salary);
+  function startEdit(ent: RTTEntitlement) {
+    setEditingId(ent.id);
+    setEditSeniorityStart(ent.seniority_start);
+    setEditHoursPerYear(ent.hours_per_year);
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Baremes salariaux
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">Bareme RTT</h1>
           <p className="text-slate-500 mt-1">
-            Grilles de remuneration par secteur et anciennete
+            Heures RTT par tranche d&apos;age et par secteur
           </p>
         </div>
         <select
@@ -117,8 +118,8 @@ export default function BaremesPage() {
           onChange={(e) => setSelectedSector(e.target.value)}
           className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
-          <option value="">Tous les secteurs</option>
-          {sectors.map((s) => (
+          <option value="">Tous</option>
+          {rttSectors.map((s) => (
             <option key={s.id} value={s.name}>
               {s.name}
             </option>
@@ -133,30 +134,31 @@ export default function BaremesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {filteredScales.length === 0 && (
+          {filteredEntitlements.length === 0 && Object.keys(groupedBySector).length === 0 && (
             <div className="bg-white rounded-lg border p-8 text-center">
-              <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="text-slate-500 mt-3">Aucun bareme existant pour ce filtre.</p>
-              <p className="text-xs text-slate-400 mt-1">Utilisez les boutons ci-dessous pour creer des paliers.</p>
+              <Clock className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-slate-500 mt-3">Aucune tranche RTT existante pour ce filtre.</p>
+              <p className="text-xs text-slate-400 mt-1">Utilisez les boutons ci-dessous pour creer des tranches.</p>
             </div>
           )}
-          {Object.entries(groupedBySector).sort(([a], [b]) => a.localeCompare(b, "fr")).map(([sectorName, { sectorId, scales: sectorScales }]) => (
+
+          {Object.entries(groupedBySector).sort(([a], [b]) => a.localeCompare(b, "fr")).map(([sectorName, { sectorId, entitlements: sectorEntitlements }]) => (
             <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700">{sectorName}</h3>
-                  <p className="text-xs text-slate-500">{sectorScales.length} palier{sectorScales.length > 1 ? "s" : ""}</p>
+                  <p className="text-xs text-slate-500">{sectorEntitlements.length} tranche{sectorEntitlements.length > 1 ? "s" : ""}</p>
                 </div>
                 <button
                   onClick={() => {
                     setAddingSectorId(addingSectorId === sectorId ? null : sectorId);
-                    setNewYears(0);
-                    setNewSalary(0);
+                    setNewSeniorityStart(0);
+                    setNewHoursPerYear(0);
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Ajouter un palier
+                  Ajouter une tranche
                 </button>
               </div>
 
@@ -166,19 +168,19 @@ export default function BaremesPage() {
                   <input
                     type="number"
                     min={0}
-                    value={newYears}
-                    onChange={(e) => setNewYears(Number(e.target.value))}
-                    placeholder="Annees"
-                    className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    value={newSeniorityStart}
+                    onChange={(e) => setNewSeniorityStart(Number(e.target.value))}
+                    placeholder="Age minimum"
+                    className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                   />
                   <input
                     type="number"
                     min={0}
-                    step={0.01}
-                    value={newSalary || ""}
-                    onChange={(e) => setNewSalary(Number(e.target.value))}
-                    placeholder="Salaire de base"
-                    className="w-36 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    step={0.5}
+                    value={newHoursPerYear || ""}
+                    onChange={(e) => setNewHoursPerYear(Number(e.target.value))}
+                    placeholder="Heures/an"
+                    className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                   />
                   <button
                     onClick={() => handleAdd(sectorId)}
@@ -200,10 +202,10 @@ export default function BaremesPage() {
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
-                        Anciennete (ans)
+                        Age minimum
                       </th>
                       <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
-                        Salaire de base
+                        Heures/an
                       </th>
                       <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase w-24">
                         Actions
@@ -211,16 +213,16 @@ export default function BaremesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {sectorScales.map((scale) => (
-                      <tr key={scale.id} className="hover:bg-slate-50">
-                        {editingId === scale.id ? (
+                    {sectorEntitlements.map((ent) => (
+                      <tr key={ent.id} className="hover:bg-slate-50">
+                        {editingId === ent.id ? (
                           <>
                             <td className="px-4 py-2">
                               <input
                                 type="number"
                                 min={0}
-                                value={editYears}
-                                onChange={(e) => setEditYears(Number(e.target.value))}
+                                value={editSeniorityStart}
+                                onChange={(e) => setEditSeniorityStart(Number(e.target.value))}
                                 className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
                               />
                             </td>
@@ -228,16 +230,16 @@ export default function BaremesPage() {
                               <input
                                 type="number"
                                 min={0}
-                                step={0.01}
-                                value={editSalary}
-                                onChange={(e) => setEditSalary(Number(e.target.value))}
-                                className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none"
+                                step={0.5}
+                                value={editHoursPerYear}
+                                onChange={(e) => setEditHoursPerYear(Number(e.target.value))}
+                                className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none"
                               />
                             </td>
                             <td className="px-4 py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
-                                  onClick={() => handleEdit(scale.id)}
+                                  onClick={() => handleEdit(ent.id)}
                                   className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded"
                                 >
                                   <Check className="w-4 h-4" />
@@ -254,25 +256,22 @@ export default function BaremesPage() {
                         ) : (
                           <>
                             <td className="px-4 py-2 text-sm text-slate-700">
-                              {scale.years} an{scale.years > 1 ? "s" : ""}
+                              {ent.seniority_start} ans
                             </td>
                             <td className="px-4 py-2 text-sm text-slate-900 font-medium text-right">
-                              {scale.base_salary.toLocaleString("fr-BE", {
-                                style: "currency",
-                                currency: "EUR",
-                              })}
+                              {ent.hours_per_year}h
                             </td>
                             <td className="px-4 py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
-                                  onClick={() => startEdit(scale)}
+                                  onClick={() => startEdit(ent)}
                                   className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
                                   title="Modifier"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button
-                                  onClick={() => handleDelete(scale.id)}
+                                  onClick={() => handleDelete(ent.id)}
                                   className="p-1.5 text-red-600 hover:bg-red-100 rounded"
                                   title="Supprimer"
                                 >
@@ -290,14 +289,14 @@ export default function BaremesPage() {
             </div>
           ))}
 
-          {/* Sectors without any bareme */}
+          {/* Sectors with has_rtt=true but no entries in rtt_entitlements */}
           {(() => {
-            const sectorsWithBareme = new Set(Object.values(groupedBySector).map(g => g.sectorId));
-            const sectorsWithout = sectors.filter(s => !sectorsWithBareme.has(s.id) && (!selectedSector || s.name === selectedSector));
+            const sectorsWithEntitlements = new Set(Object.values(groupedBySector).map(g => g.sectorId));
+            const sectorsWithout = rttSectors.filter(s => !sectorsWithEntitlements.has(s.id) && (!selectedSector || s.name === selectedSector));
             if (sectorsWithout.length === 0) return null;
             return (
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Secteurs sans bareme</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Secteurs sans RTT</h3>
                 <div className="space-y-2">
                   {sectorsWithout.map((s) => (
                     <div key={s.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
@@ -307,19 +306,19 @@ export default function BaremesPage() {
                           <input
                             type="number"
                             min={0}
-                            value={newYears}
-                            onChange={(e) => setNewYears(Number(e.target.value))}
-                            placeholder="Annees"
+                            value={newSeniorityStart}
+                            onChange={(e) => setNewSeniorityStart(Number(e.target.value))}
+                            placeholder="Age min"
                             className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                           />
                           <input
                             type="number"
                             min={0}
-                            step={0.01}
-                            value={newSalary || ""}
-                            onChange={(e) => setNewSalary(Number(e.target.value))}
-                            placeholder="Salaire"
-                            className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                            step={0.5}
+                            value={newHoursPerYear || ""}
+                            onChange={(e) => setNewHoursPerYear(Number(e.target.value))}
+                            placeholder="Heures/an"
+                            className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                           />
                           <button onClick={() => handleAdd(s.id)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded">
                             <Check className="w-4 h-4" />
@@ -330,11 +329,11 @@ export default function BaremesPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => { setAddingSectorId(s.id); setNewYears(0); setNewSalary(0); }}
+                          onClick={() => { setAddingSectorId(s.id); setNewSeniorityStart(0); setNewHoursPerYear(0); }}
                           className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         >
                           <Plus className="w-3 h-3" />
-                          Creer le bareme
+                          Ajouter une tranche
                         </button>
                       )}
                     </div>
