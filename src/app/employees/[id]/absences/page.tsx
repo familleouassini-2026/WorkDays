@@ -46,7 +46,7 @@ function currentYear() {
 
 function getYearOptions(): number[] {
   const cur = currentYear();
-  return [cur - 2, cur - 1, cur, cur + 1];
+  return [cur - 5, cur - 4, cur - 3, cur - 2, cur - 1, cur, cur + 1];
 }
 
 function emptyForm(): AbsenceForm {
@@ -67,7 +67,7 @@ function formatMinutes(minutes: number | null): string {
 }
 
 function formatDateFrBe(dateStr: string): string {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-BE", {
     day: "2-digit",
     month: "2-digit",
@@ -76,7 +76,7 @@ function formatDateFrBe(dateStr: string): string {
 }
 
 function getMonthLabel(dateStr: string): string {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + "T00:00:00");
   const label = d.toLocaleDateString("fr-BE", { month: "long", year: "numeric" });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
@@ -96,6 +96,8 @@ function groupByMonth(entries: YearCalendarEntry[]): Record<string, YearCalendar
 export default function AbsencesPage() {
   const params = useParams();
   const id = params.id as string;
+  // createBrowserClient from @supabase/ssr returns a singleton (memoized by URL+key),
+  // so calling createClient() at component body level does not create multiple instances.
   const supabase = createClient();
 
   const [employeeName, setEmployeeName] = useState("");

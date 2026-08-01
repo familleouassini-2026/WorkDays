@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { TrendingUp, Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { TrendingUp, Plus, Pencil, Trash2, ArrowLeft, AlertCircle } from "lucide-react";
 
 // ---------- TYPES ----------
 
@@ -56,6 +56,8 @@ function formatDate(dateStr: string): string {
 export default function AugmentationsPage() {
   const params = useParams();
   const id = params.id as string;
+  // createBrowserClient from @supabase/ssr returns a singleton (memoized by URL+key),
+  // so calling createClient() at component body level does not create multiple instances.
   const supabase = createClient();
 
   const [employeeName, setEmployeeName] = useState("");
@@ -65,6 +67,7 @@ export default function AugmentationsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<IndexationForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEmployee();
@@ -120,6 +123,7 @@ export default function AugmentationsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
 
     const payload: Record<string, unknown> = {
       employee_id: Number(id),
@@ -134,12 +138,22 @@ export default function AugmentationsPage() {
     }
 
     if (editingId) {
-      await supabase
+      const { error: err } = await supabase
         .from("employee_indexations")
         .update(payload)
         .eq("id", editingId);
+      if (err) {
+        setError(err.message);
+        setSaving(false);
+        return;
+      }
     } else {
-      await supabase.from("employee_indexations").insert(payload);
+      const { error: err } = await supabase.from("employee_indexations").insert(payload);
+      if (err) {
+        setError(err.message);
+        setSaving(false);
+        return;
+      }
     }
 
     resetForm();
@@ -149,7 +163,11 @@ export default function AugmentationsPage() {
 
   async function handleDelete(itemId: number) {
     if (!window.confirm("Supprimer cette augmentation ?")) return;
-    await supabase.from("employee_indexations").delete().eq("id", itemId);
+    const { error: err } = await supabase.from("employee_indexations").delete().eq("id", itemId);
+    if (err) {
+      setError(err.message);
+      return;
+    }
     fetchIndexations();
   }
 
@@ -215,6 +233,14 @@ export default function AugmentationsPage() {
           </p>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Add / Edit Form */}
       {showForm && (

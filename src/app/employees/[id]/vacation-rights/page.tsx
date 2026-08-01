@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { TreePalm, Plus, Pencil, Trash2, ArrowLeft, Calendar } from "lucide-react";
+import { TreePalm, Plus, Pencil, Trash2, ArrowLeft, Calendar, AlertCircle } from "lucide-react";
 
 // ---------- TYPES ----------
 
@@ -43,7 +43,7 @@ function currentYear() {
 
 function getYearOptions(): number[] {
   const cur = currentYear();
-  return [cur - 2, cur - 1, cur, cur + 1];
+  return [cur - 5, cur - 4, cur - 3, cur - 2, cur - 1, cur, cur + 1];
 }
 
 function emptyForm(year: number): VacationRightForm {
@@ -61,6 +61,8 @@ function emptyForm(year: number): VacationRightForm {
 export default function VacationRightsPage() {
   const params = useParams();
   const id = params.id as string;
+  // createBrowserClient from @supabase/ssr returns a singleton (memoized by URL+key),
+  // so calling createClient() at component body level does not create multiple instances.
   const supabase = createClient();
 
   const [employeeName, setEmployeeName] = useState("");
@@ -72,6 +74,7 @@ export default function VacationRightsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<VacationRightForm>(emptyForm(currentYear()));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEmployee();
@@ -146,6 +149,7 @@ export default function VacationRightsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
 
     const payload = {
       employee_id: Number(id),
@@ -157,9 +161,19 @@ export default function VacationRightsPage() {
     };
 
     if (editingId) {
-      await supabase.from("vacation_rights").update(payload).eq("id", editingId);
+      const { error: err } = await supabase.from("vacation_rights").update(payload).eq("id", editingId);
+      if (err) {
+        setError(err.message);
+        setSaving(false);
+        return;
+      }
     } else {
-      await supabase.from("vacation_rights").insert(payload);
+      const { error: err } = await supabase.from("vacation_rights").insert(payload);
+      if (err) {
+        setError(err.message);
+        setSaving(false);
+        return;
+      }
     }
 
     resetForm();
@@ -169,7 +183,11 @@ export default function VacationRightsPage() {
 
   async function handleDelete(rightId: number) {
     if (!window.confirm("Supprimer ce droit de conge ?")) return;
-    await supabase.from("vacation_rights").delete().eq("id", rightId);
+    const { error: err } = await supabase.from("vacation_rights").delete().eq("id", rightId);
+    if (err) {
+      setError(err.message);
+      return;
+    }
     fetchRights();
   }
 
@@ -247,6 +265,14 @@ export default function VacationRightsPage() {
           ))}
         </select>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Add / Edit Form */}
       {showForm && (

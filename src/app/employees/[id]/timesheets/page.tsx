@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Clock, Plus, Pencil, Trash2, Check, ArrowLeft } from "lucide-react";
+import { Clock, Plus, Pencil, Trash2, Check, ArrowLeft, AlertCircle } from "lucide-react";
 
 // ---------- TYPES ----------
 
@@ -58,7 +58,7 @@ const emptyForm: TimesheetForm = {
 // ---------- HELPERS ----------
 
 function minutesToHM(m: number | null) {
-  if (!m) return "\u2014";
+  if (m === null || m === undefined) return "\u2014";
   const h = Math.floor(m / 60);
   const min = m % 60;
   return `${h}h${min.toString().padStart(2, "0")}`;
@@ -91,6 +91,8 @@ function formatDate(d: string | null) {
 export default function TimesheetsPage() {
   const params = useParams();
   const id = params.id as string;
+  // createBrowserClient from @supabase/ssr returns a singleton (memoized by URL+key),
+  // so calling createClient() at component body level does not create multiple instances.
   const supabase = createClient();
 
   const [employeeName, setEmployeeName] = useState("");
@@ -100,6 +102,7 @@ export default function TimesheetsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<TimesheetForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -167,6 +170,7 @@ export default function TimesheetsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
 
     const payload = {
       employee_id: Number(id),
@@ -185,9 +189,19 @@ export default function TimesheetsPage() {
     };
 
     if (editingId) {
-      await supabase.from("timesheets").update(payload).eq("id", editingId);
+      const { error: err } = await supabase.from("timesheets").update(payload).eq("id", editingId);
+      if (err) {
+        setError(err.message);
+        setSaving(false);
+        return;
+      }
     } else {
-      await supabase.from("timesheets").insert(payload);
+      const { error: err } = await supabase.from("timesheets").insert(payload);
+      if (err) {
+        setError(err.message);
+        setSaving(false);
+        return;
+      }
     }
 
     resetForm();
@@ -197,22 +211,49 @@ export default function TimesheetsPage() {
 
   async function handleDelete(tsId: number) {
     if (!window.confirm("Supprimer cet horaire ?")) return;
-    await supabase.from("timesheets").delete().eq("id", tsId);
+    const { error: err } = await supabase.from("timesheets").delete().eq("id", tsId);
+    if (err) {
+      setError(err.message);
+      return;
+    }
     fetchData();
   }
 
   async function handleSetActive(tsId: number) {
-    // Deactivate all timesheets for this employee
-    await supabase
+    setError(null);
+
+    // Find the currently active timesheet (if any) for potential rollback
+    const previouslyActive = timesheets.find((ts) => ts.is_active);
+
+    // Step 1: deactivate ALL timesheets for this employee
+    const { error: deactivateErr } = await supabase
       .from("timesheets")
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq("employee_id", id);
 
-    // Activate the selected one
-    await supabase
+    if (deactivateErr) {
+      setError(deactivateErr.message);
+      return;
+    }
+
+    // Step 2: activate the selected one
+    const { error: activateErr } = await supabase
       .from("timesheets")
       .update({ is_active: true, updated_at: new Date().toISOString() })
       .eq("id", tsId);
+
+    if (activateErr) {
+      // Attempt rollback: re-activate the previously active timesheet
+      if (previouslyActive) {
+        await supabase
+          .from("timesheets")
+          .update({ is_active: true, updated_at: new Date().toISOString() })
+          .eq("id", previouslyActive.id);
+      }
+      setError(activateErr.message);
+      fetchData();
+      return;
+    }
 
     fetchData();
   }
@@ -269,6 +310,14 @@ export default function TimesheetsPage() {
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Add / Edit Form */}
       {showForm && (

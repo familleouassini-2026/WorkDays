@@ -15,6 +15,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
 } from "lucide-react";
 
 // ---------- TYPES ----------
@@ -74,6 +75,8 @@ function todayISO(): string {
 export default function EmployeeAssetsPage() {
   const params = useParams();
   const id = params.id as string;
+  // createBrowserClient from @supabase/ssr returns a singleton (memoized by URL+key),
+  // so calling createClient() at component body level does not create multiple instances.
   const supabase = createClient();
 
   const [employeeName, setEmployeeName] = useState("");
@@ -88,6 +91,7 @@ export default function EmployeeAssetsPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -155,12 +159,19 @@ export default function EmployeeAssetsPage() {
     e.preventDefault();
     if (!selectedAssetId) return;
     setAssigning(true);
+    setError(null);
 
-    await supabase.from("employee_leasing").insert({
+    const { error: err } = await supabase.from("employee_leasing").insert({
       employee_id: Number(id),
       leasing_id: Number(selectedAssetId),
       start_date: todayISO(),
     });
+
+    if (err) {
+      setError(err.message);
+      setAssigning(false);
+      return;
+    }
 
     setSelectedAssetId("");
     setAssigning(false);
@@ -169,11 +180,17 @@ export default function EmployeeAssetsPage() {
 
   async function handleUnassign(assignmentId: number) {
     if (!window.confirm("Retirer cet actif ?")) return;
+    setError(null);
 
-    await supabase
+    const { error: err } = await supabase
       .from("employee_leasing")
       .update({ end_date: todayISO() })
       .eq("id", assignmentId);
+
+    if (err) {
+      setError(err.message);
+      return;
+    }
 
     fetchData();
   }
@@ -210,6 +227,14 @@ export default function EmployeeAssetsPage() {
           </div>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Assign new asset */}
       <form
