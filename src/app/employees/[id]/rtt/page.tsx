@@ -339,6 +339,12 @@ export default function EmployeeRTTPage() {
           >
             <ExternalLink className="w-3.5 h-3.5" /> Horaires (% temps)
           </Link>
+          <Link
+            href="/settings/rtt-entitlements"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Modifier les baremes RTT
+          </Link>
         </div>
       </div>
     </div>
