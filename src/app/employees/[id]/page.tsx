@@ -472,7 +472,7 @@ export default function EmployeeProfilePage() {
 
         {/* Card Salaire */}
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-green-300 hover:shadow-md transition-all group">
-          <Link href="/remuneration/simulateur">
+          <Link href={`/employees/${employee.id}/baremes`}>
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-green-600" />
               <h3 className="text-sm font-semibold text-slate-700">Salaire</h3>
