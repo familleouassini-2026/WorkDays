@@ -132,13 +132,15 @@ export default function BaremesPage() {
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
           <p className="text-slate-500 mt-4">Chargement...</p>
         </div>
-      ) : filteredScales.length === 0 ? (
-        <div className="bg-white rounded-lg border p-12 text-center">
-          <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
-          <p className="text-slate-500 mt-4">Aucun bareme trouve.</p>
-        </div>
       ) : (
         <div className="space-y-6">
+          {filteredScales.length === 0 && (
+            <div className="bg-white rounded-lg border p-8 text-center">
+              <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-slate-500 mt-3">Aucun bareme existant pour ce filtre.</p>
+              <p className="text-xs text-slate-400 mt-1">Utilisez les boutons ci-dessous pour creer des paliers.</p>
+            </div>
+          )}
           {Object.entries(groupedBySector).map(([sectorName, { sectorId, scales: sectorScales }]) => (
             <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -288,6 +290,60 @@ export default function BaremesPage() {
               </div>
             </div>
           ))}
+
+          {/* Sectors without any bareme */}
+          {(() => {
+            const sectorsWithBareme = new Set(Object.values(groupedBySector).map(g => g.sectorId));
+            const sectorsWithout = sectors.filter(s => !sectorsWithBareme.has(s.id) && (!selectedSector || s.name === selectedSector));
+            if (sectorsWithout.length === 0) return null;
+            return (
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Secteurs sans bareme</h3>
+                <div className="space-y-2">
+                  {sectorsWithout.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                      <span className="text-sm text-slate-600">{s.name}</span>
+                      {addingSectorId === s.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={newYears}
+                            onChange={(e) => setNewYears(Number(e.target.value))}
+                            placeholder="Annees"
+                            className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={newSalary || ""}
+                            onChange={(e) => setNewSalary(Number(e.target.value))}
+                            placeholder="Salaire"
+                            className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                          <button onClick={() => handleAdd(s.id)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setAddingSectorId(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setAddingSectorId(s.id); setNewYears(0); setNewSalary(0); }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Creer le bareme
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
