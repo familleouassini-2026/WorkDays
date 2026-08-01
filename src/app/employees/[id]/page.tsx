@@ -471,25 +471,30 @@ export default function EmployeeProfilePage() {
         </Link>
 
         {/* Card Salaire */}
-        <Link
-          href="/remuneration/simulateur"
-          className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-green-300 hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-green-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Salaire</h3>
-            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-slate-900">
-              {salary ? `${salary.toFixed(2)} \u20AC` : "\u2014"}
-            </span>
-            <span className="text-xs text-slate-500">/mois brut index&eacute;</span>
-          </div>
-          {!salary && (
-            <p className="text-xs text-slate-400 mt-2">Bar&egrave;me non configur&eacute; pour ce secteur</p>
-          )}
-        </Link>
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-green-300 hover:shadow-md transition-all group">
+          <Link href="/remuneration/simulateur">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-green-600" />
+              <h3 className="text-sm font-semibold text-slate-700">Salaire</h3>
+              <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-slate-900">
+                {salary ? `${salary.toFixed(2)} \u20AC` : "\u2014"}
+              </span>
+              <span className="text-xs text-slate-500">/mois brut index&eacute;</span>
+            </div>
+            {!salary && (
+              <p className="text-xs text-slate-400 mt-2">Bar&egrave;me non configur&eacute; pour ce secteur</p>
+            )}
+          </Link>
+          <Link
+            href={`/employees/${employee.id}/baremes`}
+            className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-2"
+          >
+            <Award className="w-3 h-3" /> Voir le bar&egrave;me
+          </Link>
+        </div>
 
         {/* Card Conges */}
         <Link
@@ -522,7 +527,7 @@ export default function EmployeeProfilePage() {
 
         {/* Card RTT */}
         <Link
-          href={`/employees/${employee.id}/timesheets`}
+          href={`/employees/${employee.id}/rtt`}
           className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-purple-300 hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-2 mb-3">
