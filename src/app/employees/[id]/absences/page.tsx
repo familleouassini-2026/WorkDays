@@ -240,7 +240,11 @@ export default function AbsencesPage() {
 
   async function handleDelete(entryId: number) {
     if (!window.confirm("Supprimer cette absence ?")) return;
-    await supabase.from("year_calendar").delete().eq("id", entryId);
+    const { error: err } = await supabase.from("year_calendar").delete().eq("id", entryId);
+    if (err) {
+      setError(err.message);
+      return;
+    }
     fetchEntries();
   }
 
