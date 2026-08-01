@@ -1,20 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   Mail,
   Phone,
+  Smartphone,
   MapPin,
   Calendar,
-  Building,
+  Briefcase,
+  Clock,
+  TrendingUp,
+  TreePalm,
+  Timer,
+  AlertCircle,
+  Car,
   Pencil,
-  Trash2,
+  CalendarDays,
+  PlusCircle,
   User,
 } from "lucide-react";
+import {
+  calculateSeniorityYears,
+  findBaseSalary,
+  calculateFullSalary,
+  formatHoursMinutes,
+} from "@/lib/calculations";
+
+// ---------- TYPES ----------
 
 interface Employee {
   id: number;
@@ -63,76 +79,180 @@ interface Timesheet {
   full_time_minutes: number;
 }
 
-const tabs = [
-  { id: "overview", label: "Aperçu" },
-  { id: "contract", label: "Contrat" },
-  { id: "schedule", label: "Horaire" },
-  { id: "salary", label: "Salaire" },
-];
+interface AbsenceRow {
+  absence_date: string;
+  absence_days: number | null;
+  absence_minutes: number | null;
+  absence_codes: { code: string; description: string; color_hex: string; text_color_hex: string } | null;
+}
+
+interface VacationRight {
+  days: number | null;
+  hours: number | null;
+  minutes: number | null;
+  absence_code_id: number;
+  absence_codes: { code: string; description: string } | null;
+}
+
+interface AssetAssignment {
+  start_date: string;
+  end_date: string | null;
+  assets: { type: string; name: string; identifier: string; status: string } | null;
+}
+
+// ---------- HELPERS ----------
 
 function formatDate(d: string | null) {
-  if (!d) return "—";
+  if (!d) return "\u2014";
   return new Date(d).toLocaleDateString("fr-BE");
 }
 
 function minutesToHM(m: number | null) {
-  if (!m) return "—";
+  if (!m) return "\u2014";
   const h = Math.floor(m / 60);
   const min = m % 60;
   return `${h}h${min.toString().padStart(2, "0")}`;
 }
 
-function calcSeniority(hireDate: string | null, grantedDate: string | null) {
+function seniorityBadge(hireDate: string | null, grantedDate: string | null) {
   const start = grantedDate || hireDate;
-  if (!start) return "—";
+  if (!start) return null;
   const diff = Date.now() - new Date(start).getTime();
   const years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-  const months = Math.floor(
-    (diff % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000)
-  );
-  return `${years} an${years > 1 ? "s" : ""} ${months} mois`;
+  return years;
 }
 
-export default function EmployeeDetailPage() {
+// ---------- PAGE ----------
+
+export default function EmployeeProfilePage() {
   const params = useParams();
-  const router = useRouter();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [recentAbsences, setRecentAbsences] = useState<AbsenceRow[]>([]);
+  const [vacationRights, setVacationRights] = useState<VacationRight[]>([]);
+  const [vacationUsed, setVacationUsed] = useState(0);
+  const [rttTotal, setRttTotal] = useState<number | null>(null);
+  const [salary, setSalary] = useState<number | null>(null);
+  const [assets, setAssets] = useState<AssetAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    async function fetch() {
+    async function loadData() {
       const supabase = createClient();
-      const { data } = await supabase
+      const empId = params.id;
+      const currentYear = new Date().getFullYear();
+
+      // Fetch employee
+      const { data: emp } = await supabase
         .from("employees")
         .select("*, sectors(name), locations(name)")
-        .eq("id", params.id)
+        .eq("id", empId)
         .single();
+      if (emp) setEmployee(emp);
 
-      if (data) setEmployee(data);
-
+      // Fetch active timesheet
       const { data: ts } = await supabase
         .from("timesheets")
         .select("*")
-        .eq("employee_id", params.id)
+        .eq("employee_id", empId)
         .eq("is_active", true)
         .single();
-
       if (ts) setTimesheet(ts);
+
+      // Fetch recent absences (last 3)
+      const { data: absences } = await supabase
+        .from("year_calendar")
+        .select("absence_date, absence_days, absence_minutes, absence_codes(code, description, color_hex, text_color_hex)")
+        .eq("employee_id", empId)
+        .order("absence_date", { ascending: false })
+        .limit(3);
+      if (absences) setRecentAbsences(absences as unknown as AbsenceRow[]);
+
+      // Fetch vacation rights for current year
+      const { data: rights } = await supabase
+        .from("vacation_rights")
+        .select("days, hours, minutes, absence_code_id, absence_codes(code, description)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear);
+      if (rights) setVacationRights(rights as unknown as VacationRight[]);
+
+      // Fetch vacation used (code "V") for current year
+      const { data: usedData } = await supabase
+        .from("year_calendar")
+        .select("absence_days, absence_codes!inner(code)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear)
+        .eq("absence_codes.code", "V");
+      if (usedData) {
+        const totalUsed = usedData.reduce((sum, r) => sum + (r.absence_days || 0), 0);
+        setVacationUsed(totalUsed);
+      }
+
+      // Fetch RTT hours for current year (code "RTT")
+      const { data: rttData } = await supabase
+        .from("year_calendar")
+        .select("absence_minutes, absence_codes!inner(code)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear)
+        .eq("absence_codes.code", "RTT");
+      if (rttData) {
+        const totalRttMin = rttData.reduce((sum, r) => sum + (r.absence_minutes || 0), 0);
+        setRttTotal(totalRttMin);
+      }
+
+      // Fetch salary data
+      if (emp && emp.sector_id) {
+        const seniorityYears = calculateSeniorityYears(
+          emp.date_of_hire,
+          emp.granted_seniority,
+          emp.granted_seniority_date
+        );
+
+        const { data: scales } = await supabase
+          .from("seniority_scales")
+          .select("*")
+          .eq("sector_id", emp.sector_id);
+
+        const { data: orgIdx } = await supabase
+          .from("org_indexations")
+          .select("id, indexation_value:factor, indexation_date:effective_date");
+
+        const { data: secIdx } = await supabase
+          .from("sector_indexations")
+          .select("id, indexation_value:factor, indexation_date:effective_date")
+          .eq("sector_id", emp.sector_id);
+
+        const { data: empIdx } = await supabase
+          .from("employee_indexations")
+          .select("id, employee_id, indexation_value:amount, indexation_date:effective_date")
+          .eq("employee_id", empId);
+
+        if (scales && scales.length > 0) {
+          const baseSalary = findBaseSalary(emp.sector_id, seniorityYears, scales);
+          if (baseSalary) {
+            const result = calculateFullSalary({
+              baseSalary,
+              orgIndexations: orgIdx || [],
+              sectorIndexations: secIdx || [],
+              personalIncreases: empIdx || [],
+            });
+            setSalary(result.totalSalary);
+          }
+        }
+      }
+
+      // Fetch asset assignments
+      const { data: assetData } = await supabase
+        .from("asset_assignments")
+        .select("start_date, end_date, assets(type, name, identifier, status)")
+        .eq("employee_id", empId)
+        .is("end_date", null);
+      if (assetData) setAssets(assetData as unknown as AssetAssignment[]);
+
       setLoading(false);
     }
-    fetch();
+    loadData();
   }, [params.id]);
-
-  async function handleDelete() {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cet employé ?")) return;
-    setDeleting(true);
-    const supabase = createClient();
-    await supabase.from("employees").delete().eq("id", params.id);
-    router.push("/employees");
-  }
 
   if (loading) {
     return (
@@ -145,204 +265,308 @@ export default function EmployeeDetailPage() {
   if (!employee) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-500">Employé non trouvé.</p>
+        <p className="text-slate-500">Employ&eacute; non trouv&eacute;.</p>
         <Link href="/employees" className="text-blue-600 hover:underline mt-2 inline-block">
-          Retour à la liste
+          Retour &agrave; la liste
         </Link>
       </div>
     );
   }
 
-  const totalMinutes =
-    (timesheet?.monday_minutes || 0) +
-    (timesheet?.tuesday_minutes || 0) +
-    (timesheet?.wednesday_minutes || 0) +
-    (timesheet?.thursday_minutes || 0) +
-    (timesheet?.friday_minutes || 0) +
-    (timesheet?.saturday_minutes || 0) +
-    (timesheet?.sunday_minutes || 0);
+  const seniorityYears = seniorityBadge(employee.date_of_hire, employee.granted_seniority_date);
+
+  const totalMinutes = timesheet
+    ? (timesheet.monday_minutes || 0) +
+      (timesheet.tuesday_minutes || 0) +
+      (timesheet.wednesday_minutes || 0) +
+      (timesheet.thursday_minutes || 0) +
+      (timesheet.friday_minutes || 0) +
+      (timesheet.saturday_minutes || 0) +
+      (timesheet.sunday_minutes || 0)
+    : 0;
 
   const pctFullTime = timesheet
     ? Math.round((totalMinutes / timesheet.full_time_minutes) * 100)
     : null;
 
+  // Vacation data
+  const vacRight = vacationRights.find((r) => r.absence_codes?.code === "V");
+  const vacTotal = vacRight?.days || 0;
+
   return (
     <div className="space-y-6">
+      {/* Back link */}
       <Link href="/employees" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
         <ArrowLeft className="w-4 h-4" /> Retour au personnel
       </Link>
 
-      {/* Header */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-        <div className="flex items-start gap-4">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-xl font-bold text-blue-700">
+      {/* ===== HEADER ===== */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+            <span className="text-lg font-bold text-blue-700">
               {employee.first_name[0]}{employee.last_name[0]}
             </span>
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-slate-900">
-              {employee.title && <span className="text-slate-500 font-normal">{employee.title} </span>}
-              {employee.first_name} {employee.last_name}
-            </h1>
-            <p className="text-slate-500">{employee.job_title || "—"} • {employee.sectors?.name || "Pas de secteur"}</p>
-            <div className="flex items-center gap-4 mt-2 flex-wrap">
-              {employee.email && (
-                <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                  <Mail className="w-3.5 h-3.5" /> {employee.email}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">
+                {employee.first_name} {employee.last_name}
+              </h1>
+              {seniorityYears !== null && seniorityYears > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  {seniorityYears} an{seniorityYears > 1 ? "s" : ""}
                 </span>
               )}
-              {employee.mobile_phone && (
-                <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                  <Phone className="w-3.5 h-3.5" /> {employee.mobile_phone}
-                </span>
-              )}
-              {employee.locations?.name && (
-                <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                  <MapPin className="w-3.5 h-3.5" /> {employee.locations.name}
-                </span>
-              )}
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${employee.is_inactive ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>
+                {employee.is_inactive ? "Inactif" : "Actif"}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {employee.job_title || "\u2014"} &bull; {employee.sectors?.name || "Pas de secteur"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== KPI CARDS GRID ===== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card Contrat */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Briefcase className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-semibold text-slate-700">Contrat</h3>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Type</span>
+              <span className="font-medium text-slate-900">{employee.contract_type || "\u2014"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">R&ocirc;le</span>
+              <span className="font-medium text-slate-900">{employee.job_title || "\u2014"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Site</span>
+              <span className="font-medium text-slate-900">{employee.locations?.name || "\u2014"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">% Temps</span>
+              <span className="font-medium text-slate-900">{pctFullTime ? `${pctFullTime}%` : "\u2014"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Entr&eacute;e</span>
+              <span className="font-medium text-slate-900">{formatDate(employee.date_of_hire)}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${employee.is_inactive ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700"}`}>
-              {employee.is_inactive ? "Inactif" : "Actif"}
+        </div>
+
+        {/* Card Salaire */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-4 h-4 text-green-600" />
+            <h3 className="text-sm font-semibold text-slate-700">Salaire</h3>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold text-slate-900">
+              {salary ? `${salary.toFixed(2)} \u20AC` : "\u2014"}
             </span>
-            <Link href={`/employees/${employee.id}/edit`} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-sm font-medium">
-              <Pencil className="w-4 h-4" />
-              Modifier
-            </Link>
-            <button onClick={handleDelete} disabled={deleting} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <span className="text-xs text-slate-500">/mois brut index&eacute;</span>
           </div>
+          {!salary && (
+            <p className="text-xs text-slate-400 mt-2">Bar&egrave;me non configur&eacute; pour ce secteur</p>
+          )}
+        </div>
+
+        {/* Card Conges */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TreePalm className="w-4 h-4 text-amber-600" />
+            <h3 className="text-sm font-semibold text-slate-700">Cong&eacute;s (V)</h3>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-slate-900">
+              {vacTotal > 0 ? vacTotal - vacationUsed : "\u2014"}
+            </span>
+            <span className="text-sm text-slate-500">/ {vacTotal} jours restants</span>
+          </div>
+          {vacTotal > 0 && (
+            <div className="mt-3 w-full bg-slate-100 rounded-full h-2.5">
+              <div
+                className="bg-amber-500 h-2.5 rounded-full transition-all"
+                style={{ width: `${Math.min(100, (vacationUsed / vacTotal) * 100)}%` }}
+              />
+            </div>
+          )}
+          {vacTotal === 0 && (
+            <p className="text-xs text-slate-400 mt-2">Aucun droit configur&eacute; pour cette ann&eacute;e</p>
+          )}
+        </div>
+
+        {/* Card RTT */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Timer className="w-4 h-4 text-purple-600" />
+            <h3 className="text-sm font-semibold text-slate-700">RTT ({new Date().getFullYear()})</h3>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold text-slate-900">
+              {rttTotal !== null ? formatHoursMinutes(rttTotal) : "\u2014"}
+            </span>
+            <span className="text-xs text-slate-500">utilis&eacute;es</span>
+          </div>
+        </div>
+
+        {/* Card Absences recentes */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            <h3 className="text-sm font-semibold text-slate-700">Absences r&eacute;centes</h3>
+          </div>
+          {recentAbsences.length > 0 ? (
+            <div className="space-y-2">
+              {recentAbsences.map((abs, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <span
+                    className="inline-block w-3 h-3 rounded-sm shrink-0"
+                    style={{ backgroundColor: abs.absence_codes?.color_hex || "#94a3b8" }}
+                  />
+                  <span className="text-slate-500">{formatDate(abs.absence_date)}</span>
+                  <span className="font-medium text-slate-700 truncate">
+                    {abs.absence_codes?.description || abs.absence_codes?.code || "\u2014"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">Aucune absence enregistr&eacute;e</p>
+          )}
+        </div>
+
+        {/* Card Actifs assignes */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Car className="w-4 h-4 text-slate-600" />
+            <h3 className="text-sm font-semibold text-slate-700">Actifs assign&eacute;s</h3>
+          </div>
+          {assets.length > 0 ? (
+            <div className="space-y-2">
+              {assets.map((a, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <span className="px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600 uppercase">
+                    {a.assets?.type || "?"}
+                  </span>
+                  <span className="font-medium text-slate-700 truncate">{a.assets?.name}</span>
+                  <span className="text-slate-400 text-xs">{a.assets?.identifier}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">Aucun actif assign&eacute;</p>
+          )}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex gap-6">
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tab: Aperçu */}
-      {activeTab === "overview" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg border p-6 space-y-4">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2"><User className="w-4 h-4" /> Informations personnelles</h3>
-            <InfoRow label="Date de naissance" value={formatDate(employee.date_of_birth)} />
-            <InfoRow label="Nationalité" value={employee.nationality} />
-            <InfoRow label="N° Registre National" value={employee.national_registration} />
-            <InfoRow label="N° INAMI" value={employee.inami_number} />
-            <InfoRow label="Adresse" value={[employee.address, employee.postal_code, employee.city, employee.province].filter(Boolean).join(", ") || null} />
-          </div>
-          <div className="bg-white rounded-lg border p-6 space-y-4">
-            <h3 className="font-semibold text-slate-900 flex items-center gap-2"><Building className="w-4 h-4" /> Informations professionnelles</h3>
-            <InfoRow label="Fonction" value={employee.job_title} />
-            <InfoRow label="Secteur" value={employee.sectors?.name} />
-            <InfoRow label="Site" value={employee.locations?.name} />
-            <InfoRow label="Contrat" value={employee.contract_type} />
-            <InfoRow label="Date d'embauche" value={formatDate(employee.date_of_hire)} />
-            <InfoRow label="Ancienneté" value={calcSeniority(employee.date_of_hire, employee.granted_seniority_date)} />
-            {pctFullTime && <InfoRow label="Temps de travail" value={`${pctFullTime}% (${minutesToHM(totalMinutes)}/sem)`} />}
-          </div>
-        </div>
-      )}
-
-      {/* Tab: Contrat */}
-      {activeTab === "contract" && (
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Détails du contrat</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <InfoRow label="Type de contrat" value={employee.contract_type} />
-              <InfoRow label="Date d'embauche" value={formatDate(employee.date_of_hire)} />
-              <InfoRow label="Date de fin" value={formatDate(employee.end_date)} />
-              <InfoRow label="Ancienneté accordée" value={employee.granted_seniority ? `${employee.granted_seniority} an(s)` : null} />
-              <InfoRow label="Date ancienneté accordée" value={formatDate(employee.granted_seniority_date)} />
+      {/* ===== DETAILS SECTION ===== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Contact */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-slate-500" /> Contact
+          </h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-700">{employee.email || "\u2014"}</span>
             </div>
-            <div className="space-y-3">
-              <InfoRow label="IBAN" value={employee.iban} />
-              <InfoRow label="BIC" value={employee.bic} />
-              <InfoRow label="Distance domicile" value={employee.distance_to_home ? `${employee.distance_to_home} km` : null} />
+            <div className="flex items-center gap-2">
+              <Phone className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-700">{employee.business_phone || "\u2014"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-700">{employee.mobile_phone || "\u2014"}</span>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Tab: Horaire */}
-      {activeTab === "schedule" && (
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Horaire hebdomadaire</h3>
+        {/* Adresse */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-slate-500" /> Adresse
+          </h3>
+          <div className="space-y-1 text-sm text-slate-700">
+            <p>{employee.address || "\u2014"}</p>
+            <p>{[employee.postal_code, employee.city].filter(Boolean).join(" ") || "\u2014"}</p>
+            {employee.province && <p>{employee.province}</p>}
+          </div>
+        </div>
+
+        {/* Horaire semaine */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:col-span-2">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-500" /> Horaire hebdomadaire
+          </h3>
           {timesheet ? (
             <div>
-              <div className="grid grid-cols-7 gap-2 mb-6">
+              <div className="grid grid-cols-7 gap-2 mb-3">
                 {[
-                  { label: "Lun", val: timesheet.monday_minutes },
-                  { label: "Mar", val: timesheet.tuesday_minutes },
-                  { label: "Mer", val: timesheet.wednesday_minutes },
-                  { label: "Jeu", val: timesheet.thursday_minutes },
-                  { label: "Ven", val: timesheet.friday_minutes },
-                  { label: "Sam", val: timesheet.saturday_minutes },
-                  { label: "Dim", val: timesheet.sunday_minutes },
+                  { label: "Lu", val: timesheet.monday_minutes },
+                  { label: "Ma", val: timesheet.tuesday_minutes },
+                  { label: "Me", val: timesheet.wednesday_minutes },
+                  { label: "Je", val: timesheet.thursday_minutes },
+                  { label: "Ve", val: timesheet.friday_minutes },
+                  { label: "Sa", val: timesheet.saturday_minutes },
+                  { label: "Di", val: timesheet.sunday_minutes },
                 ].map((day) => (
-                  <div key={day.label} className="text-center bg-slate-50 rounded-lg p-3">
+                  <div key={day.label} className="text-center bg-slate-50 rounded-lg p-2">
                     <p className="text-xs text-slate-500 font-medium">{day.label}</p>
-                    <p className="text-lg font-bold text-slate-900 mt-1">{minutesToHM(day.val)}</p>
+                    <p className="text-sm font-bold text-slate-900 mt-0.5">{minutesToHM(day.val)}</p>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-6 text-sm">
-                <span className="text-slate-600">Total: <strong>{minutesToHM(totalMinutes)}</strong>/semaine</span>
-                <span className="text-slate-600">Temps plein: <strong>{minutesToHM(timesheet.full_time_minutes)}</strong></span>
-                <span className="text-slate-600">Pourcentage: <strong className="text-blue-600">{pctFullTime}%</strong></span>
-              </div>
+              <p className="text-xs text-slate-500">
+                Total : <strong className="text-slate-700">{minutesToHM(totalMinutes)}</strong>/sem
+                {pctFullTime && <> &bull; <strong className="text-blue-600">{pctFullTime}%</strong></>}
+              </p>
             </div>
           ) : (
-            <p className="text-slate-500">Aucun horaire défini pour cet employé.</p>
+            <p className="text-xs text-slate-400">Aucun horaire d&eacute;fini</p>
           )}
         </div>
-      )}
 
-      {/* Tab: Salaire */}
-      {activeTab === "salary" && (
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Informations salariales</h3>
-          <p className="text-slate-500 text-sm">
-            Le module de calcul salarial sera connecté prochainement. 
-            Il calculera le salaire indexé basé sur le barème du secteur et l&apos;ancienneté.
-          </p>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-xs text-blue-600 font-medium">Secteur</p>
-              <p className="text-sm font-bold text-blue-900 mt-1">{employee.sectors?.name || "—"}</p>
-            </div>
-            <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-xs text-blue-600 font-medium">Ancienneté effective</p>
-              <p className="text-sm font-bold text-blue-900 mt-1">{calcSeniority(employee.date_of_hire, employee.granted_seniority_date)}</p>
-            </div>
-            <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-xs text-blue-600 font-medium">Temps de travail</p>
-              <p className="text-sm font-bold text-blue-900 mt-1">{pctFullTime ? `${pctFullTime}%` : "—"}</p>
-            </div>
+        {/* Notes */}
+        {employee.notes && (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:col-span-2">
+            <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+              <User className="w-4 h-4 text-slate-500" /> Notes
+            </h3>
+            <p className="text-sm text-slate-600 whitespace-pre-wrap">{employee.notes}</p>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        )}
+      </div>
 
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="flex justify-between items-start">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="text-sm text-slate-900 font-medium text-right">{value || "—"}</span>
+      {/* ===== QUICK ACTIONS ===== */}
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href={`/absences/new?employee=${employee.id}`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          <PlusCircle className="w-4 h-4" /> Encoder absence
+        </Link>
+        <Link
+          href="/absences/annual"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
+        >
+          <CalendarDays className="w-4 h-4" /> Calendrier annuel
+        </Link>
+        <Link
+          href={`/employees/${employee.id}/edit`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
+        >
+          <Pencil className="w-4 h-4" /> &Eacute;diter
+        </Link>
+      </div>
     </div>
   );
 }
