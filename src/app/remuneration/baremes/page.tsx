@@ -6,9 +6,9 @@ import { BookOpen } from "lucide-react";
 
 interface SeniorityScale {
   id: number;
-  min_seniority: number;
-  max_seniority: number;
-  base_amount: number;
+  sector_id: number;
+  years: number;
+  base_salary: number;
   sectors: { name: string } | null;
 }
 
@@ -29,8 +29,9 @@ export default function BaremesPage() {
       const [scalesRes, sectorsRes] = await Promise.all([
         supabase
           .from("seniority_scales")
-          .select("id, min_seniority, max_seniority, base_amount, sectors(name)")
-          .order("min_seniority"),
+          .select("id, sector_id, years, base_salary, sectors(name)")
+          .order("sector_id")
+          .order("years"),
         supabase.from("sectors").select("id, name").order("name"),
       ]);
       if (scalesRes.data) setScales(scalesRes.data as unknown as SeniorityScale[]);
@@ -43,6 +44,14 @@ export default function BaremesPage() {
   const filteredScales = selectedSector
     ? scales.filter((s) => s.sectors?.name === selectedSector)
     : scales;
+
+  // Group by sector for better display
+  const groupedBySector: Record<string, SeniorityScale[]> = {};
+  filteredScales.forEach((scale) => {
+    const sectorName = scale.sectors?.name || "Sans secteur";
+    if (!groupedBySector[sectorName]) groupedBySector[sectorName] = [];
+    groupedBySector[sectorName].push(scale);
+  });
 
   return (
     <div className="space-y-6">
@@ -80,46 +89,44 @@ export default function BaremesPage() {
           <p className="text-slate-500 mt-4">Aucun bareme trouve.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                  Secteur
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                  Anciennete min (ans)
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                  Anciennete max (ans)
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                  Montant base
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredScales.map((scale) => (
-                <tr key={scale.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-sm text-slate-900 font-medium">
-                    {scale.sectors?.name || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {scale.min_seniority}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {scale.max_seniority}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-900 font-medium text-right">
-                    {scale.base_amount.toLocaleString("fr-BE", {
-                      style: "currency",
-                      currency: "EUR",
-                    })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          {Object.entries(groupedBySector).map(([sectorName, sectorScales]) => (
+            <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-700">{sectorName}</h3>
+                <p className="text-xs text-slate-500">{sectorScales.length} palier{sectorScales.length > 1 ? "s" : ""}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
+                        Anciennete (ans)
+                      </th>
+                      <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase">
+                        Salaire de base
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sectorScales.map((scale) => (
+                      <tr key={scale.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-2 text-sm text-slate-700">
+                          {scale.years} an{scale.years > 1 ? "s" : ""}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-slate-900 font-medium text-right">
+                          {scale.base_salary.toLocaleString("fr-BE", {
+                            style: "currency",
+                            currency: "EUR",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
