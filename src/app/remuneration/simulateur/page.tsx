@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Calculator, TrendingUp, User, Building2, Layers, Plus } from "lucide-react";
+import { Calculator, TrendingUp, User, Building2, Layers, Plus, Info, ChevronDown, ChevronUp } from "lucide-react";
 import {
   calculateSeniorityYears,
   findBaseSalary,
@@ -42,6 +42,7 @@ export default function SimulateurPage() {
     new Date().toISOString().split("T")[0]
   );
   const [loading, setLoading] = useState(true);
+  const [formulaOpen, setFormulaOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -147,6 +148,33 @@ export default function SimulateurPage() {
           Base × Indexation org × Indexation secteur + Augmentations
           personnelles
         </p>
+      </div>
+
+      {/* Info banner */}
+      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-blue-800">Logique de calcul</h4>
+            <p className="text-sm text-blue-700 mt-1">
+              S&eacute;lectionnez un employ&eacute; pour calculer son salaire index&eacute;. La formule appliqu&eacute;e : Base &times; Index g&eacute;n&eacute;ral &times; Index sectoriel + Augmentations personnelles
+            </p>
+            <button
+              onClick={() => setFormulaOpen(!formulaOpen)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 mt-2"
+            >
+              {formulaOpen ? "Masquer la formule" : "Voir la formule"}
+              {formulaOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {formulaOpen && (
+              <div className="mt-2 bg-white/60 rounded-md p-3 border border-blue-100">
+                <p className="text-xs font-mono text-blue-800 leading-relaxed">
+                  Salaire = Base(bar&egrave;me) &times; &Pi;Product(org) &times; &Pi;Product(secteur) + &Sigma;(augmentations)
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Controls */}
