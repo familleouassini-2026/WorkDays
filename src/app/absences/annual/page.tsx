@@ -498,32 +498,32 @@ export default function AnnualCalendarPage() {
 <meta charset="utf-8" />
 <title></title>
 <style>
-  @page { size: A4 portrait; margin: 15mm 12mm 20mm 12mm; }
+  @page { size: A4 portrait; margin: 8mm 10mm; }
   @media print { .page-break { page-break-before: always; } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .page { min-height: 100vh; position: relative; padding-bottom: 28px; }
-  .page-header { margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #1e293b; }
-  .page-header .title { font-size: 16px; font-weight: bold; letter-spacing: 0.3px; }
-  .page-header .subtitle { font-size: 12px; color: #475569; margin-top: 1px; }
-  .page-footer { position: fixed; bottom: 0; left: 12mm; right: 12mm; padding-top: 5px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; font-size: 9px; color: #64748b; background: white; }
-  .calendar-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-bottom: 8px; }
-  .month-block { border: 1px solid #cbd5e1; border-radius: 3px; padding: 3px 4px; }
-  .month-title { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 1px; }
-  .month-table { width: 100%; border-collapse: collapse; }
-  .month-table th { font-size: 10px; color: #475569; padding: 0; text-align: center; }
-  .month-table td.cell { font-size: 13px; text-align: center; padding: 1px 0; border: 1px solid #e2e8f0; position: relative; width: 14.28%; }
+  .page { height: 257mm; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 2px solid #1e293b; }
+  .page-header .title { font-size: 15px; font-weight: bold; }
+  .page-header .subtitle { font-size: 11px; color: #475569; margin-top: 1px; }
+  .page-footer { margin-top: auto; padding-top: 4px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; font-size: 9px; color: #64748b; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; flex: 1; }
+  .month-block { border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px 3px; display: flex; flex-direction: column; }
+  .month-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 0; }
+  .month-table { width: 100%; border-collapse: collapse; flex: 1; }
+  .month-table th { font-size: 9px; color: #475569; padding: 0; text-align: center; }
+  .month-table td.cell { font-size: 12px; text-align: center; padding: 0; border: 1px solid #e2e8f0; position: relative; width: 14.28%; }
   .month-table td.empty { border: 1px solid #f1f5f9; width: 14.28%; }
   .extra { position: absolute; bottom: 0; right: 0; font-size: 7px; background: #1e293b; color: #fff; padding: 0 2px; border-radius: 2px 0 0 0; }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; border-top: 1px solid #e2e8f0; margin-top: 4px; }
-  .legend-item { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; }
-  .legend-color { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #cbd5e1; display: inline-block; }
-  .detail-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
-  .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
-  .detail-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; font-weight: 600; }
-  .detail-table td { border: 1px solid #e2e8f0; padding: 5px 10px; }
-  .detail-table .month-header-row td { background: #e2e8f0; font-weight: bold; font-size: 13px; padding: 6px 10px; }
-  .summary-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; margin-top: 20px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 0; border-top: 1px solid #e2e8f0; margin-top: 3px; }
+  .legend-item { display: inline-flex; align-items: center; gap: 2px; font-size: 9px; }
+  .legend-color { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #cbd5e1; display: inline-block; }
+  .detail-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; padding-bottom: 3px; border-bottom: 1px solid #e2e8f0; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px; }
+  .detail-table th { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 5px 8px; text-align: left; font-weight: 600; }
+  .detail-table td { border: 1px solid #e2e8f0; padding: 4px 8px; }
+  .detail-table .month-header-row td { background: #e2e8f0; font-weight: bold; font-size: 12px; padding: 5px 8px; }
+  .summary-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; margin-top: 16px; padding-bottom: 3px; border-bottom: 1px solid #e2e8f0; }
 </style>
 </head>
 <body>
