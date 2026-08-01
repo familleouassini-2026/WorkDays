@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { UserX, Users, CalendarDays, AlertTriangle, Shield, Clock, Gavel } from "lucide-react";
+import { UserX, Users, CalendarDays, AlertTriangle, Shield, Clock, Gavel, Cake, UserPlus, CalendarClock } from "lucide-react";
 import { ABSENTEEISM_EXCLUDED_CODES, getAbsenteeismAlertLevel } from "@/lib/calculations";
 
 interface RecentAbsence { id: number; absence_date: string; employee_id: number; employees: { first_name: string; last_name: string } | null; absence_codes: { code: string; description: string } | null; }
 interface Meeting { id: number; meeting_date: string; description: string | null; type: string; }
 interface AbsenteeismAlert { employeeName: string; incidents: number; level: "warning" | "danger"; }
+interface BirthdayEmployee { id: number; first_name: string; last_name: string; date_of_birth: string; }
+interface RecentHire { id: number; first_name: string; last_name: string; date_of_hire: string; }
+interface ExpiringContract { id: number; first_name: string; last_name: string; end_date: string; }
 
 export default function DashboardPage() {
   const [activeEmployees, setActiveEmployees] = useState<number>(0);
@@ -17,6 +20,9 @@ export default function DashboardPage() {
   const [recentAbsences, setRecentAbsences] = useState<RecentAbsence[]>([]);
   const [absenteeismAlerts, setAbsenteeismAlerts] = useState<AbsenteeismAlert[]>([]);
   const [nextMeetings, setNextMeetings] = useState<Meeting[]>([]);
+  const [birthdays, setBirthdays] = useState<BirthdayEmployee[]>([]);
+  const [recentHires, setRecentHires] = useState<RecentHire[]>([]);
+  const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,7 +36,17 @@ export default function DashboardPage() {
       const windowStart = new Date(now); windowStart.setMonth(windowStart.getMonth() - 6);
       const windowStartStr = windowStart.toISOString().split("T")[0];
 
-      const [empRes, todayRes, monthRes, recentRes, meetRes, codesRes, calendarRes, empListRes] = await Promise.all([
+      // Date for recent hires (last 90 days)
+      const ninetyDaysAgo = new Date(now);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split("T")[0];
+
+      // Date for expiring contracts (next 60 days)
+      const sixtyDaysLater = new Date(now);
+      sixtyDaysLater.setDate(sixtyDaysLater.getDate() + 60);
+      const sixtyDaysLaterStr = sixtyDaysLater.toISOString().split("T")[0];
+
+      const [empRes, todayRes, monthRes, recentRes, meetRes, codesRes, calendarRes, empListRes, allEmpRes, recentHiresRes, expiringRes] = await Promise.all([
         supabase.from("employees").select("id", { count: "exact", head: true }).eq("is_inactive", false),
         supabase.from("year_calendar").select("id", { count: "exact", head: true }).eq("absence_date", todayStr),
         supabase.from("year_calendar").select("id", { count: "exact", head: true }).gte("absence_date", monthStart).lte("absence_date", monthEnd),
@@ -39,6 +55,12 @@ export default function DashboardPage() {
         supabase.from("absence_codes").select("id, code"),
         supabase.from("year_calendar").select("employee_id, absence_code_id, absence_date").gte("absence_date", windowStartStr).lte("absence_date", todayStr),
         supabase.from("employees").select("id, first_name, last_name").eq("is_inactive", false),
+        // For birthdays: get all active employees with date_of_birth
+        supabase.from("employees").select("id, first_name, last_name, date_of_birth").eq("is_inactive", false).not("date_of_birth", "is", null),
+        // Recent hires
+        supabase.from("employees").select("id, first_name, last_name, date_of_hire").eq("is_inactive", false).gte("date_of_hire", ninetyDaysAgoStr).order("date_of_hire", { ascending: false }),
+        // Expiring contracts
+        supabase.from("employees").select("id, first_name, last_name, end_date").eq("is_inactive", false).not("end_date", "is", null).gte("end_date", todayStr).lte("end_date", sixtyDaysLaterStr).order("end_date"),
       ]);
 
       setActiveEmployees(empRes.count || 0);
@@ -46,6 +68,23 @@ export default function DashboardPage() {
       setAbsencesMonth(monthRes.count || 0);
       if (recentRes.data) setRecentAbsences(recentRes.data as unknown as RecentAbsence[]);
       if (meetRes.data) setNextMeetings(meetRes.data as Meeting[]);
+      if (recentHiresRes.data) setRecentHires(recentHiresRes.data as RecentHire[]);
+      if (expiringRes.data) setExpiringContracts(expiringRes.data as ExpiringContract[]);
+
+      // Filter birthdays this month
+      if (allEmpRes.data) {
+        const currentMonth = now.getMonth() + 1;
+        const bdayList = (allEmpRes.data as any[]).filter((emp) => {
+          if (!emp.date_of_birth) return false;
+          const birthMonth = new Date(emp.date_of_birth + "T00:00:00").getMonth() + 1;
+          return birthMonth === currentMonth;
+        }).sort((a, b) => {
+          const dayA = new Date(a.date_of_birth + "T00:00:00").getDate();
+          const dayB = new Date(b.date_of_birth + "T00:00:00").getDate();
+          return dayA - dayB;
+        });
+        setBirthdays(bdayList as BirthdayEmployee[]);
+      }
 
       // Calculate absenteeism alerts
       if (calendarRes.data && codesRes.data && empListRes.data) {
@@ -109,6 +148,87 @@ export default function DashboardPage() {
             ))}
           </div>
 
+          {/* New cards row: Birthdays, Recent Hires, Expiring Contracts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Anniversaires du mois */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Cake className="w-4 h-4 text-pink-600" />
+                  Anniversaires du mois
+                </h2>
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{birthdays.length}</span>
+              </div>
+              {birthdays.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucun anniversaire ce mois-ci.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {birthdays.map((emp) => {
+                    const birthDay = new Date(emp.date_of_birth + "T00:00:00").getDate();
+                    const birthMonth = new Date(emp.date_of_birth + "T00:00:00").toLocaleDateString("fr-FR", { month: "short" });
+                    return (
+                      <Link key={emp.id} href={`/employees/${emp.id}`} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                        <span className="text-sm text-slate-900">{emp.first_name} {emp.last_name}</span>
+                        <span className="text-xs text-pink-600 font-medium">{birthDay} {birthMonth}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Arrivees recentes */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-emerald-600" />
+                  Arrivees recentes
+                </h2>
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{recentHires.length}</span>
+              </div>
+              {recentHires.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucune arrivee dans les 90 derniers jours.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {recentHires.map((emp) => (
+                    <Link key={emp.id} href={`/employees/${emp.id}`} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <span className="text-sm text-slate-900">{emp.first_name} {emp.last_name}</span>
+                      <span className="text-xs text-slate-500">{new Date(emp.date_of_hire + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Contrats arrivant a terme */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <CalendarClock className="w-4 h-4 text-amber-600" />
+                  Contrats arrivant a terme
+                </h2>
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{expiringContracts.length}</span>
+              </div>
+              {expiringContracts.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucun contrat expirant dans les 60 prochains jours.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {expiringContracts.map((emp) => {
+                    const daysLeft = Math.ceil((new Date(emp.end_date + "T00:00:00").getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <Link key={emp.id} href={`/employees/${emp.id}`} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                        <span className="text-sm text-slate-900">{emp.first_name} {emp.last_name}</span>
+                        <span className={`text-xs font-medium ${daysLeft <= 14 ? "text-red-600" : "text-amber-600"}`}>
+                          {daysLeft}j restant{daysLeft > 1 ? "s" : ""}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Absenteeism Alerts */}
             <div className="card p-6">
@@ -117,7 +237,7 @@ export default function DashboardPage() {
                 <Link href="/absences/absenteeism" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Voir detail →</Link>
               </div>
               {absenteeismAlerts.length === 0 ? (
-                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3"><Shield className="w-4 h-4" />Aucune alerte — tous les employes sont dans les seuils normaux.</div>
+                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3"><Shield className="w-4 h-4" />Aucune alerte - tous les employes sont dans les seuils normaux.</div>
               ) : (
                 <div className="space-y-2">
                   {absenteeismAlerts.map((alert, i) => (

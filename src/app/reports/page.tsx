@@ -2,10 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { BarChart3, Download, Calendar, Users, TrendingUp, FileText } from "lucide-react";
+import { Download, Calendar, Users, TrendingUp, FileText } from "lucide-react";
+import {
+  calculateSeniorityYears,
+  findBaseSalary,
+  calculateDProduct,
+  calculatePersonalIncreases,
+  type IndexationRow,
+  type EmployeeIndexationRow,
+  type SeniorityScaleRow,
+} from "@/lib/calculations";
 
-interface AbsenceReport { employee_name: string; code: string; code_description: string; total_days: number; total_minutes: number; }
-interface MonthlySummary { month: number; count: number; }
+interface AbsenceReport {
+  employee_name: string;
+  code: string;
+  code_description: string;
+  total_days: number;
+  total_minutes: number;
+}
+
+interface MonthlySummary {
+  month: number;
+  count: number;
+}
+
+interface SalaryEmployee {
+  id: number;
+  first_name: string;
+  last_name: string;
+  date_of_hire: string | null;
+  granted_seniority_date: string | null;
+  granted_seniority: number | null;
+  sector_id: number | null;
+  sectors: { name: string } | null;
+  currentSalary: number | null;
+}
 
 export default function ReportsPage() {
   const [activeReport, setActiveReport] = useState<string | null>(null);
@@ -19,7 +50,7 @@ export default function ReportsPage() {
   const reports = [
     { id: "absences-employee", label: "Absences par employe", description: "Total absences par type et par employe pour l'annee", icon: Users, color: "text-blue-600 bg-blue-50" },
     { id: "absences-monthly", label: "Absences par mois", description: "Nombre d'absences par mois (tous employes)", icon: Calendar, color: "text-emerald-600 bg-emerald-50" },
-    { id: "salary-overview", label: "Apercu salarial", description: "Salaire de base et anciennete par employe", icon: TrendingUp, color: "text-purple-600 bg-purple-50" },
+    { id: "salary-overview", label: "Apercu salarial", description: "Salaire de base, anciennete et salaire actuel par employe", icon: TrendingUp, color: "text-purple-600 bg-purple-50" },
   ];
 
   async function generateReport(reportId: string) {
@@ -70,13 +101,69 @@ export default function ReportsPage() {
         setReportData(summary);
       }
     } else if (reportId === "salary-overview") {
-      const { data } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, date_of_hire, granted_seniority_date, sector_id, sectors(name)")
-        .eq("is_inactive", false)
-        .order("last_name");
+      // Fetch employees, scales, org indexations, sector indexations, and employee indexations
+      const [empRes, scalesRes, orgIdxRes, secIdxRes, empIdxRes] = await Promise.all([
+        supabase
+          .from("employees")
+          .select("id, first_name, last_name, date_of_hire, granted_seniority_date, granted_seniority, sector_id, sectors(name)")
+          .eq("is_inactive", false)
+          .order("last_name"),
+        supabase
+          .from("seniority_scales")
+          .select("id, sector_id, years, base_salary"),
+        supabase
+          .from("organisation_indexations")
+          .select("id, indexation_value, indexation_date"),
+        supabase
+          .from("sector_indexations")
+          .select("id, sector_id, indexation_value, indexation_date"),
+        supabase
+          .from("employee_indexations")
+          .select("id, employee_id, indexation_value, indexation_date"),
+      ]);
 
-      setReportData(data || []);
+      const scales: SeniorityScaleRow[] = (scalesRes.data || []) as SeniorityScaleRow[];
+      const orgIndexations: IndexationRow[] = (orgIdxRes.data || []) as IndexationRow[];
+      const allSectorIndexations = (secIdxRes.data || []) as (IndexationRow & { sector_id: number })[];
+      const allEmployeeIndexations = (empIdxRes.data || []) as EmployeeIndexationRow[];
+
+      const orgDProduct = calculateDProduct(orgIndexations);
+
+      const employees: SalaryEmployee[] = ((empRes.data || []) as any[]).map((emp) => {
+        let currentSalary: number | null = null;
+        if (emp.sector_id) {
+          const seniorityYears = calculateSeniorityYears(
+            emp.date_of_hire,
+            emp.granted_seniority,
+            emp.granted_seniority_date
+          );
+          const baseSalary = findBaseSalary(emp.sector_id, seniorityYears, scales);
+          if (baseSalary !== null) {
+            const sectorIdxs: IndexationRow[] = allSectorIndexations.filter(
+              (si) => si.sector_id === emp.sector_id
+            );
+            const sectorDProduct = calculateDProduct(sectorIdxs);
+            const empIdxs: EmployeeIndexationRow[] = allEmployeeIndexations.filter(
+              (ei) => ei.employee_id === emp.id
+            );
+            const personalTotal = calculatePersonalIncreases(empIdxs);
+            currentSalary = baseSalary * orgDProduct * sectorDProduct + personalTotal;
+          }
+        }
+        return {
+          id: emp.id,
+          first_name: emp.first_name,
+          last_name: emp.last_name,
+          date_of_hire: emp.date_of_hire,
+          granted_seniority_date: emp.granted_seniority_date,
+          granted_seniority: emp.granted_seniority,
+          sector_id: emp.sector_id,
+          sectors: emp.sectors,
+          currentSalary,
+        };
+      });
+
+      setReportData(employees);
     }
 
     setLoading(false);
@@ -98,9 +185,10 @@ export default function ReportsPage() {
         csv += `${monthNames[row.month - 1]},${row.count}\n`;
       }
     } else if (activeReport === "salary-overview") {
-      csv = "Employe,Secteur,Date embauche,Anciennete effective\n";
-      for (const row of reportData as any[]) {
-        csv += `"${row.last_name}, ${row.first_name}","${row.sectors?.name || ""}","${row.date_of_hire || ""}","${row.granted_seniority_date || row.date_of_hire || ""}"\n`;
+      csv = "Employe,Secteur,Date embauche,Anciennete effective,Salaire actuel\n";
+      for (const row of reportData as SalaryEmployee[]) {
+        const salary = row.currentSalary !== null ? row.currentSalary.toFixed(2) : "";
+        csv += `"${row.last_name}, ${row.first_name}","${row.sectors?.name || ""}","${row.date_of_hire || ""}","${row.granted_seniority_date || row.date_of_hire || ""}",${salary}\n`;
       }
     }
 
@@ -123,8 +211,8 @@ export default function ReportsPage() {
     if (activeReport === "absences-employee") {
       tableHtml = `<table><thead><tr><th>Employe</th><th>Code</th><th>Description</th><th>Jours</th><th>Heures</th></tr></thead><tbody>`;
       for (const row of reportData as AbsenceReport[]) {
-        const hours = row.total_minutes > 0 ? `${Math.floor(row.total_minutes / 60)}h${(row.total_minutes % 60).toString().padStart(2, "0")}` : "—";
-        tableHtml += `<tr><td>${row.employee_name}</td><td>${row.code}</td><td>${row.code_description}</td><td>${row.total_days || "—"}</td><td>${hours}</td></tr>`;
+        const hours = row.total_minutes > 0 ? `${Math.floor(row.total_minutes / 60)}h${(row.total_minutes % 60).toString().padStart(2, "0")}` : "-";
+        tableHtml += `<tr><td>${row.employee_name}</td><td>${row.code}</td><td>${row.code_description}</td><td>${row.total_days || "-"}</td><td>${hours}</td></tr>`;
       }
       tableHtml += `</tbody></table>`;
     } else if (activeReport === "absences-monthly") {
@@ -135,14 +223,15 @@ export default function ReportsPage() {
       }
       tableHtml += `</tbody></table>`;
     } else if (activeReport === "salary-overview") {
-      tableHtml = `<table><thead><tr><th>Employe</th><th>Secteur</th><th>Embauche</th><th>Anciennete eff.</th></tr></thead><tbody>`;
-      for (const row of reportData as any[]) {
-        tableHtml += `<tr><td>${row.last_name}, ${row.first_name}</td><td>${row.sectors?.name || "—"}</td><td>${row.date_of_hire || "—"}</td><td>${row.granted_seniority_date || row.date_of_hire || "—"}</td></tr>`;
+      tableHtml = `<table><thead><tr><th>Employe</th><th>Secteur</th><th>Embauche</th><th>Anciennete eff.</th><th>Salaire actuel</th></tr></thead><tbody>`;
+      for (const row of reportData as SalaryEmployee[]) {
+        const salary = row.currentSalary !== null ? row.currentSalary.toLocaleString("fr-BE", { style: "currency", currency: "EUR" }) : "-";
+        tableHtml += `<tr><td>${row.last_name}, ${row.first_name}</td><td>${row.sectors?.name || "-"}</td><td>${row.date_of_hire || "-"}</td><td>${row.granted_seniority_date || row.date_of_hire || "-"}</td><td>${salary}</td></tr>`;
       }
       tableHtml += `</tbody></table>`;
     }
 
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>${reportTitle} - ${selectedYear}</title><style>body{font-family:system-ui,sans-serif;padding:40px;color:#1e293b}h1{font-size:20px;margin-bottom:4px}p{color:#64748b;font-size:13px;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f1f5f9;text-align:left;padding:8px 12px;border-bottom:2px solid #e2e8f0;font-weight:600;text-transform:uppercase;font-size:11px;color:#64748b}td{padding:8px 12px;border-bottom:1px solid #f1f5f9}tr:hover{background:#f8fafc}@media print{body{padding:20px}}</style></head><body><h1>${reportTitle}</h1><p>WorkDays — Annee ${selectedYear} — Genere le ${new Date().toLocaleDateString("fr-FR")}</p>${tableHtml}</body></html>`);
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>${reportTitle} - ${selectedYear}</title><style>body{font-family:system-ui,sans-serif;padding:40px;color:#1e293b}h1{font-size:20px;margin-bottom:4px}p{color:#64748b;font-size:13px;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f1f5f9;text-align:left;padding:8px 12px;border-bottom:2px solid #e2e8f0;font-weight:600;text-transform:uppercase;font-size:11px;color:#64748b}td{padding:8px 12px;border-bottom:1px solid #f1f5f9}tr:hover{background:#f8fafc}@media print{body{padding:20px}}</style></head><body><h1>${reportTitle}</h1><p>WorkDays - Annee ${selectedYear} - Genere le ${new Date().toLocaleDateString("fr-FR")}</p>${tableHtml}</body></html>`);
     printWindow.document.close();
     setTimeout(() => { printWindow.print(); }, 300);
   }
@@ -188,9 +277,11 @@ export default function ReportsPage() {
       {!loading && reportData && activeReport && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700">Resultat — {selectedYear}</h3>
-            <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><Download className="w-3.5 h-3.5" />CSV</button>
-            <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Download className="w-3.5 h-3.5" />PDF</button>
+            <h3 className="text-sm font-semibold text-slate-700">Resultat - {selectedYear}</h3>
+            <div className="flex items-center gap-2">
+              <button onClick={exportCSV} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><Download className="w-3.5 h-3.5" />CSV</button>
+              <button onClick={exportPDF} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Download className="w-3.5 h-3.5" />PDF</button>
+            </div>
           </div>
 
           {activeReport === "absences-employee" && (
@@ -209,8 +300,8 @@ export default function ReportsPage() {
                     <tr key={i} className="hover:bg-slate-50">
                       <td className="px-4 py-2 text-sm text-slate-900 font-medium">{row.employee_name}</td>
                       <td className="px-4 py-2 text-sm text-slate-600"><span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">{row.code}</span> {row.code_description}</td>
-                      <td className="px-4 py-2 text-sm text-slate-900 text-right">{row.total_days > 0 ? row.total_days : "—"}</td>
-                      <td className="px-4 py-2 text-sm text-slate-900 text-right">{row.total_minutes > 0 ? `${Math.floor(row.total_minutes / 60)}h${(row.total_minutes % 60).toString().padStart(2, "0")}` : "—"}</td>
+                      <td className="px-4 py-2 text-sm text-slate-900 text-right">{row.total_days > 0 ? row.total_days : "-"}</td>
+                      <td className="px-4 py-2 text-sm text-slate-900 text-right">{row.total_minutes > 0 ? `${Math.floor(row.total_minutes / 60)}h${(row.total_minutes % 60).toString().padStart(2, "0")}` : "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -246,15 +337,22 @@ export default function ReportsPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Secteur</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Embauche</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Anciennete eff.</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Salaire actuel</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {(reportData as any[]).map((emp) => (
+                  {(reportData as SalaryEmployee[]).map((emp) => (
                     <tr key={emp.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2 text-sm text-slate-900 font-medium">{emp.last_name}, {emp.first_name}</td>
-                      <td className="px-4 py-2 text-sm text-slate-600">{emp.sectors?.name || "—"}</td>
-                      <td className="px-4 py-2 text-xs text-slate-500 text-center">{emp.date_of_hire ? new Date(emp.date_of_hire + "T00:00:00").toLocaleDateString("fr-FR") : "—"}</td>
-                      <td className="px-4 py-2 text-xs text-slate-500 text-center">{(emp.granted_seniority_date || emp.date_of_hire) ? new Date((emp.granted_seniority_date || emp.date_of_hire) + "T00:00:00").toLocaleDateString("fr-FR") : "—"}</td>
+                      <td className="px-4 py-2 text-sm text-slate-600">{emp.sectors?.name || "-"}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500 text-center">{emp.date_of_hire ? new Date(emp.date_of_hire + "T00:00:00").toLocaleDateString("fr-FR") : "-"}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500 text-center">{(emp.granted_seniority_date || emp.date_of_hire) ? new Date((emp.granted_seniority_date || emp.date_of_hire)! + "T00:00:00").toLocaleDateString("fr-FR") : "-"}</td>
+                      <td className="px-4 py-2 text-sm text-slate-900 font-medium text-right">
+                        {emp.currentSalary !== null
+                          ? emp.currentSalary.toLocaleString("fr-BE", { style: "currency", currency: "EUR" })
+                          : <span className="text-slate-400 text-xs">N/A</span>
+                        }
+                      </td>
                     </tr>
                   ))}
                 </tbody>

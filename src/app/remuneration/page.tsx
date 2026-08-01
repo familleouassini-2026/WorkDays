@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet, BookOpen, TrendingUp, Calculator, AlertTriangle } from "lucide-react";
+import { BookOpen, TrendingUp, Calculator, AlertTriangle } from "lucide-react";
 
-const tabs = [
+const cards = [
   {
     label: "Baremes",
     href: "/remuneration/baremes",
@@ -40,35 +40,21 @@ export default function RemunerationPage() {
         </p>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white transition-colors"
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Cards */}
+      {/* Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {tabs.map((tab) => (
+        {cards.map((card) => (
           <Link
-            key={tab.href}
-            href={tab.href}
+            key={card.href}
+            href={card.href}
             className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
           >
             <div className="p-3 bg-slate-100 rounded-xl w-fit group-hover:bg-blue-50 transition-colors">
-              <tab.icon className="w-6 h-6 text-slate-600 group-hover:text-blue-600" />
+              <card.icon className="w-6 h-6 text-slate-600 group-hover:text-blue-600" />
             </div>
             <h3 className="text-lg font-medium text-slate-900 mt-4">
-              {tab.label}
+              {card.label}
             </h3>
-            <p className="text-sm text-slate-500 mt-1">{tab.description}</p>
+            <p className="text-sm text-slate-500 mt-1">{card.description}</p>
           </Link>
         ))}
       </div>
