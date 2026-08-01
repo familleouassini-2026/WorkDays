@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-07-31",
+  "lastUpdated": "2026-08-01",
   "architecture": {
     "steering": [
       {
@@ -95,7 +95,7 @@
       "spec": ".kiro/specs/feature-specifications.md#people",
       "code": ["src/app/employees/page.tsx", "src/app/employees/[id]/page.tsx", "src/app/employees/[id]/edit/page.tsx", "src/app/employees/new/page.tsx"],
       "accessOrigin": "extracted/vba_modules/Form_frm_Emp_Employee Details.cls",
-      "notes": "Liste, détail (4 onglets), ajout, édition, suppression"
+      "notes": "Liste, détail (dashboard KPI), ajout, édition, suppression. Page profil redesignée en single-scroll avec 6 cards KPI, section détails, et quick actions."
     },
     {
       "id": "absences-list",
@@ -271,6 +271,15 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-01",
+      "pr": "#38",
+      "description": "Refonte page profil employé : suppression tabs, dashboard single-scroll avec 6 cards KPI (contrat, salaire indexé, congés avec jauge, RTT, absences récentes, actifs), section détails (contact, adresse, horaire, notes), quick actions. Mobile-first.",
+      "filesChanged": [
+        "src/app/employees/[id]/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-07-31",
       "pr": "#27",
