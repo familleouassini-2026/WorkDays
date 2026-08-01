@@ -1,0 +1,55 @@
+employee_name;year;code;code_description;total_hours;total_days;raw_annotation
+BIOUCAS Lidia;2026;CA;Congés légaux;149h09;;149h09-76h(05/26)=73h09
+BIOUCAS Lidia;2026;JF;Récup. jour férié;;2;2j
+BIOUCAS Lidia;2026;VS;Vacances supp 305.1;29h49;;29h49
+BIOUCAS Lidia;2026;RTT;Réduction temps travail;192h;;38h-32h(04/26)=6h+216h-24h=192h
+BLOIN Chloé;2026;CA;Congés légaux;121h36;;121h36
+BLOIN Chloé;2026;JF;Récup. jour férié;;2;2j
+BLOIN Chloé;2026;VS;Vacances supp 305.1;24h19;;24h19
+BOUZRATI Chaïmae;2026;CA;Congés légaux;131h02;;131h02
+BOUZRATI Chaïmae;2026;JF;Récup. jour férié;;2;2j
+BOUZRATI Chaïmae;2026;VS;Vacances supp 305.1;26h12;;26h12
+CZAPNIK Deborah;2026;CA;Congés légaux;152h;;152h
+CZAPNIK Deborah;2026;JF;Récup. jour férié;;2;2j
+CZAPNIK Deborah;2026;VS;Vacances supp 305.1;30h24;;30h24
+CZAPNIK Deborah;2026;RTT;Réduction temps travail;64h;;64h+64h àp 1/9=128h total
+ESSENGUE Marthe;2026;CA;Congés légaux;152h;;152h
+ESSENGUE Marthe;2026;JF;Récup. jour férié;;2;2j
+ESSENGUE Marthe;2026;VS;Vacances supp 305.1;30h24;;30h24
+ESSENGUE Marthe;2026;RTT;Réduction temps travail;288h;;288h
+GORRENDIAYE Adjuah;2026;CA;Congés légaux;121h36;;121h36
+GORRENDIAYE Adjuah;2026;JF;Récup. jour férié;;2;2j
+GORRENDIAYE Adjuah;2026;VS;Vacances supp 305.1;24h19;;24h19
+GORRENDIAYE Adjuah;2026;RTT;Réduction temps travail;153h36;;153h36
+HUNIN Chloé;2026;CA;Congés légaux;147h59;;147h59
+HUNIN Chloé;2026;JF;Récup. jour férié;;2;2j
+HUNIN Chloé;2026;VS;Vacances supp 305.1;29h35;;29h35
+SIBOMANA Alphonse;2026;CA;Congés légaux;152h;;152h
+SIBOMANA Alphonse;2026;JF;Récup. jour férié;;2;2j
+SIBOMANA Alphonse;2026;VS;Vacances supp 305.1;205h12;;205h12
+SIBOMANA Alphonse;2026;RTT;Réduction temps travail;152h;;152h
+SALVERIUS Nancy;2026;CA;Congés légaux;152h;;152h
+SALVERIUS Nancy;2026;JF;Récup. jour férié;;2;2j
+SALVERIUS Nancy;2026;VS;Vacances supp 305.1;30h24;;30h24
+SALVERIUS Nancy;2026;RTT;Réduction temps travail;288h;;288h
+OULAD Bouchra;2026;CA;Congés légaux;152h;;152h
+OULAD Bouchra;2026;JF;Récup. jour férié;;2;2j
+OULAD Bouchra;2026;VS;Vacances supp 305.1;30h24;;30h24
+NSABIYUMVA Marie-Rose;2026;CA;Congés légaux;152h;;152h
+NSABIYUMVA Marie-Rose;2026;JF;Récup. jour férié;;2;2j
+NSABIYUMVA Marie-Rose;2026;VS;Vacances supp 305.1;30h24;;30h24
+NSABIYUMVA Marie-Rose;2026;RTT;Réduction temps travail;192h;;192h
+OUCHENE Rachida;2026;CA;Congés légaux;0;;0 (reprise après maladie longue)
+OUCHENE Rachida;2026;JF;Récup. jour férié;;2;2j
+OUCHENE Rachida;2026;RTT;Réduction temps travail;6h20/mois;;~76h/an
+HOUSSEIN Fardoussa;2026;CA;Congés légaux;128h41;;128h41
+HOUSSEIN Fardoussa;2026;JF;Récup. jour férié;;2;2j
+HOUSSEIN Fardoussa;2026;VS;Vacances supp 305.1;25h44;;25h44
+HOUSSEIN Fardoussa;2026;RTT;Réduction temps travail;72h;;72h
+SOLLAMI Graziella;2026;CA;Congés légaux;152h;;152h
+SOLLAMI Graziella;2026;VJ;Vacances jeunes;15h12;;30h24/2
+SOLLAMI Graziella;2026;RTT;Réduction temps travail;156h;;24h(01)+132h(àp 1/2)
+IOVAN Carmen;2026;CA;Congés légaux;151h31;;151h31
+IOVAN Carmen;2026;JF;Récup. jour férié;;2;2j
+IOVAN Carmen;2026;VS;Vacances supp 305.1;30h18;;30h18
+IOVAN Carmen;2026;RTT;Réduction temps travail;96h;;96h
