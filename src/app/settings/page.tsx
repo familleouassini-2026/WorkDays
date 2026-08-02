@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react";
+import { Settings, Database } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -37,6 +37,13 @@ export default function SettingsPage() {
         <Link href="/settings/rtt-entitlements" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <h3 className="font-semibold text-slate-900">Barème RTT</h3>
           <p className="text-sm text-slate-500 mt-1">Heures RTT par tranche d&apos;age et par secteur</p>
+        </Link>
+        <Link href="/settings/staging-review" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
+          <div className="flex items-center gap-2 mb-1">
+            <Database className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-900">Validation donnees staging</h3>
+          </div>
+          <p className="text-sm text-slate-500">Reviser et valider les donnees extraites avant import</p>
         </Link>
       </div>
     </div>
