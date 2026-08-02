@@ -97,7 +97,7 @@ export default function EmployeesPage() {
   }
 
   // Get unique contract types from data
-  const contractTypes = [...new Set(employees.map((e) => e.contract_type).filter(Boolean))] as string[];
+  const contractTypes = Array.from(new Set(employees.map((e) => e.contract_type).filter(Boolean))) as string[];
 
   return (
     <div className="space-y-4">
