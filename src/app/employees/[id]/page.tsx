@@ -255,7 +255,7 @@ export default function EmployeeProfilePage() {
 
         const { data: empIdx } = await supabase
           .from("employee_indexations")
-          .select("id, employee_id, indexation_value:amount, indexation_date:effective_date")
+          .select("id, employee_id, indexation_value, indexation_date")
           .eq("employee_id", empId);
 
         if (scales && scales.length > 0) {
