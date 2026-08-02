@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Calculator, TrendingUp, User, Building2, Layers, Plus, Info, ChevronDown, ChevronUp } from "lucide-react";
 import {
   calculateSeniorityYears,
+  calculateSeniorityBreakdown,
   findBaseSalary,
   calculateFullSalary,
   type IndexationRow,
@@ -90,14 +91,10 @@ export default function SimulateurPage() {
   const refDate = new Date(simulationDate || Date.now());
 
   // Calculate seniority
-  const seniorityYears = employee
-    ? calculateSeniorityYears(
-        employee.date_of_hire,
-        employee.granted_seniority,
-        employee.granted_seniority_date,
-        refDate
-      )
-    : 0;
+  const seniorityBreakdown = employee
+    ? calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, refDate)
+    : { accordee: 0, acquise: 0, dateEffective: null };
+  const seniorityYears = Math.floor(seniorityBreakdown.acquise);
 
   // Find base salary from scale
   const baseSalary =
@@ -224,8 +221,12 @@ export default function SimulateurPage() {
             />
             <InfoCard
               icon={<TrendingUp className="w-4 h-4 text-purple-600" />}
-              label="Anciennete"
+              label="Anciennete prise en compte"
               value={`${seniorityYears} an${seniorityYears > 1 ? "s" : ""}`}
+              sublabel={seniorityBreakdown.accordee > 0
+                ? `dont ${seniorityBreakdown.accordee.toFixed(0)} an(s) accordée`
+                : undefined
+              }
             />
             <InfoCard
               icon={<Building2 className="w-4 h-4 text-emerald-600" />}
@@ -411,10 +412,12 @@ function InfoCard({
   icon,
   label,
   value,
+  sublabel,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  sublabel?: string;
 }) {
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4">
@@ -423,6 +426,7 @@ function InfoCard({
         <p className="text-xs text-slate-500 font-medium uppercase">{label}</p>
       </div>
       <p className="text-sm font-semibold text-slate-900">{value}</p>
+      {sublabel && <p className="text-xs text-slate-400 mt-0.5">{sublabel}</p>}
     </div>
   );
 }

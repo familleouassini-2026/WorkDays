@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ArrowLeft, Award, ExternalLink, Info, ChevronDown, ChevronUp } from "lucide-react";
-import { calculateSeniorityYears, calculateFullSalary, findBaseSalary } from "@/lib/calculations";
+import { calculateSeniorityYears, calculateSeniorityBreakdown, calculateFullSalary, findBaseSalary } from "@/lib/calculations";
 
 // ---------- TYPES ----------
 
@@ -135,11 +135,11 @@ export default function EmployeeBaremesPage() {
     );
   }
 
-  const seniorityYears = calculateSeniorityYears(
+  const seniorityBreakdown = calculateSeniorityBreakdown(
     employee.date_of_hire,
-    employee.granted_seniority,
     employee.granted_seniority_date
   );
+  const seniorityYears = Math.floor(seniorityBreakdown.acquise);
 
   // Find the matching scale (highest years <= seniorityYears)
   const matchingScale = [...scales]
@@ -196,8 +196,11 @@ export default function EmployeeBaremesPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Situation actuelle</h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
           <div className="flex justify-between sm:flex-col sm:gap-0.5">
-            <span className="text-slate-500">Anciennet&eacute;</span>
-            <span className="font-medium text-slate-900">{seniorityYears} an{seniorityYears > 1 ? "s" : ""}</span>
+            <span className="text-slate-500">Anciennet&eacute; prise en compte</span>
+            <span className="font-bold text-blue-700">{seniorityYears} an{seniorityYears > 1 ? "s" : ""}</span>
+            {seniorityBreakdown.accordee > 0 && (
+              <span className="text-xs text-slate-400">dont {seniorityBreakdown.accordee.toFixed(0)} accord&eacute;e</span>
+            )}
           </div>
           <div className="flex justify-between sm:flex-col sm:gap-0.5">
             <span className="text-slate-500">Palier bar&egrave;me</span>

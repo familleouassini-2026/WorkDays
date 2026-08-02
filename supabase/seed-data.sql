@@ -42,7 +42,7 @@ INSERT INTO employees (id, title, first_name, last_name, job_title, contract_typ
 (3, 'Mme', 'Lidia', 'BIOUCAS', NULL, 'CDI', '2016-05-17', '1968-10-19', false, 1, 3, NULL, '0476779284', 'AVENUE DES Jardins 52/6', NULL, 'Bruxelles', '1030', 1.0, '2015-05-17', NULL),
 (16, 'Mme', 'Fareda', 'BOULAICH', 'Accueillante', 'CDI', '2013-09-07', '1974-12-16', false, 1, 3, 'faredab@mmforest.be', '0476763338', 'Allée des Novateurs 8', NULL, 'Anderlecht', '1070', 1.0, '2012-09-07', NULL),
 (18, 'Mme', 'Chaimae', 'BOUZRATI', NULL, 'CDI', '2009-09-20', '1988-10-19', false, 1, 1, NULL, '0488046213', 'Avenue Gatti de Gamond 200', NULL, 'UCCLE', '1180', 1.0, '2008-09-20', NULL),
-(23, 'Mme', 'Deborah', 'CZAPNIK', 'Kinésithérapeute', 'CDI', '2003-01-01', '1976-09-20', false, 5, 1, 'deborahc@mmforest.be', '0477880008', 'clos du Belloi 10', NULL, 'Waterloo', '1410', 4.0, '1998-01-01', NULL),
+(23, 'Mme', 'Deborah', 'CZAPNIK', 'Kinésithérapeute', 'CDI', '2003-01-01', '1976-09-20', false, 5, 1, 'deborahc@mmforest.be', '0477880008', 'clos du Belloi 10', NULL, 'Waterloo', '1410', 5.0, '1998-01-01', NULL),
 (27, 'Mme', 'Françoise', 'DELEM', NULL, NULL, '1984-11-08', '1954-11-29', false, 5, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (28, 'Mme', 'Fabienne', 'DUPLAT', NULL, 'CDI', '2002-03-01', '1972-11-29', false, 5, 1, NULL, '0473953072', 'Rue Verheyden 60', NULL, 'UCCLE', '1180', NULL, NULL, NULL),
 (30, 'Mme', 'Pascale', 'HANTON', 'Infirmière', 'CDI', '2000-03-01', '1967-03-04', false, 4, 1, 'pascaleh@mmforest.be', '0475560693', 'Avenue Brugman 42', NULL, 'Bruxelles', '1060', 3.0, '1997-03-01', NULL),
