@@ -10,7 +10,7 @@ import { calculateSeniorityYears, calculateSeniorityBreakdown, calculateFullSala
 interface Employee { id: number; first_name: string; last_name: string; date_of_hire: string | null; granted_seniority: number | null; granted_seniority_date: string | null; sector_id: number | null; sectors?: { name: string } | null; }
 interface SeniorityScale { id: number; sector_id: number; years: number; base_salary: number; }
 interface IndexationRow { id: number; indexation_value: number; indexation_date: string; }
-interface EmployeeIndexationRow { id: number; employee_id: number; indexation_value: number; indexation_date: string; description?: string; }
+interface EmployeeIndexationRow { id: number; employee_id: number; indexation_value: number; indexation_date: string; }
 
 export default function EmployeeBaremesPage() {
   const params = useParams();
@@ -39,7 +39,7 @@ export default function EmployeeBaremesPage() {
             supabase.from("seniority_scales").select("*").eq("sector_id", emp.sector_id).order("years"),
             supabase.from("organisation_indexations").select("id, indexation_value, indexation_date").order("indexation_date"),
             supabase.from("sector_indexations").select("id, indexation_value, indexation_date").eq("sector_id", emp.sector_id).order("indexation_date"),
-            supabase.from("employee_indexations").select("id, employee_id, indexation_value, indexation_date, description").eq("employee_id", emp.id).order("indexation_date"),
+            supabase.from("employee_indexations").select("id, employee_id, indexation_value, indexation_date").eq("employee_id", emp.id).order("indexation_date"),
           ]);
           if (scaleRes.data) setScales(scaleRes.data);
           if (orgRes.data) setOrgIndexations(orgRes.data as IndexationRow[]);
@@ -211,7 +211,6 @@ export default function EmployeeBaremesPage() {
                 {personalIncreases.map((inc) => (
                   <tr key={inc.id} className="border-b last:border-b-0">
                     <td className="py-1.5">{new Date(inc.indexation_date).toLocaleDateString("fr-BE")}</td>
-                    <td className="py-1.5 text-slate-600">{(inc as any).description || "—"}</td>
                     <td className="py-1.5 text-right font-mono text-green-700">+{formatEUR(inc.indexation_value)}</td>
                   </tr>
                 ))}
