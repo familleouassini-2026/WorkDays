@@ -205,13 +205,13 @@ export default function EmployeeProfilePage() {
         .eq("year", currentYear);
       if (rights) setVacationRights(rights as unknown as VacationRight[]);
 
-      // Fetch vacation used (code "V") for current year
+      // Fetch vacation used (code "CA") for current year
       const { data: usedData } = await supabase
         .from("year_calendar")
         .select("absence_days, absence_codes!inner(code)")
         .eq("employee_id", empId)
         .eq("year", currentYear)
-        .eq("absence_codes.code", "V");
+        .eq("absence_codes.code", "CA");
       if (usedData) {
         const totalUsed = usedData.reduce((sum, r) => sum + (r.absence_days || 0), 0);
         setVacationUsed(totalUsed);
@@ -427,7 +427,7 @@ export default function EmployeeProfilePage() {
     : null;
 
   // Vacation data
-  const vacRight = vacationRights.find((r) => r.absence_codes?.code === "V");
+  const vacRight = vacationRights.find((r) => r.absence_codes?.code === "CA");
   const vacTotal = vacRight?.days || 0;
 
   return (
