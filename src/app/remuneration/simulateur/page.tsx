@@ -94,11 +94,11 @@ export default function SimulateurPage() {
   const seniorityBreakdown = employee
     ? calculateSeniorityBreakdown(
         employee.date_of_hire,
-        employee.granted_seniority,
+        employee.granted_seniority_date,
         refDate
       )
-    : { acquise: 0, accordee: 0, totale: 0 };
-  const seniorityYears = Math.floor(seniorityBreakdown.totale);
+    : { acquise: 0, accordee: 0, dateEffective: null };
+  const seniorityYears = Math.floor(seniorityBreakdown.acquise);
 
   // Find base salary from scale
   const baseSalary =
@@ -225,11 +225,11 @@ export default function SimulateurPage() {
             />
             <InfoCard
               icon={<TrendingUp className="w-4 h-4 text-purple-600" />}
-              label="Anciennete totale"
+              label="Anciennete prise en compte"
               value={`${seniorityYears} an${seniorityYears > 1 ? "s" : ""}`}
               sublabel={seniorityBreakdown.accordee > 0
-                ? `Acquise: ${seniorityBreakdown.acquise.toFixed(1)} + Accordée: ${seniorityBreakdown.accordee}`
-                : `Acquise depuis ${employee?.date_of_hire ? new Date(employee.date_of_hire).getFullYear() : "?"}`
+                ? `Accordée: ${seniorityBreakdown.accordee.toFixed(1)} ans (date: ${employee?.granted_seniority_date || "?"})`
+                : `Depuis ${employee?.date_of_hire ? new Date(employee.date_of_hire).toLocaleDateString("fr-BE") : "?"}`
               }
             />
             <InfoCard
@@ -267,7 +267,7 @@ export default function SimulateurPage() {
                 <CalcRow
                   label="Salaire de base (bareme)"
                   value={formatEUR(salaryResult.baseSalary)}
-                  sublabel={`Secteur ${employee.sectors?.name || "?"}, ${seniorityYears} ans d'anciennete${seniorityBreakdown.accordee > 0 ? ` (${seniorityBreakdown.acquise.toFixed(0)} acquise + ${seniorityBreakdown.accordee} accordée)` : ""}`}
+                  sublabel={`Secteur ${employee.sectors?.name || "?"}, ${seniorityYears} ans d'anciennete${seniorityBreakdown.accordee > 0 ? ` (dont ${seniorityBreakdown.accordee.toFixed(0)} accordée)` : ""}`}
                 />
 
                 {/* Org indexation */}

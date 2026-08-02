@@ -137,9 +137,9 @@ export default function EmployeeBaremesPage() {
 
   const seniorityBreakdown = calculateSeniorityBreakdown(
     employee.date_of_hire,
-    employee.granted_seniority
+    employee.granted_seniority_date
   );
-  const seniorityYears = Math.floor(seniorityBreakdown.totale);
+  const seniorityYears = Math.floor(seniorityBreakdown.acquise);
 
   // Find the matching scale (highest years <= seniorityYears)
   const matchingScale = [...scales]
@@ -196,10 +196,10 @@ export default function EmployeeBaremesPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Situation actuelle</h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
           <div className="flex justify-between sm:flex-col sm:gap-0.5">
-            <span className="text-slate-500">Anciennet&eacute; totale</span>
+            <span className="text-slate-500">Anciennet&eacute; prise en compte</span>
             <span className="font-bold text-blue-700">{seniorityYears} an{seniorityYears > 1 ? "s" : ""}</span>
             <span className="text-xs text-slate-400">
-              {seniorityBreakdown.acquise.toFixed(1)} acquise{seniorityBreakdown.accordee > 0 ? ` + ${seniorityBreakdown.accordee} accord\u00e9e` : ""}
+              {seniorityBreakdown.accordee > 0 ? `dont ${seniorityBreakdown.accordee.toFixed(0)} accord\u00e9e` : `depuis ${employee.date_of_hire ? new Date(employee.date_of_hire).getFullYear() : "?"}`}
             </span>
           </div>
           <div className="flex justify-between sm:flex-col sm:gap-0.5">

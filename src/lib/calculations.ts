@@ -55,39 +55,67 @@ export interface SeniorityScaleRow {
 // ============================================================
 
 /**
- * Calculate seniority breakdown:
- * - acquise = years from date_of_hire to referenceDate (real time in company)
- * - accordee = granted_seniority (bonus years given by employer)
- * - totale = acquise + accordee (used for barème, congés, etc.)
+ * Calculate seniority breakdown matching Access logic:
+ * 
+ * - granted_seniority_date = fictitious date BEFORE date_of_hire
+ *   (e.g. hire=2003, granted_date=1998 → 5 years bonus)
+ * - (A) Ancienneté accordée = date_of_hire - granted_seniority_date (bonus years)
+ * - (B) Ancienneté acquise = granted_seniority_date → referenceDate (total from fictitious start)
+ *   = (date_of_hire → referenceDate) + accordée
+ * - (C) Ancienneté maximum = max years in seniority_scales for sector (cap)
+ * - (D) Ancienneté prise en compte = min(acquise, maximum) — used for barème lookup
  *
- * Access equivalent:
- * (A) Ancienneté accordée = granted_seniority (e.g. 5 years)
- * (B) Ancienneté acquise = date_of_hire → today
- * (D) Ancienneté prise en compte = (A) + (B)
+ * If no granted_seniority_date, accordée = 0, acquise = date_of_hire → today.
  */
 export function calculateSeniorityBreakdown(
   dateOfHire: string | null,
-  grantedSeniority: number | null,
+  grantedSeniorityDate: string | null,
   referenceDate: Date = new Date()
-): { acquise: number; accordee: number; totale: number } {
-  if (!dateOfHire) return { acquise: 0, accordee: 0, totale: 0 };
+): {
+  accordee: number;
+  acquise: number;
+  dateEffective: string | null;
+} {
+  if (!dateOfHire) return { accordee: 0, acquise: 0, dateEffective: null };
 
-  const start = new Date(dateOfHire);
-  const diffMs = referenceDate.getTime() - start.getTime();
-  const acquise = Math.max(0, diffMs / (1000 * 60 * 60 * 24 * 365.25));
-  const accordee = grantedSeniority || 0;
-  const totale = acquise + accordee;
+  const hireDate = new Date(dateOfHire);
+  const effectiveStart = grantedSeniorityDate ? new Date(grantedSeniorityDate) : hireDate;
+
+  // Accordée = difference between hire and effective start (years)
+  const accordeMs = Math.max(0, hireDate.getTime() - effectiveStart.getTime());
+  const accordee = accordeMs / (1000 * 60 * 60 * 24 * 365.25);
+
+  // Acquise = effective start → reference date (total seniority from fictitious date)
+  const acquiseMs = Math.max(0, referenceDate.getTime() - effectiveStart.getTime());
+  const acquise = acquiseMs / (1000 * 60 * 60 * 24 * 365.25);
 
   return {
+    accordee: Math.round(accordee * 100) / 100,
     acquise: Math.round(acquise * 100) / 100,
-    accordee,
-    totale: Math.round(totale * 100) / 100,
+    dateEffective: grantedSeniorityDate || dateOfHire,
   };
 }
 
 /**
- * @deprecated Use calculateSeniorityBreakdown instead.
- * Kept for backward compatibility — returns totale (floor) for barème lookup.
+ * Get the effective seniority years for barème lookup.
+ * = min(acquise, maxPalier) — capped at the highest scale year if provided.
+ * If no cap (maxScaleYears = null), uses acquise directly.
+ */
+export function getSeniorityForBareme(
+  dateOfHire: string | null,
+  grantedSeniorityDate: string | null,
+  maxScaleYears: number | null = null,
+  referenceDate: Date = new Date()
+): number {
+  const { acquise } = calculateSeniorityBreakdown(dateOfHire, grantedSeniorityDate, referenceDate);
+  const floored = Math.floor(acquise);
+  if (maxScaleYears !== null) return Math.min(floored, maxScaleYears);
+  return floored;
+}
+
+/**
+ * @deprecated Use calculateSeniorityBreakdown + getSeniorityForBareme instead.
+ * Kept for backward compatibility — returns acquise (floor) for barème lookup.
  */
 export function calculateSeniorityYears(
   dateOfHire: string | null,
@@ -95,8 +123,8 @@ export function calculateSeniorityYears(
   grantedSeniorityDate: string | null,
   referenceDate: Date = new Date()
 ): number {
-  const { totale } = calculateSeniorityBreakdown(dateOfHire, grantedSeniority, referenceDate);
-  return Math.floor(totale);
+  const { acquise } = calculateSeniorityBreakdown(dateOfHire, grantedSeniorityDate, referenceDate);
+  return Math.floor(acquise);
 }
 
 // ============================================================
