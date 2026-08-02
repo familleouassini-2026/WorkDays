@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { BookOpen, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 
 interface SeniorityScale {
   id: number;
@@ -28,6 +28,7 @@ export default function BaremesPage() {
   const [addingSectorId, setAddingSectorId] = useState<number | null>(null);
   const [newYears, setNewYears] = useState<number>(0);
   const [newSalary, setNewSalary] = useState<number>(0);
+  const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
 
   async function fetchData() {
     const supabase = createClient();
@@ -125,21 +126,51 @@ export default function BaremesPage() {
           {sortedSectors.map((sector) => {
             const sectorScales = scalesBySectorId[sector.id] || [];
             const isAdding = addingSectorId === sector.id;
+            const isExpanded = expandedSectors.has(sector.id);
+
+            const minYears = sectorScales.length > 0 ? Math.min(...sectorScales.map((s) => s.years)) : 0;
+            const maxYears = sectorScales.length > 0 ? Math.max(...sectorScales.map((s) => s.years)) : 0;
+            const minSalary = sectorScales.length > 0 ? Math.min(...sectorScales.map((s) => s.base_salary)) : 0;
+            const maxSalary = sectorScales.length > 0 ? Math.max(...sectorScales.map((s) => s.base_salary)) : 0;
+
+            const formatSalary = (value: number) =>
+              value.toLocaleString("fr-BE", { style: "currency", currency: "EUR" });
 
             return (
               <div key={sector.id} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 {/* Sector header */}
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-700">{sector.name}</h3>
-                    <p className="text-xs text-slate-500">
-                      {sectorScales.length > 0
-                        ? `${sectorScales.length} palier${sectorScales.length > 1 ? "s" : ""}`
-                        : "Aucun palier"}
-                    </p>
+                <div
+                  className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between cursor-pointer select-none"
+                  onClick={() => {
+                    setExpandedSectors((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(sector.id)) {
+                        next.delete(sector.id);
+                      } else {
+                        next.add(sector.id);
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    )}
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-700">{sector.name}</h3>
+                      <p className="text-xs text-slate-500">
+                        {sectorScales.length > 0
+                          ? `${sectorScales.length} palier${sectorScales.length > 1 ? "s" : ""} | Ancienneté: ${minYears}–${maxYears} ans | Salaire: ${formatSalary(minSalary)} – ${formatSalary(maxSalary)}`
+                          : "Aucun palier"}
+                      </p>
+                    </div>
                   </div>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setAddingSectorId(isAdding ? null : sector.id);
                       setNewYears(0);
                       setNewSalary(0);
@@ -159,7 +190,7 @@ export default function BaremesPage() {
                 </div>
 
                 {/* Add form */}
-                {isAdding && (
+                {isExpanded && isAdding && (
                   <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap items-center gap-3">
                     <input
                       type="number"
@@ -189,7 +220,7 @@ export default function BaremesPage() {
                 )}
 
                 {/* Table */}
-                {sectorScales.length > 0 && (
+                {isExpanded && sectorScales.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-200">
@@ -241,7 +272,7 @@ export default function BaremesPage() {
                 )}
 
                 {/* Empty state for sector with no scales */}
-                {sectorScales.length === 0 && !isAdding && (
+                {isExpanded && sectorScales.length === 0 && !isAdding && (
                   <div className="px-4 py-6 text-center">
                     <p className="text-xs text-slate-400">Aucun palier configure pour ce secteur</p>
                   </div>
