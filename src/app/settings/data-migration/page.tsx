@@ -194,9 +194,10 @@ export default function DataMigrationPage() {
     if (!codes) { setTransferMsg("Erreur: codes absence non trouvés"); return; }
     const codeMap = new Map(codes.map((c: { id: number; code: string }) => [c.code.toUpperCase(), c.id]));
     let inserted = 0;
+    let skipped: string[] = [];
     for (const svr of stagingVacRights) {
       const absCodeId = codeMap.get(svr.code.toUpperCase());
-      if (!absCodeId) continue;
+      if (!absCodeId) { skipped.push(svr.code); continue; }
       const parsed = parseHours(svr.total_hours || "0");
       const days = svr.total_days ? parseInt(svr.total_days, 10) : 0;
       const { error } = await supabase.from("vacation_rights").upsert({
@@ -205,7 +206,11 @@ export default function DataMigrationPage() {
       }, { onConflict: "employee_id,absence_code_id,year" });
       if (!error) inserted++;
     }
-    setTransferMsg(`✓ ${inserted} droit(s) de congés transféré(s) avec succès !`);
+    if (skipped.length > 0) {
+      setTransferMsg(`✓ ${inserted} transféré(s), ⚠ ${skipped.length} ignoré(s) (codes inconnus: ${[...new Set(skipped)].join(", ")}). Exécutez la migration 014 dans Supabase.`);
+    } else {
+      setTransferMsg(`✓ ${inserted} droit(s) de congés transféré(s) avec succès !`);
+    }
     fetchComparisonData(selectedStaging);
   }
 
