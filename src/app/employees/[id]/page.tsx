@@ -155,6 +155,7 @@ export default function EmployeeProfilePage() {
   const [vacationUsed, setVacationUsed] = useState(0);
   const [rttTotal, setRttTotal] = useState<number | null>(null);
   const [salary, setSalary] = useState<number | null>(null);
+  const [maxPalierYears, setMaxPalierYears] = useState<number | null>(null);
   const [assets, setAssets] = useState<AssetAssignment[]>([]);
   const [indexations, setIndexations] = useState<EmployeeIndexation[]>([]);
   const [absenceSummary, setAbsenceSummary] = useState<AbsenceSummaryRow[]>([]);
@@ -275,6 +276,11 @@ export default function EmployeeProfilePage() {
           .from("seniority_scales")
           .select("*")
           .eq("sector_id", emp.sector_id);
+
+        if (scales && scales.length > 0) {
+          const maxYears = Math.max(...scales.map((s: { years: number }) => s.years));
+          setMaxPalierYears(maxYears);
+        }
 
         const { data: orgIdx } = await supabase
           .from("organisation_indexations")
@@ -687,9 +693,18 @@ export default function EmployeeProfilePage() {
                   <span className="font-bold text-blue-900 text-lg">
                     {(() => {
                       const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
-                      return `${Math.floor(bd.acquise)} an${Math.floor(bd.acquise) > 1 ? "s" : ""}`;
+                      const raw = Math.floor(bd.acquise);
+                      const capped = maxPalierYears !== null ? Math.min(raw, maxPalierYears) : raw;
+                      return `${capped} an${capped > 1 ? "s" : ""}`;
                     })()}
                   </span>
+                  {maxPalierYears !== null && (() => {
+                    const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
+                    const raw = Math.floor(bd.acquise);
+                    return raw > maxPalierYears ? (
+                      <span className="text-xs text-blue-500">plafonn&eacute;e au max bar&egrave;me ({maxPalierYears} ans)</span>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
                   <span className="text-slate-500">Situation actuelle</span>
