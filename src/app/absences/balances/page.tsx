@@ -150,8 +150,8 @@ export default function AbsenceBalancesPage() {
 
       // Build vacation-specific balances
       const vacRows: BalanceRow[] = [];
-      // Find the vacation code (V = Vacances annuelles)
-      const vacCode = codes.find((c) => c.code === "V");
+      // Find the vacation code (CA = Congés légaux/annuels)
+      const vacCode = codes.find((c) => c.code === "CA");
 
       for (const emp of employees) {
         const seniorityYears = calculateSeniorityYears(
@@ -171,7 +171,7 @@ export default function AbsenceBalancesPage() {
 
         const totalHoursEntitled = calculateVacationHours(weeks, hasBought, weeklyHours);
 
-        // Sum consumed vacation minutes from year_calendar for code "V"
+        // Sum consumed vacation minutes from year_calendar for code "CA"
         let totalMinutesUsed = 0;
         if (vacCode) {
           const empCalendar = calendar.filter(
