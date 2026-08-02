@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Clock, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Clock, Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 
 interface RTTEntitlement {
   id: number;
@@ -29,6 +29,7 @@ export default function RTTEntitlementsPage() {
   const [addingSectorId, setAddingSectorId] = useState<number | null>(null);
   const [newSeniorityStart, setNewSeniorityStart] = useState<number>(0);
   const [newHoursPerYear, setNewHoursPerYear] = useState<number>(0);
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
 
   async function fetchData() {
     const supabase = createClient();
@@ -63,6 +64,18 @@ export default function RTTEntitlementsPage() {
     }
     groupedBySector[sectorName].entitlements.push(ent);
   });
+
+  function toggleSector(sectorName: string) {
+    setExpandedSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectorName)) {
+        next.delete(sectorName);
+      } else {
+        next.add(sectorName);
+      }
+      return next;
+    });
+  }
 
   async function handleAdd(sectorId: number) {
     if (newSeniorityStart < 0 || newHoursPerYear <= 0) return;
@@ -144,13 +157,23 @@ export default function RTTEntitlementsPage() {
 
           {Object.entries(groupedBySector).sort(([a], [b]) => a.localeCompare(b, "fr")).map(([sectorName, { sectorId, entitlements: sectorEntitlements }]) => (
             <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700">{sectorName}</h3>
-                  <p className="text-xs text-slate-500">{sectorEntitlements.length} tranche{sectorEntitlements.length > 1 ? "s" : ""}</p>
+              <div
+                className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between cursor-pointer"
+                onClick={() => toggleSector(sectorName)}
+              >
+                <div className="flex items-center gap-2">
+                  {expandedSectors.has(sectorName) ? (
+                    <ChevronUp className="w-4 h-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                  )}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700">{sectorName} ({sectorEntitlements.length} tranche{sectorEntitlements.length > 1 ? "s" : ""})</h3>
+                  </div>
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setAddingSectorId(addingSectorId === sectorId ? null : sectorId);
                     setNewSeniorityStart(0);
                     setNewHoursPerYear(0);
@@ -163,7 +186,7 @@ export default function RTTEntitlementsPage() {
               </div>
 
               {/* Add row form */}
-              {addingSectorId === sectorId && (
+              {expandedSectors.has(sectorName) && addingSectorId === sectorId && (
                 <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
                   <input
                     type="number"
@@ -197,6 +220,7 @@ export default function RTTEntitlementsPage() {
                 </div>
               )}
 
+              {expandedSectors.has(sectorName) && (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
@@ -286,6 +310,7 @@ export default function RTTEntitlementsPage() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           ))}
 

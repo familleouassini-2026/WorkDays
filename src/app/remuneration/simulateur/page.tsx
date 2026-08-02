@@ -482,6 +482,10 @@ function IndexationHistory({
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Compute cumulative DProduct of all indexation factors (org + sector)
+  const allFactors = [...orgIndexations, ...sectorIndexations];
+  const dProductTotal = allFactors.reduce((acc, idx) => acc * idx.indexation_value, 1);
+
   return (
     <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
       <button
@@ -489,12 +493,14 @@ function IndexationHistory({
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
       >
         <span className="text-sm font-medium text-slate-700">
-          Historique des indexations ({orgIndexations.length} org +{" "}
+          Historique des indexations — Total: &times;{dProductTotal.toFixed(6)} ({orgIndexations.length} org +{" "}
           {sectorIndexations.length} secteur)
         </span>
-        <span className="text-xs text-slate-500">
-          {isOpen ? "Masquer" : "Afficher"}
-        </span>
+        {isOpen ? (
+          <ChevronUp className="w-4 h-4 text-slate-500" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-slate-500" />
+        )}
       </button>
 
       {isOpen && (
