@@ -585,7 +585,7 @@ function ComparisonPanel({
             Les absences mensuelles ne peuvent pas etre transferees automatiquement car elles necessitent
             une saisie jour par jour dans le calendrier annuel.
           </p>
-          <Link href="/absences/new" className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
+          <Link href={prodEmployee ? `/employees/${prodEmployee.id}/absences` : "/absences/new"} className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
             <ExternalLink className="w-3 h-3" /> Saisir les absences manuellement
           </Link>
         </div>
@@ -602,7 +602,7 @@ function ComparisonPanel({
             Les evenements (accouchement, fin de contrat, maladie longue, etc.) doivent etre saisis
             manuellement car ils necessitent une validation au cas par cas.
           </p>
-          <Link href="/employees" className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
+          <Link href={prodEmployee ? `/employees/${prodEmployee.id}/edit` : "/employees"} className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
             <ExternalLink className="w-3 h-3" /> Gerer les employes
           </Link>
         </div>
