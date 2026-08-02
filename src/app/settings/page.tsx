@@ -1,4 +1,4 @@
-import { Settings, Database } from "lucide-react";
+import { Settings, Database, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -44,6 +44,13 @@ export default function SettingsPage() {
             <h3 className="font-semibold text-slate-900">Validation donnees staging</h3>
           </div>
           <p className="text-sm text-slate-500">Reviser et valider les donnees extraites avant import</p>
+        </Link>
+        <Link href="/settings/data-migration" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
+          <div className="flex items-center gap-2 mb-1">
+            <ArrowRightLeft className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-900">Migration des donnees</h3>
+          </div>
+          <p className="text-sm text-slate-500">Transferer les donnees staging vers les tables de production</p>
         </Link>
       </div>
     </div>
