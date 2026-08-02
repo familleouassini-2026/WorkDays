@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Search, Plus, Filter } from "lucide-react";
+import { Search, Plus, X } from "lucide-react";
 
 interface Employee {
   id: number;
@@ -18,190 +18,231 @@ interface Employee {
   is_inactive: boolean;
   mobile_phone: string | null;
   sector_id: number | null;
-  location_id: number | null;
   sectors?: { name: string } | null;
+}
+
+interface Sector {
+  id: number;
+  name: string;
 }
 
 export default function EmployeesPage() {
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [contractFilter, setContractFilter] = useState("");
+
   useEffect(() => {
-    async function fetchEmployees() {
+    async function fetchData() {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("employees")
-        .select("*, sectors(name)")
-        .order("last_name", { ascending: true });
+      const [empRes, secRes] = await Promise.all([
+        supabase.from("employees").select("*, sectors(name)").order("last_name"),
+        supabase.from("sectors").select("id, name").order("name"),
+      ]);
 
-      if (error) {
-        console.error("Fetch with join failed, retrying without join:", error);
-        // Fallback sans join
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("employees")
-          .select("*")
-          .order("last_name", { ascending: true });
-
-        if (!fallbackError && fallbackData) {
-          setEmployees(fallbackData as unknown as Employee[]);
-        } else {
-          console.error("Fallback also failed:", fallbackError);
-          setFetchError("Impossible de charger les employés. Vérifiez la connexion.");
-        }
-      } else if (data) {
-        setEmployees(data as unknown as Employee[]);
+      if (empRes.error) {
+        const { data: fallback } = await supabase.from("employees").select("*").order("last_name");
+        if (fallback) setEmployees(fallback as unknown as Employee[]);
+        else setFetchError("Impossible de charger les employés.");
+      } else if (empRes.data) {
+        setEmployees(empRes.data as unknown as Employee[]);
       }
+      if (secRes.data) setSectors(secRes.data);
       setLoading(false);
     }
-
-    fetchEmployees();
+    fetchData();
   }, []);
 
   const filteredEmployees = employees.filter((emp) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      emp.first_name?.toLowerCase().includes(query) ||
-      emp.last_name?.toLowerCase().includes(query) ||
-      emp.email?.toLowerCase().includes(query) ||
-      emp.job_title?.toLowerCase().includes(query) ||
-      emp.sectors?.name?.toLowerCase().includes(query)
-    );
+    // Text search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const match =
+        emp.first_name?.toLowerCase().includes(q) ||
+        emp.last_name?.toLowerCase().includes(q) ||
+        emp.email?.toLowerCase().includes(q) ||
+        emp.job_title?.toLowerCase().includes(q) ||
+        emp.mobile_phone?.includes(q) ||
+        emp.sectors?.name?.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    // Sector filter
+    if (sectorFilter) {
+      if (sectorFilter === "none") {
+        if (emp.sector_id !== null) return false;
+      } else if (String(emp.sector_id) !== sectorFilter) return false;
+    }
+    // Status filter
+    if (statusFilter === "active" && emp.is_inactive) return false;
+    if (statusFilter === "inactive" && !emp.is_inactive) return false;
+    // Contract filter
+    if (contractFilter && emp.contract_type !== contractFilter) return false;
+    return true;
   });
 
+  const hasFilters = searchQuery || sectorFilter || statusFilter !== "all" || contractFilter;
+
+  function clearFilters() {
+    setSearchQuery("");
+    setSectorFilter("");
+    setStatusFilter("all");
+    setContractFilter("");
+  }
+
+  // Get unique contract types from data
+  const contractTypes = [...new Set(employees.map((e) => e.contract_type).filter(Boolean))] as string[];
+
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Personnel</h1>
-          <p className="text-slate-500 mt-1">
-            Gestion des employes et de leurs informations
+          <p className="text-slate-500 text-sm mt-0.5">
+            {filteredEmployees.length} employé{filteredEmployees.length > 1 ? "s" : ""}
+            {hasFilters ? ` (sur ${employees.length} total)` : ""}
           </p>
         </div>
-        <Link
-          href="/employees/new"
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Ajouter un employe
+        <Link href="/employees/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+          <Plus className="w-4 h-4" /> Ajouter
         </Link>
       </div>
 
       {/* Filters */}
-      <div className="card p-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom, email, fonction..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-10"
-            />
-          </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-            <Filter className="w-4 h-4" />
-            Filtres
-          </button>
+      <div className="bg-white border rounded-lg p-4 space-y-3">
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Rechercher par nom, email, fonction, téléphone, secteur..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter row */}
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={sectorFilter}
+            onChange={(e) => setSectorFilter(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Tous les secteurs</option>
+            <option value="none">Sans secteur</option>
+            {sectors.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="active">Actifs</option>
+            <option value="inactive">Inactifs</option>
+          </select>
+
+          <select
+            value={contractFilter}
+            onChange={(e) => setContractFilter(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Tous les contrats</option>
+            {contractTypes.map((ct) => (
+              <option key={ct} value={ct}>{ct}</option>
+            ))}
+          </select>
+
+          {hasFilters && (
+            <button onClick={clearFilters} className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors">
+              <X className="w-3.5 h-3.5" /> Effacer filtres
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Error Banner */}
+      {/* Error */}
       {fetchError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-          {fetchError}
-        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{fetchError}</div>
       )}
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="bg-white border rounded-lg overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto"></div>
-            <p className="text-slate-500 mt-4">Chargement des employes...</p>
+            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+            <p className="text-slate-500 mt-4">Chargement...</p>
           </div>
         ) : filteredEmployees.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-slate-500">
               {employees.length === 0
-                ? "Aucun employe trouve. Ajoutez votre premier employe pour commencer."
-                : "Aucun resultat pour cette recherche."}
+                ? "Aucun employé. Ajoutez votre premier employé pour commencer."
+                : "Aucun résultat pour ces filtres."}
             </p>
           </div>
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Employe
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Secteur
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Fonction
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Date d&apos;entree
-                </th>
+              <tr className="bg-slate-50 border-b">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Employé</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Secteur</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase hidden md:table-cell">Contrat</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Statut</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase hidden lg:table-cell">Entrée</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredEmployees.map((employee) => (
+              {filteredEmployees.map((emp) => (
                 <tr
-                  key={employee.id}
-                  onClick={() => router.push(`/employees/${employee.id}`)}
+                  key={emp.id}
+                  onClick={() => router.push(`/employees/${emp.id}`)}
                   className="hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  <td className="px-6 py-4">
-                    <Link
-                      href={`/employees/${employee.id}`}
-                      className="flex items-center gap-3"
-                    >
-                      <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-primary-700">
-                          {employee.first_name?.[0]}
-                          {employee.last_name?.[0]}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-medium text-blue-700">
+                          {emp.first_name?.[0]}{emp.last_name?.[0]}
                         </span>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-900 hover:text-primary-600">
-                          {employee.first_name} {employee.last_name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {employee.email}
-                        </p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{emp.last_name} {emp.first_name}</p>
+                        <p className="text-xs text-slate-500 truncate">{emp.job_title || emp.email || "—"}</p>
                       </div>
-                    </Link>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {employee.sectors?.name || "—"}
+                  <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]">
+                    {emp.sectors?.name || <span className="text-slate-400 italic">Non assigné</span>}
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {employee.job_title || "—"}
+                  <td className="px-4 py-3 text-sm text-slate-600 hidden md:table-cell">
+                    {emp.contract_type || "—"}
                   </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        !employee.is_inactive
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {employee.is_inactive ? "Inactif" : "Actif"}
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      !emp.is_inactive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                    }`}>
+                      {emp.is_inactive ? "Inactif" : "Actif"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {employee.date_of_hire
-                      ? new Date(employee.date_of_hire).toLocaleDateString("fr-BE")
-                      : "—"}
+                  <td className="px-4 py-3 text-sm text-slate-600 hidden lg:table-cell">
+                    {emp.date_of_hire ? new Date(emp.date_of_hire).toLocaleDateString("fr-BE") : "—"}
                   </td>
                 </tr>
               ))}
