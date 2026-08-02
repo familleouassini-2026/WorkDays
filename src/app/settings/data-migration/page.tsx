@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ArrowLeft, Building2, Users, Layers, CheckCircle2,
-  ExternalLink, ArrowRightLeft, Info, Calendar, Clock
+  ArrowLeft, Users, CheckCircle2,
+  ExternalLink, ArrowRightLeft, Info, Calendar, Clock,
+  UserPlus, UserMinus, AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,6 +27,8 @@ function hoursToMinutes(val: string): number {
   return hours * 60 + minutes;
 }
 
+
+// --- Types ---
 interface StagingEmployee {
   id: number;
   sheet_name: string;
@@ -39,6 +42,8 @@ interface StagingEmployee {
   weekly_hours_ve: string | null;
   full_time_hours: string | null;
   is_inactive: boolean;
+  hire_date: string | null;
+  contract_type: string | null;
 }
 
 interface StagingVacRight {
@@ -55,6 +60,9 @@ interface ProdEmployee {
   id: number;
   first_name: string;
   last_name: string;
+  is_inactive: boolean;
+  sector_id: number | null;
+  sectors: { name: string } | null;
 }
 
 interface ProdTimesheet {
@@ -79,10 +87,11 @@ interface ProdVacRight {
   absence_codes: { code: string; description: string } | null;
 }
 
-type TabType = "organisation" | "secteurs" | "employes";
+
+type TabType = "employes" | "nouveaux" | "desactiver";
 
 export default function DataMigrationPage() {
-  const [activeTab, setActiveTab] = useState<TabType>("organisation");
+  const [activeTab, setActiveTab] = useState<TabType>("employes");
   const [stagingEmployees, setStagingEmployees] = useState<StagingEmployee[]>([]);
   const [selectedStaging, setSelectedStaging] = useState<StagingEmployee | null>(null);
   const [prodEmployees, setProdEmployees] = useState<ProdEmployee[]>([]);
@@ -91,26 +100,20 @@ export default function DataMigrationPage() {
   const [stagingVacRights, setStagingVacRights] = useState<StagingVacRight[]>([]);
   const [loading, setLoading] = useState(true);
   const [transferMsg, setTransferMsg] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (selectedStaging) {
-      fetchComparisonData(selectedStaging);
-    }
-  }, [selectedStaging]);
+  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (selectedStaging) fetchComparisonData(selectedStaging); }, [selectedStaging]);
 
   async function fetchData() {
     setLoading(true);
     const supabase = createClient();
     const [stRes, prodRes] = await Promise.all([
       supabase.from("staging_employees").select("*").order("last_name"),
-      supabase.from("employees").select("id, first_name, last_name"),
+      supabase.from("employees").select("id, first_name, last_name, is_inactive, sector_id, sectors(name)"),
     ]);
     if (stRes.data) setStagingEmployees(stRes.data);
-    if (prodRes.data) setProdEmployees(prodRes.data);
+    if (prodRes.data) setProdEmployees(prodRes.data as unknown as ProdEmployee[]);
     setLoading(false);
   }
 
@@ -121,6 +124,20 @@ export default function DataMigrationPage() {
         p.first_name.toLowerCase() === staging.first_name.toLowerCase()
     );
   }
+
+
+  // Nouveaux employés: in staging but NOT in production
+  const newEmployees = stagingEmployees.filter(
+    (s) => !s.is_inactive && !findProdEmployee(s)
+  );
+
+  // Employés à désactiver: in production (active) but NOT in staging
+  const toDeactivate = prodEmployees.filter(
+    (p) => !p.is_inactive && !stagingEmployees.find(
+      (s) => s.last_name.toLowerCase() === p.last_name.toLowerCase() &&
+             s.first_name.toLowerCase() === p.first_name.toLowerCase()
+    )
+  );
 
   async function fetchComparisonData(staging: StagingEmployee) {
     const matched = findProdEmployee(staging);
@@ -141,14 +158,13 @@ export default function DataMigrationPage() {
     if (svrRes.data) setStagingVacRights(svrRes.data);
   }
 
+
   async function transferHoraire() {
     if (!selectedStaging) return;
     const matched = findProdEmployee(selectedStaging);
-    if (!matched) { setTransferMsg("Employe non trouve en production"); return; }
+    if (!matched) { setTransferMsg("Employé non trouvé en production"); return; }
     const supabase = createClient();
-    // Deactivate old timesheets
     await supabase.from("timesheets").update({ is_active: false, end_date: new Date().toISOString().split("T")[0] }).eq("employee_id", matched.id).eq("is_active", true);
-    // Parse and insert new
     const mon = hoursToMinutes(selectedStaging.weekly_hours_lu || "0");
     const tue = hoursToMinutes(selectedStaging.weekly_hours_ma || "0");
     const wed = hoursToMinutes(selectedStaging.weekly_hours_me || "0");
@@ -161,26 +177,21 @@ export default function DataMigrationPage() {
       employee_id: matched.id,
       is_active: true,
       start_date: new Date().toISOString().split("T")[0],
-      monday_minutes: mon,
-      tuesday_minutes: tue,
-      wednesday_minutes: wed,
-      thursday_minutes: thu,
-      friday_minutes: fri,
-      full_time_minutes: ftMin,
+      monday_minutes: mon, tuesday_minutes: tue, wednesday_minutes: wed,
+      thursday_minutes: thu, friday_minutes: fri, full_time_minutes: ftMin,
     });
     if (error) { setTransferMsg("Erreur: " + error.message); return; }
-    setTransferMsg("Horaire transfere avec succes !");
+    setTransferMsg("✓ Horaire transféré avec succès !");
     fetchComparisonData(selectedStaging);
   }
 
   async function transferDroits() {
     if (!selectedStaging) return;
     const matched = findProdEmployee(selectedStaging);
-    if (!matched) { setTransferMsg("Employe non trouve en production"); return; }
+    if (!matched) { setTransferMsg("Employé non trouvé en production"); return; }
     const supabase = createClient();
-    // Get absence codes
     const { data: codes } = await supabase.from("absence_codes").select("id, code");
-    if (!codes) { setTransferMsg("Erreur: codes absence non trouves"); return; }
+    if (!codes) { setTransferMsg("Erreur: codes absence non trouvés"); return; }
     const codeMap = new Map(codes.map((c: { id: number; code: string }) => [c.code.toUpperCase(), c.id]));
     let inserted = 0;
     for (const svr of stagingVacRights) {
@@ -189,23 +200,73 @@ export default function DataMigrationPage() {
       const parsed = parseHours(svr.total_hours || "0");
       const days = svr.total_days ? parseInt(svr.total_days, 10) : 0;
       const { error } = await supabase.from("vacation_rights").upsert({
-        employee_id: matched.id,
-        absence_code_id: absCodeId,
-        year: 2026,
-        hours: parsed.hours,
-        minutes: parsed.minutes,
-        days: isNaN(days) ? 0 : days,
+        employee_id: matched.id, absence_code_id: absCodeId, year: 2026,
+        hours: parsed.hours, minutes: parsed.minutes, days: isNaN(days) ? 0 : days,
       }, { onConflict: "employee_id,absence_code_id,year" });
       if (!error) inserted++;
     }
-    setTransferMsg(`${inserted} droit(s) de conges transfere(s) avec succes !`);
+    setTransferMsg(`✓ ${inserted} droit(s) de congés transféré(s) avec succès !`);
     fetchComparisonData(selectedStaging);
   }
 
-  const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: "organisation", label: "Organisation", icon: <Building2 className="w-4 h-4" /> },
-    { id: "secteurs", label: "Secteurs", icon: <Layers className="w-4 h-4" /> },
-    { id: "employes", label: "Employes", icon: <Users className="w-4 h-4" /> },
+
+  async function addNewEmployee(staging: StagingEmployee) {
+    setActionLoading(staging.id);
+    const supabase = createClient();
+    const { error } = await supabase.from("employees").insert({
+      first_name: staging.first_name,
+      last_name: staging.last_name,
+      date_of_hire: staging.hire_date || null,
+      contract_type: staging.contract_type || null,
+      is_inactive: false,
+    });
+    if (error) {
+      setTransferMsg("Erreur: " + error.message);
+    } else {
+      setTransferMsg(`✓ ${staging.first_name} ${staging.last_name} ajouté(e) et activé(e) !`);
+      await fetchData();
+    }
+    setActionLoading(null);
+  }
+
+  async function addAllNewEmployees() {
+    setActionLoading(-1);
+    const supabase = createClient();
+    const toInsert = newEmployees.map((s) => ({
+      first_name: s.first_name,
+      last_name: s.last_name,
+      date_of_hire: s.hire_date || null,
+      contract_type: s.contract_type || null,
+      is_inactive: false,
+    }));
+    const { error } = await supabase.from("employees").insert(toInsert);
+    if (error) {
+      setTransferMsg("Erreur: " + error.message);
+    } else {
+      setTransferMsg(`✓ ${toInsert.length} employé(s) ajouté(s) et activé(s) !`);
+      await fetchData();
+    }
+    setActionLoading(null);
+  }
+
+  async function deactivateEmployee(emp: ProdEmployee) {
+    setActionLoading(emp.id);
+    const supabase = createClient();
+    const { error } = await supabase.from("employees").update({ is_inactive: true }).eq("id", emp.id);
+    if (error) {
+      setTransferMsg("Erreur: " + error.message);
+    } else {
+      setTransferMsg(`✓ ${emp.first_name} ${emp.last_name} désactivé(e) !`);
+      await fetchData();
+    }
+    setActionLoading(null);
+  }
+
+
+  const tabs: { id: TabType; label: string; icon: React.ReactNode; count?: number }[] = [
+    { id: "employes", label: "Employés", icon: <Users className="w-4 h-4" />, count: stagingEmployees.filter(s => !!findProdEmployee(s)).length },
+    { id: "nouveaux", label: "Nouveaux employés", icon: <UserPlus className="w-4 h-4" />, count: newEmployees.length },
+    { id: "desactiver", label: "À désactiver", icon: <UserMinus className="w-4 h-4" />, count: toDeactivate.length },
   ];
 
   return (
@@ -216,9 +277,9 @@ export default function DataMigrationPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Migration des donnees</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Migration des données</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Transferer les donnees staging vers les tables de production
+            Transférer les données staging vers les tables de production
           </p>
         </div>
       </div>
@@ -237,22 +298,32 @@ export default function DataMigrationPage() {
           >
             {tab.icon}
             {tab.label}
+            {tab.count !== undefined && (
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
+                activeTab === tab.id ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-600"
+              }`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Success message */}
+
+      {/* Success/Error message */}
       {transferMsg && (
-        <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800">
+        <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+          transferMsg.startsWith("Erreur") || transferMsg.startsWith("✗")
+            ? "bg-red-50 border border-red-200 text-red-800"
+            : "bg-emerald-50 border border-emerald-200 text-emerald-800"
+        }`}>
           <CheckCircle2 className="w-4 h-4" />
           {transferMsg}
-          <button onClick={() => setTransferMsg(null)} className="ml-auto text-emerald-600 hover:text-emerald-800">x</button>
+          <button onClick={() => setTransferMsg(null)} className="ml-auto hover:opacity-70">×</button>
         </div>
       )}
 
       {/* Tab Content */}
-      {activeTab === "organisation" && <TabOrganisation />}
-      {activeTab === "secteurs" && <TabSecteurs />}
       {activeTab === "employes" && (
         <TabEmployes
           stagingEmployees={stagingEmployees}
@@ -268,85 +339,185 @@ export default function DataMigrationPage() {
           loading={loading}
         />
       )}
+      {activeTab === "nouveaux" && (
+        <TabNouveaux
+          newEmployees={newEmployees}
+          addNewEmployee={addNewEmployee}
+          addAllNewEmployees={addAllNewEmployees}
+          actionLoading={actionLoading}
+          loading={loading}
+        />
+      )}
+      {activeTab === "desactiver" && (
+        <TabDesactiver
+          toDeactivate={toDeactivate}
+          deactivateEmployee={deactivateEmployee}
+          actionLoading={actionLoading}
+          loading={loading}
+        />
+      )}
     </div>
   );
 }
 
-// --- Tab Organisation ---
-function TabOrganisation() {
+
+// --- Tab Nouveaux Employés ---
+function TabNouveaux({
+  newEmployees, addNewEmployee, addAllNewEmployees, actionLoading, loading,
+}: {
+  newEmployees: StagingEmployee[];
+  addNewEmployee: (s: StagingEmployee) => void;
+  addAllNewEmployees: () => void;
+  actionLoading: number | null;
+  loading: boolean;
+}) {
+  if (loading) return <div className="p-6 text-center"><div className="animate-spin w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full mx-auto" /></div>;
+
+  if (newEmployees.length === 0) {
+    return (
+      <div className="bg-white border rounded-lg p-12 text-center">
+        <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto" />
+        <p className="text-slate-600 mt-4 font-medium">Tous les employés staging sont déjà en production</p>
+        <p className="text-slate-400 text-sm mt-1">Aucun nouvel employé à ajouter</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-blue-900">Verifier la configuration de base</p>
+        <UserPlus className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-blue-900">
+            {newEmployees.length} employé(s) présent(s) dans staging mais absent(s) en production
+          </p>
           <p className="text-sm text-blue-700 mt-1">
-            Avant de migrer les employes, verifiez que les indexations et les jours feries sont configures.
+            Ces employés seront créés avec les informations de base. Vous pourrez compléter leur fiche ensuite.
           </p>
         </div>
+        <button
+          onClick={addAllNewEmployees}
+          disabled={actionLoading !== null}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+        >
+          <UserPlus className="w-4 h-4" /> Ajouter tous
+        </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link href="/remuneration/indexations" className="bg-white border rounded-lg p-6 hover:border-blue-300 hover:shadow-sm transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-slate-900">Indexations</h3>
-              <p className="text-sm text-slate-500 mt-1">Verifier que les indexations sont configurees</p>
-            </div>
-            <ExternalLink className="w-4 h-4 text-slate-400" />
-          </div>
-        </Link>
-        <Link href="/settings/holidays" className="bg-white border rounded-lg p-6 hover:border-blue-300 hover:shadow-sm transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-slate-900">Jours feries</h3>
-              <p className="text-sm text-slate-500 mt-1">Verifier que les jours feries existent pour 2026</p>
-            </div>
-            <ExternalLink className="w-4 h-4 text-slate-400" />
-          </div>
-        </Link>
+
+      <div className="bg-white border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-slate-600">Nom</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-600">Secteur</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-600">Date embauche</th>
+              <th className="px-4 py-3 text-right font-medium text-slate-600">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {newEmployees.map((emp) => (
+              <tr key={emp.id} className="border-b last:border-b-0 hover:bg-slate-50">
+                <td className="px-4 py-3 font-medium text-slate-900">{emp.last_name} {emp.first_name}</td>
+                <td className="px-4 py-3 text-slate-600">{emp.sector_code || "—"}</td>
+                <td className="px-4 py-3 text-slate-600">{emp.hire_date || "—"}</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => addNewEmployee(emp)}
+                    disabled={actionLoading !== null}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {actionLoading === emp.id ? (
+                      <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                    ) : (
+                      <UserPlus className="w-3 h-3" />
+                    )}
+                    Ajouter et activer
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-// --- Tab Secteurs ---
-function TabSecteurs() {
+
+// --- Tab Employés à désactiver ---
+function TabDesactiver({
+  toDeactivate, deactivateEmployee, actionLoading, loading,
+}: {
+  toDeactivate: ProdEmployee[];
+  deactivateEmployee: (e: ProdEmployee) => void;
+  actionLoading: number | null;
+  loading: boolean;
+}) {
+  if (loading) return <div className="p-6 text-center"><div className="animate-spin w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full mx-auto" /></div>;
+
+  if (toDeactivate.length === 0) {
+    return (
+      <div className="bg-white border rounded-lg p-12 text-center">
+        <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto" />
+        <p className="text-slate-600 mt-4 font-medium">Tous les employés actifs sont présents dans staging</p>
+        <p className="text-slate-400 text-sm mt-1">Aucun employé à désactiver</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
         <div>
-          <p className="text-sm font-medium text-blue-900">Verifier les secteurs</p>
-          <p className="text-sm text-blue-700 mt-1">
-            Assurez-vous que les baremes et les droits RTT par secteur sont bien configures.
+          <p className="text-sm font-medium text-amber-900">
+            {toDeactivate.length} employé(s) actif(s) en production mais absent(s) du staging
+          </p>
+          <p className="text-sm text-amber-700 mt-1">
+            Ces employés ont probablement quitté l&apos;organisation. Désactiver = is_inactive = true (données conservées).
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link href="/settings/rtt-entitlements" className="bg-white border rounded-lg p-6 hover:border-blue-300 hover:shadow-sm transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-slate-900">Baremes RTT</h3>
-              <p className="text-sm text-slate-500 mt-1">Heures RTT par tranche d&apos;age et par secteur</p>
-            </div>
-            <ExternalLink className="w-4 h-4 text-slate-400" />
-          </div>
-        </Link>
-        <Link href="/settings/sectors" className="bg-white border rounded-lg p-6 hover:border-blue-300 hover:shadow-sm transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-slate-900">Secteurs</h3>
-              <p className="text-sm text-slate-500 mt-1">Gerer les secteurs et groupes RTT</p>
-            </div>
-            <ExternalLink className="w-4 h-4 text-slate-400" />
-          </div>
-        </Link>
+
+      <div className="bg-white border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-slate-600">Nom</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-600">Secteur</th>
+              <th className="px-4 py-3 text-right font-medium text-slate-600">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {toDeactivate.map((emp) => (
+              <tr key={emp.id} className="border-b last:border-b-0 hover:bg-slate-50">
+                <td className="px-4 py-3 font-medium text-slate-900">{emp.last_name} {emp.first_name}</td>
+                <td className="px-4 py-3 text-slate-600">{emp.sectors?.name || "—"}</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => deactivateEmployee(emp)}
+                    disabled={actionLoading !== null}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                  >
+                    {actionLoading === emp.id ? (
+                      <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                    ) : (
+                      <UserMinus className="w-3 h-3" />
+                    )}
+                    Désactiver
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-// --- Tab Employes ---
+
+// --- Tab Employes (existing matching + transfers) ---
 function TabEmployes({
   stagingEmployees, selectedStaging, setSelectedStaging, prodEmployees,
   prodTimesheets, prodVacRights, stagingVacRights, findProdEmployee,
@@ -365,7 +536,9 @@ function TabEmployes({
   loading: boolean;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = stagingEmployees.filter(
+  // Only show staging employees that HAVE a match in production
+  const matched = stagingEmployees.filter((s) => !!findProdEmployee(s));
+  const filtered = matched.filter(
     (e) =>
       e.last_name?.toLowerCase().includes(search.toLowerCase()) ||
       e.first_name?.toLowerCase().includes(search.toLowerCase())
@@ -384,6 +557,7 @@ function TabEmployes({
               placeholder="Rechercher..."
               className="w-full px-3 py-2 text-sm border rounded-md focus:border-blue-500 focus:outline-none"
             />
+            <p className="text-xs text-slate-400 mt-1">{filtered.length} employé(s) avec correspondance</p>
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {loading ? (
@@ -391,26 +565,21 @@ function TabEmployes({
                 <div className="animate-spin w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full mx-auto" />
               </div>
             ) : (
-              filtered.map((emp) => {
-                const matched = findProdEmployee(emp);
-                return (
-                  <button
-                    key={emp.id}
-                    onClick={() => setSelectedStaging(emp)}
-                    className={`w-full px-4 py-3 text-left border-b last:border-b-0 hover:bg-slate-50 transition-colors ${
-                      selectedStaging?.id === emp.id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-slate-900">{emp.last_name} {emp.first_name}</p>
-                    <p className="text-xs text-slate-500">{emp.sector_code || "Sans secteur"}</p>
-                    {matched ? (
-                      <span className="inline-flex items-center gap-1 mt-1 text-xs text-emerald-600"><CheckCircle2 className="w-3 h-3" /> Trouve</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 mt-1 text-xs text-amber-600"><Clock className="w-3 h-3" /> Non trouve</span>
-                    )}
-                  </button>
-                );
-              })
+              filtered.map((emp) => (
+                <button
+                  key={emp.id}
+                  onClick={() => setSelectedStaging(emp)}
+                  className={`w-full px-4 py-3 text-left border-b last:border-b-0 hover:bg-slate-50 transition-colors ${
+                    selectedStaging?.id === emp.id ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
+                  }`}
+                >
+                  <p className="text-sm font-medium text-slate-900">{emp.last_name} {emp.first_name}</p>
+                  <p className="text-xs text-slate-500">{emp.sector_code || "Sans secteur"}</p>
+                  <span className="inline-flex items-center gap-1 mt-1 text-xs text-emerald-600">
+                    <CheckCircle2 className="w-3 h-3" /> Correspondance trouvée
+                  </span>
+                </button>
+              ))
             )}
           </div>
         </div>
@@ -421,7 +590,7 @@ function TabEmployes({
         {!selectedStaging ? (
           <div className="bg-white border rounded-lg p-12 text-center">
             <Users className="w-12 h-12 text-slate-300 mx-auto" />
-            <p className="text-slate-500 mt-4">Selectionnez un employe pour comparer les donnees</p>
+            <p className="text-slate-500 mt-4">Sélectionnez un employé pour comparer et transférer</p>
           </div>
         ) : (
           <ComparisonPanel
@@ -438,6 +607,7 @@ function TabEmployes({
     </div>
   );
 }
+
 
 // --- Comparison Panel ---
 function ComparisonPanel({
@@ -457,19 +627,10 @@ function ComparisonPanel({
     staging.weekly_hours_lu, staging.weekly_hours_ma, staging.weekly_hours_me,
     staging.weekly_hours_je, staging.weekly_hours_ve,
   ];
+  const activeTs = prodTimesheets.find(t => t.is_active);
 
   return (
     <div className="space-y-4">
-      {!prodEmployee && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-          <Info className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-800">
-            Employe non trouve en production (correspondance nom + prenom).
-            Creez-le dans la page employes avant de transferer.
-          </p>
-        </div>
-      )}
-
       {/* Horaire section */}
       <div className="bg-white border rounded-lg p-5">
         <div className="flex items-center justify-between mb-3">
@@ -479,100 +640,120 @@ function ComparisonPanel({
           </h3>
           {prodEmployee && (
             <button onClick={transferHoraire} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              <ArrowRightLeft className="w-3 h-3" /> Transferer
+              <ArrowRightLeft className="w-3 h-3" /> Transférer
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs font-medium text-slate-500 mb-2">Staging</p>
-            <div className="grid grid-cols-5 gap-1 text-center">
-              {days.map((d, i) => (
-                <div key={d}>
-                  <p className="text-xs text-slate-400">{d}</p>
-                  <p className="text-sm font-medium text-slate-700">{stagingHours[i] || "-"}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-500 mt-2">Temps plein: {staging.full_time_hours || "-"}h</p>
+
+        {/* Staging data */}
+        <div className="mb-4">
+          <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Données staging</p>
+          <div className="grid grid-cols-5 gap-1 text-center bg-slate-50 rounded-lg p-3">
+            {days.map((d, i) => (
+              <div key={d}>
+                <p className="text-xs text-slate-400">{d}</p>
+                <p className="text-sm font-medium text-slate-700">{stagingHours[i] || "-"}</p>
+              </div>
+            ))}
           </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 mb-2">Production</p>
-            {prodTimesheets.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">Aucun horaire</p>
-            ) : (
-              prodTimesheets.filter(t => t.is_active).map((ts) => (
-                <div key={ts.id}>
-                  <div className="grid grid-cols-5 gap-1 text-center">
-                    {[ts.monday_minutes, ts.tuesday_minutes, ts.wednesday_minutes, ts.thursday_minutes, ts.friday_minutes].map((m, i) => (
-                      <div key={i}>
-                        <p className="text-xs text-slate-400">{days[i]}</p>
-                        <p className="text-sm font-medium text-slate-700">{m != null ? `${Math.floor(m/60)}h${(m%60).toString().padStart(2,"0")}` : "-"}</p>
-                      </div>
-                    ))}
+          <p className="text-xs text-slate-500 mt-2">Temps plein: {staging.full_time_hours || "-"}h</p>
+        </div>
+
+        {/* Production data card */}
+        <div className="border-t pt-4">
+          <p className="text-xs font-medium text-emerald-600 mb-2 uppercase tracking-wide flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Données production actuelles
+          </p>
+          {!activeTs ? (
+            <p className="text-xs text-slate-400 italic">Aucun horaire actif en production</p>
+          ) : (
+            <div className="bg-emerald-50 rounded-lg p-3">
+              <div className="grid grid-cols-5 gap-1 text-center">
+                {[activeTs.monday_minutes, activeTs.tuesday_minutes, activeTs.wednesday_minutes, activeTs.thursday_minutes, activeTs.friday_minutes].map((m, i) => (
+                  <div key={i}>
+                    <p className="text-xs text-emerald-500">{days[i]}</p>
+                    <p className="text-sm font-medium text-emerald-800">{m != null ? `${Math.floor(m/60)}h${(m%60).toString().padStart(2,"0")}` : "-"}</p>
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">Temps plein: {ts.full_time_minutes ? `${Math.floor(ts.full_time_minutes/60)}h` : "-"}</p>
-                </div>
-              ))
-            )}
-          </div>
+                ))}
+              </div>
+              <p className="text-xs text-emerald-600 mt-2">Temps plein: {activeTs.full_time_minutes ? `${Math.floor(activeTs.full_time_minutes/60)}h` : "-"}</p>
+            </div>
+          )}
+          {prodEmployee && (
+            <Link href={`/employees/${prodEmployee.id}/timesheets`} className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-700">
+              <ExternalLink className="w-3 h-3" /> Gérer manuellement
+            </Link>
+          )}
         </div>
       </div>
+
 
       {/* Droits conges section */}
       <div className="bg-white border rounded-lg p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-slate-900 flex items-center gap-2">
             <Clock className="w-4 h-4 text-emerald-600" />
-            Droits de conges 2026
+            Droits de congés 2026
           </h3>
           {prodEmployee && (
             <button onClick={transferDroits} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-              <ArrowRightLeft className="w-3 h-3" /> Transferer
+              <ArrowRightLeft className="w-3 h-3" /> Transférer
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs font-medium text-slate-500 mb-2">Staging</p>
-            {stagingVacRights.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">Aucun droit</p>
-            ) : (
+
+        {/* Staging data */}
+        <div className="mb-4">
+          <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Données staging</p>
+          {stagingVacRights.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">Aucun droit dans staging</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead><tr className="border-b"><th className="pb-1 text-left text-slate-500">Code</th><th className="pb-1 text-left text-slate-500">Heures</th><th className="pb-1 text-left text-slate-500">Jours</th></tr></thead>
+              <tbody>
+                {stagingVacRights.map((vr) => (
+                  <tr key={vr.id} className="border-b last:border-b-0">
+                    <td className="py-1 font-medium text-slate-700">{vr.code}</td>
+                    <td className="py-1 text-slate-600">{vr.total_hours || "-"}</td>
+                    <td className="py-1 text-slate-600">{vr.total_days || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Production data card */}
+        <div className="border-t pt-4">
+          <p className="text-xs font-medium text-emerald-600 mb-2 uppercase tracking-wide flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Données production actuelles
+          </p>
+          {prodVacRights.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">Aucun droit en production pour 2026</p>
+          ) : (
+            <div className="bg-emerald-50 rounded-lg p-3">
               <table className="w-full text-xs">
-                <thead><tr className="border-b"><th className="pb-1 text-left text-slate-500">Code</th><th className="pb-1 text-left text-slate-500">Heures</th><th className="pb-1 text-left text-slate-500">Jours</th></tr></thead>
-                <tbody>
-                  {stagingVacRights.map((vr) => (
-                    <tr key={vr.id} className="border-b last:border-b-0">
-                      <td className="py-1 font-medium text-slate-700">{vr.code}</td>
-                      <td className="py-1 text-slate-600">{vr.total_hours || "-"}</td>
-                      <td className="py-1 text-slate-600">{vr.total_days || "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 mb-2">Production</p>
-            {prodVacRights.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">Aucun droit</p>
-            ) : (
-              <table className="w-full text-xs">
-                <thead><tr className="border-b"><th className="pb-1 text-left text-slate-500">Code</th><th className="pb-1 text-left text-slate-500">Heures</th><th className="pb-1 text-left text-slate-500">Jours</th></tr></thead>
+                <thead><tr className="border-b border-emerald-200"><th className="pb-1 text-left text-emerald-600">Code</th><th className="pb-1 text-left text-emerald-600">Heures</th><th className="pb-1 text-left text-emerald-600">Jours</th></tr></thead>
                 <tbody>
                   {prodVacRights.map((vr) => (
-                    <tr key={vr.id} className="border-b last:border-b-0">
-                      <td className="py-1 font-medium text-slate-700">{vr.absence_codes?.code || "?"}</td>
-                      <td className="py-1 text-slate-600">{vr.hours}h{vr.minutes > 0 ? vr.minutes.toString().padStart(2, "0") : ""}</td>
-                      <td className="py-1 text-slate-600">{vr.days || "-"}</td>
+                    <tr key={vr.id} className="border-b border-emerald-100 last:border-b-0">
+                      <td className="py-1 font-medium text-emerald-800">{vr.absence_codes?.code || "?"}</td>
+                      <td className="py-1 text-emerald-700">{vr.hours}h{vr.minutes > 0 ? vr.minutes.toString().padStart(2, "0") : ""}</td>
+                      <td className="py-1 text-emerald-700">{vr.days || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
+          {prodEmployee && (
+            <Link href={`/employees/${prodEmployee.id}/vacation-rights`} className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-700">
+              <ExternalLink className="w-3 h-3" /> Gérer manuellement
+            </Link>
+          )}
         </div>
       </div>
+
 
       {/* Non-transferable: Absences mensuelles */}
       <div className="bg-white border rounded-lg p-5">
@@ -582,12 +763,13 @@ function ComparisonPanel({
         </div>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <p className="text-sm text-amber-800">
-            Les absences mensuelles ne peuvent pas etre transferees automatiquement car elles necessitent
-            une saisie jour par jour dans le calendrier annuel.
+            Les absences mensuelles nécessitent une saisie jour par jour dans le calendrier annuel.
           </p>
-          <Link href={prodEmployee ? `/employees/${prodEmployee.id}/absences` : "/absences/new"} className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
-            <ExternalLink className="w-3 h-3" /> Saisir les absences manuellement
-          </Link>
+          {prodEmployee && (
+            <Link href={`/employees/${prodEmployee.id}/absences`} className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
+              <ExternalLink className="w-3 h-3" /> Saisir les absences manuellement
+            </Link>
+          )}
         </div>
       </div>
 
@@ -595,16 +777,18 @@ function ComparisonPanel({
       <div className="bg-white border rounded-lg p-5">
         <div className="flex items-center gap-2 mb-2">
           <Info className="w-4 h-4 text-amber-500" />
-          <h3 className="font-semibold text-slate-900">Evenements employe</h3>
+          <h3 className="font-semibold text-slate-900">Événements employé</h3>
         </div>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <p className="text-sm text-amber-800">
-            Les evenements (accouchement, fin de contrat, maladie longue, etc.) doivent etre saisis
-            manuellement car ils necessitent une validation au cas par cas.
+            Les événements (accouchement, fin de contrat, maladie longue, etc.) doivent être saisis
+            manuellement car ils nécessitent une validation au cas par cas.
           </p>
-          <Link href={prodEmployee ? `/employees/${prodEmployee.id}/edit` : "/employees"} className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
-            <ExternalLink className="w-3 h-3" /> Gerer les employes
-          </Link>
+          {prodEmployee && (
+            <Link href={`/employees/${prodEmployee.id}/edit`} className="inline-flex items-center gap-1 mt-2 text-sm text-amber-700 hover:text-amber-900 font-medium">
+              <ExternalLink className="w-3 h-3" /> Gérer les données employé
+            </Link>
+          )}
         </div>
       </div>
     </div>

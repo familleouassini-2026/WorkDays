@@ -965,7 +965,7 @@ export default function EmployeeProfilePage() {
       {/* ===== QUICK ACTIONS ===== */}
       <div className="flex flex-wrap gap-3">
         <Link
-          href={`/absences/new?employee=${employee.id}`}
+          href={`/employees/${employee.id}/absences`}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
         >
           <PlusCircle className="w-4 h-4" /> Encoder absence
