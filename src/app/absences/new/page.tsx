@@ -15,9 +15,8 @@ interface Employee {
 interface AbsenceCode {
   id: number;
   code: string;
-  label: string;
+  description: string;
   time_unit: string;
-  default_days: number | null;
   color_hex: string | null;
   text_color_hex: string | null;
 }
@@ -45,7 +44,7 @@ export default function NewAbsencePage() {
   const selectedAbsenceCode = absenceCodes.find(
     (c) => c.id === Number(selectedCode)
   );
-  const isHours = selectedAbsenceCode?.time_unit === "H";
+  const isHours = selectedAbsenceCode?.time_unit === "HOURS_MINUTES";
 
   useEffect(() => {
     async function fetchData() {
@@ -58,7 +57,8 @@ export default function NewAbsencePage() {
           .order("last_name"),
         supabase
           .from("absence_codes")
-          .select("id, code, label, time_unit, default_days, color_hex, text_color_hex")
+          .select("id, code, description, time_unit, color_hex, text_color_hex")
+          .order("sort_order")
           .order("code"),
       ]);
       if (empRes.data) setEmployees(empRes.data);
@@ -221,7 +221,7 @@ export default function NewAbsencePage() {
             <SearchableSelect
               options={absenceCodes.map((code) => ({
                 value: String(code.id),
-                label: `${code.code} - ${code.label}`,
+                label: `${code.code} - ${code.description}`,
                 colorHex: code.color_hex,
                 textColorHex: code.text_color_hex,
               }))}

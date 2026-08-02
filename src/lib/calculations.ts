@@ -297,7 +297,7 @@ export function calculateFullSalary(params: {
  * We keep the ones we DO exclude (vacation, formation, small leaves, maternity leave)
  */
 export const ABSENTEEISM_EXCLUDED_CODES = [
-  "V",    // Vacances annuelles
+  "CA",   // Congés légaux (annuels)
   "F",    // Formation
   "PC",   // Petits chômages
   "MAT",  // Maternité
