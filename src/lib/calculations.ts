@@ -55,9 +55,39 @@ export interface SeniorityScaleRow {
 // ============================================================
 
 /**
- * Calculate seniority in years from effective seniority date.
- * Business rule: effective_date = granted_seniority_date ?? date_of_hire
- * If granted_seniority (number) is set, use it directly.
+ * Calculate seniority breakdown:
+ * - acquise = years from date_of_hire to referenceDate (real time in company)
+ * - accordee = granted_seniority (bonus years given by employer)
+ * - totale = acquise + accordee (used for barème, congés, etc.)
+ *
+ * Access equivalent:
+ * (A) Ancienneté accordée = granted_seniority (e.g. 5 years)
+ * (B) Ancienneté acquise = date_of_hire → today
+ * (D) Ancienneté prise en compte = (A) + (B)
+ */
+export function calculateSeniorityBreakdown(
+  dateOfHire: string | null,
+  grantedSeniority: number | null,
+  referenceDate: Date = new Date()
+): { acquise: number; accordee: number; totale: number } {
+  if (!dateOfHire) return { acquise: 0, accordee: 0, totale: 0 };
+
+  const start = new Date(dateOfHire);
+  const diffMs = referenceDate.getTime() - start.getTime();
+  const acquise = Math.max(0, diffMs / (1000 * 60 * 60 * 24 * 365.25));
+  const accordee = grantedSeniority || 0;
+  const totale = acquise + accordee;
+
+  return {
+    acquise: Math.round(acquise * 100) / 100,
+    accordee,
+    totale: Math.round(totale * 100) / 100,
+  };
+}
+
+/**
+ * @deprecated Use calculateSeniorityBreakdown instead.
+ * Kept for backward compatibility — returns totale (floor) for barème lookup.
  */
 export function calculateSeniorityYears(
   dateOfHire: string | null,
@@ -65,21 +95,8 @@ export function calculateSeniorityYears(
   grantedSeniorityDate: string | null,
   referenceDate: Date = new Date()
 ): number {
-  // If a numeric granted seniority is specified, use it directly
-  // But we need to ADD it to the time since the hire date to get the real seniority
-  // Actually in the Access data, granted_seniority_date IS the effective start date
-  // and granted_seniority is additional years offset? No — looking at the seed data:
-  // Employee 23: date_of_hire=2003-01-01, granted_seniority=4.0, granted_seniority_date=1998-01-01
-  // So granted_seniority_date IS the effective start (4 years before hire)
-  // The correct logic: use granted_seniority_date as the effective start if set, else date_of_hire
-  
-  const effectiveDate = grantedSeniorityDate || dateOfHire;
-  if (!effectiveDate) return 0;
-
-  const start = new Date(effectiveDate);
-  const diffMs = referenceDate.getTime() - start.getTime();
-  const diffYears = diffMs / (1000 * 60 * 60 * 24 * 365.25);
-  return Math.floor(diffYears);
+  const { totale } = calculateSeniorityBreakdown(dateOfHire, grantedSeniority, referenceDate);
+  return Math.floor(totale);
 }
 
 // ============================================================

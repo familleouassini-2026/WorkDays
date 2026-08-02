@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-01",
+  "lastUpdated": "2026-08-03",
   "architecture": {
     "steering": [
       {
@@ -271,6 +271,30 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-03",
+      "pr": "#60",
+      "description": "Refonte data-migration (3 tabs: employés/nouveaux/désactiver), nettoyage staging-review, 3 nouvelles pages settings (absence-codes/vacation-policy/organisation), fix liens settings, fix Encoder absence → /employees/[id]/absences",
+      "filesChanged": [
+        "src/app/settings/data-migration/page.tsx",
+        "src/app/settings/page.tsx",
+        "src/app/settings/absence-codes/page.tsx",
+        "src/app/settings/vacation-policy/page.tsx",
+        "src/app/settings/organisation/page.tsx",
+        "src/app/employees/[id]/page.tsx"
+      ]
+    },
+    {
+      "date": "2026-08-03",
+      "pr": "#61",
+      "description": "Fix logique ancienneté: acquise (date entrée→aujourd'hui) + accordée (granted_seniority) = totale (barème). Visible dans fiche employé, simulateur, barème individuel. calculateSeniorityBreakdown() nouvelle fonction.",
+      "filesChanged": [
+        "src/lib/calculations.ts",
+        "src/app/employees/[id]/page.tsx",
+        "src/app/remuneration/simulateur/page.tsx",
+        "src/app/employees/[id]/baremes/page.tsx"
+      ]
+    },
     {
       "date": "2026-08-01",
       "pr": "#39",

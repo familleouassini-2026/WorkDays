@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Calculator, TrendingUp, User, Building2, Layers, Plus, Info, ChevronDown, ChevronUp } from "lucide-react";
 import {
   calculateSeniorityYears,
+  calculateSeniorityBreakdown,
   findBaseSalary,
   calculateFullSalary,
   type IndexationRow,
@@ -90,14 +91,14 @@ export default function SimulateurPage() {
   const refDate = new Date(simulationDate || Date.now());
 
   // Calculate seniority
-  const seniorityYears = employee
-    ? calculateSeniorityYears(
+  const seniorityBreakdown = employee
+    ? calculateSeniorityBreakdown(
         employee.date_of_hire,
         employee.granted_seniority,
-        employee.granted_seniority_date,
         refDate
       )
-    : 0;
+    : { acquise: 0, accordee: 0, totale: 0 };
+  const seniorityYears = Math.floor(seniorityBreakdown.totale);
 
   // Find base salary from scale
   const baseSalary =
@@ -224,8 +225,12 @@ export default function SimulateurPage() {
             />
             <InfoCard
               icon={<TrendingUp className="w-4 h-4 text-purple-600" />}
-              label="Anciennete"
+              label="Anciennete totale"
               value={`${seniorityYears} an${seniorityYears > 1 ? "s" : ""}`}
+              sublabel={seniorityBreakdown.accordee > 0
+                ? `Acquise: ${seniorityBreakdown.acquise.toFixed(1)} + Accordée: ${seniorityBreakdown.accordee}`
+                : `Acquise depuis ${employee?.date_of_hire ? new Date(employee.date_of_hire).getFullYear() : "?"}`
+              }
             />
             <InfoCard
               icon={<Building2 className="w-4 h-4 text-emerald-600" />}
@@ -262,7 +267,7 @@ export default function SimulateurPage() {
                 <CalcRow
                   label="Salaire de base (bareme)"
                   value={formatEUR(salaryResult.baseSalary)}
-                  sublabel={`Secteur ${employee.sectors?.name || "?"}, ${seniorityYears} ans d'anciennete`}
+                  sublabel={`Secteur ${employee.sectors?.name || "?"}, ${seniorityYears} ans d'anciennete${seniorityBreakdown.accordee > 0 ? ` (${seniorityBreakdown.acquise.toFixed(0)} acquise + ${seniorityBreakdown.accordee} accordée)` : ""}`}
                 />
 
                 {/* Org indexation */}
@@ -411,10 +416,12 @@ function InfoCard({
   icon,
   label,
   value,
+  sublabel,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  sublabel?: string;
 }) {
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4">
@@ -423,6 +430,7 @@ function InfoCard({
         <p className="text-xs text-slate-500 font-medium uppercase">{label}</p>
       </div>
       <p className="text-sm font-semibold text-slate-900">{value}</p>
+      {sublabel && <p className="text-xs text-slate-400 mt-0.5">{sublabel}</p>}
     </div>
   );
 }
