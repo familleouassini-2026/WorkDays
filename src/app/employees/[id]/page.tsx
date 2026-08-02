@@ -245,12 +245,12 @@ export default function EmployeeProfilePage() {
           .eq("sector_id", emp.sector_id);
 
         const { data: orgIdx } = await supabase
-          .from("org_indexations")
-          .select("id, indexation_value:factor, indexation_date:effective_date");
+          .from("organisation_indexations")
+          .select("id, indexation_value, indexation_date");
 
         const { data: secIdx } = await supabase
           .from("sector_indexations")
-          .select("id, indexation_value:factor, indexation_date:effective_date")
+          .select("id, indexation_value, indexation_date")
           .eq("sector_id", emp.sector_id);
 
         const { data: empIdx } = await supabase
