@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ArrowLeft, Award, ExternalLink, Info, ChevronDown, ChevronUp } from "lucide-react";
-import { calculateSeniorityYears } from "@/lib/calculations";
+import { calculateSeniorityYears, calculateFullSalary, findBaseSalary } from "@/lib/calculations";
 
 // ---------- TYPES ----------
 
@@ -27,12 +27,26 @@ interface SeniorityScale {
   base_salary: number;
 }
 
+interface IndexationRow {
+  id: number;
+  indexation_value: number;
+  indexation_date: string;
+}
+
+interface EmployeeIndexationRow {
+  id: number;
+  employee_id: number;
+  indexation_value: number;
+  indexation_date: string;
+}
+
 // ---------- PAGE ----------
 
 export default function EmployeeBaremesPage() {
   const params = useParams();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [scales, setScales] = useState<SeniorityScale[]>([]);
+  const [indexedSalary, setIndexedSalary] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [formulaOpen, setFormulaOpen] = useState(false);
 
@@ -60,6 +74,40 @@ export default function EmployeeBaremesPage() {
             .order("years", { ascending: true });
 
           if (scaleData) setScales(scaleData);
+
+          // Calculate indexed salary
+          const senYears = calculateSeniorityYears(
+            emp.date_of_hire,
+            emp.granted_seniority,
+            emp.granted_seniority_date
+          );
+
+          const { data: orgIdx } = await supabase
+            .from("organisation_indexations")
+            .select("id, indexation_value, indexation_date");
+
+          const { data: secIdx } = await supabase
+            .from("sector_indexations")
+            .select("id, indexation_value, indexation_date")
+            .eq("sector_id", emp.sector_id);
+
+          const { data: empIdx } = await supabase
+            .from("employee_indexations")
+            .select("id, employee_id, indexation_value, indexation_date")
+            .eq("employee_id", emp.id);
+
+          if (scaleData && scaleData.length > 0) {
+            const baseSalary = findBaseSalary(emp.sector_id, senYears, scaleData);
+            if (baseSalary) {
+              const result = calculateFullSalary({
+                baseSalary,
+                orgIndexations: (orgIdx || []) as IndexationRow[],
+                sectorIndexations: (secIdx || []) as IndexationRow[],
+                personalIncreases: (empIdx || []) as EmployeeIndexationRow[],
+              });
+              setIndexedSalary(result.totalSalary);
+            }
+          }
         }
       }
 
@@ -146,7 +194,7 @@ export default function EmployeeBaremesPage() {
       {/* Current situation */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Situation actuelle</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
           <div className="flex justify-between sm:flex-col sm:gap-0.5">
             <span className="text-slate-500">Anciennet&eacute;</span>
             <span className="font-medium text-slate-900">{seniorityYears} an{seniorityYears > 1 ? "s" : ""}</span>
@@ -161,6 +209,12 @@ export default function EmployeeBaremesPage() {
             <span className="text-slate-500">Salaire de base</span>
             <span className="font-medium text-slate-900">
               {matchingScale ? `${matchingScale.base_salary.toFixed(2)} \u20AC` : "\u2014"}
+            </span>
+          </div>
+          <div className="flex justify-between sm:flex-col sm:gap-0.5">
+            <span className="text-slate-500">Salaire index&eacute; actuel</span>
+            <span className="font-bold text-green-700">
+              {indexedSalary ? `${indexedSalary.toFixed(2)} \u20AC` : "\u2014"}
             </span>
           </div>
         </div>
