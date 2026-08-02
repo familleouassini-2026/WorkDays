@@ -249,7 +249,7 @@ export default function EmployeeRTTPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Informations employ&eacute;</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <div className="flex justify-between sm:flex-col sm:gap-0.5">
-            <span className="text-slate-500">&Acirc;ge</span>
+            <span className="text-slate-500">&Acirc;ge atteint en {currentYear}</span>
             <span className="font-medium text-slate-900">{ageAtBirthdayThisYear} ans</span>
           </div>
           <div className="flex justify-between sm:flex-col sm:gap-0.5">
@@ -273,11 +273,11 @@ export default function EmployeeRTTPage() {
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div className="flex justify-between py-2 border-b border-slate-100">
-              <span className="text-slate-500">&Acirc;ge au 01/01/{currentYear}</span>
-              <span className="font-medium text-slate-900">{ageAtBirthdayThisYear} ans</span>
+              <span className="text-slate-500">&Acirc;ge atteint en {currentYear}</span>
+              <span className="font-medium text-slate-900">{ageAtBirthdayThisYear} ans <span className="text-xs text-slate-400">(le {birthdayThisYear.toLocaleDateString("fr-BE")})</span></span>
             </div>
             <div className="flex justify-between py-2 border-b border-slate-100">
-              <span className="text-slate-500">&Acirc;ge au 01/01/{currentYear - 1}</span>
+              <span className="text-slate-500">&Acirc;ge atteint en {currentYear - 1}</span>
               <span className="font-medium text-slate-900">{ageLastYear} ans</span>
             </div>
             <div className="flex justify-between py-2 border-b border-slate-100">
