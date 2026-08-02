@@ -171,7 +171,7 @@ export default function DataMigrationPage() {
     const thu = hoursToMinutes(selectedStaging.weekly_hours_je || "0");
     const fri = hoursToMinutes(selectedStaging.weekly_hours_ve || "0");
     const ftMin = hoursToMinutes(selectedStaging.full_time_hours || "38") > 0
-      ? hoursToMinutes(selectedStaging.full_time_hours || "38") * 5
+      ? hoursToMinutes(selectedStaging.full_time_hours || "38")
       : 2280;
     const { error } = await supabase.from("timesheets").insert({
       employee_id: matched.id,
