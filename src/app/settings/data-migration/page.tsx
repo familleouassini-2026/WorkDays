@@ -207,7 +207,7 @@ export default function DataMigrationPage() {
       if (!error) inserted++;
     }
     if (skipped.length > 0) {
-      setTransferMsg(`✓ ${inserted} transféré(s), ⚠ ${skipped.length} ignoré(s) (codes inconnus: ${[...new Set(skipped)].join(", ")}). Exécutez la migration 014 dans Supabase.`);
+      setTransferMsg(`✓ ${inserted} transféré(s), ⚠ ${skipped.length} ignoré(s) (codes inconnus: ${Array.from(new Set(skipped)).join(", ")}). Exécutez la migration 014 dans Supabase.`);
     } else {
       setTransferMsg(`✓ ${inserted} droit(s) de congés transféré(s) avec succès !`);
     }
