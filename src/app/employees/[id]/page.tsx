@@ -219,16 +219,50 @@ export default function EmployeeProfilePage() {
         setVacationUsed(totalUsed);
       }
 
-      // Fetch RTT hours for current year (code "RTT")
-      const { data: rttData } = await supabase
-        .from("year_calendar")
-        .select("absence_minutes, absence_codes!inner(code)")
-        .eq("employee_id", empId)
-        .eq("year", currentYear)
-        .eq("absence_codes.code", "RTT");
-      if (rttData) {
-        const totalRttMin = rttData.reduce((sum, r) => sum + (r.absence_minutes || 0), 0);
-        setRttTotal(totalRttMin);
+      // Calculate RTT entitled hours
+      if (emp && emp.sector_id && emp.date_of_birth) {
+        const { data: rttEntitlements } = await supabase
+          .from("rtt_entitlements")
+          .select("*")
+          .eq("sector_id", emp.sector_id);
+
+        if (rttEntitlements && rttEntitlements.length > 0) {
+          const birthDate = new Date(emp.date_of_birth);
+          const birthMonth = birthDate.getMonth() + 1;
+          const ageAtBirthdayThisYear = currentYear - birthDate.getFullYear();
+          const ageLastYear = ageAtBirthdayThisYear - 1;
+
+          const sectorRTT = rttEntitlements.filter((r: { sector_id: number }) => r.sector_id === emp.sector_id);
+          const findHours = (age: number): number => {
+            const match = sectorRTT
+              .filter((r: { seniority_start: number }) => r.seniority_start <= age)
+              .sort((a: { seniority_start: number }, b: { seniority_start: number }) => b.seniority_start - a.seniority_start)[0];
+            return match ? match.hours_per_year : 0;
+          };
+
+          const hrThisYear = findHours(ageAtBirthdayThisYear);
+          const hrLastYear = findHours(ageLastYear);
+
+          const firstPortion = (birthMonth - 1) / 12;
+          const secondPortion = 1 - firstPortion;
+          const totalRTT = firstPortion * hrLastYear + secondPortion * hrThisYear;
+
+          let percentWorkTime = 1;
+          if (ts) {
+            const totalMin =
+              (ts.monday_minutes || 0) +
+              (ts.tuesday_minutes || 0) +
+              (ts.wednesday_minutes || 0) +
+              (ts.thursday_minutes || 0) +
+              (ts.friday_minutes || 0) +
+              (ts.saturday_minutes || 0) +
+              (ts.sunday_minutes || 0);
+            percentWorkTime = totalMin / (ts.full_time_minutes || 2280);
+          }
+
+          const totalRTTAdjusted = Math.round(totalRTT * percentWorkTime * 100) / 100;
+          setRttTotal(totalRTTAdjusted * 60); // convert hours to minutes for formatHoursMinutes
+        }
       }
 
       // Fetch salary data
@@ -539,7 +573,7 @@ export default function EmployeeProfilePage() {
             <span className="text-2xl font-bold text-slate-900">
               {rttTotal !== null ? formatHoursMinutes(rttTotal) : "\u2014"}
             </span>
-            <span className="text-xs text-slate-500">utilis&eacute;es</span>
+            <span className="text-xs text-slate-500">accord&eacute;es</span>
           </div>
         </Link>
 
@@ -943,7 +977,7 @@ export default function EmployeeProfilePage() {
           <CalendarDays className="w-4 h-4" /> Absences
         </Link>
         <Link
-          href="/remuneration/simulateur"
+          href={`/employees/${employee.id}/baremes`}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
         >
           <Calculator className="w-4 h-4" /> Simulateur salaire
