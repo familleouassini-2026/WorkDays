@@ -45,7 +45,8 @@ export default function IndexationsPage() {
   // Collapsible year groups state
   const currentYear = new Date().getFullYear().toString();
   const [expandedOrgYears, setExpandedOrgYears] = useState<Set<string>>(new Set([currentYear]));
-  const [expandedSectorYears, setExpandedSectorYears] = useState<Set<string>>(new Set([currentYear]));
+  // Collapsible sector groups state (for Sectorielles tab)
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
 
   async function fetchData() {
     const supabase = createClient();
@@ -94,11 +95,16 @@ export default function IndexationsPage() {
     orgByYear[year].push(idx);
   }
 
-  const sectorByYear: Record<string, SectorIndexation[]> = {};
+  // Group sector indexations by sector name
+  const sectorBySector: Record<string, SectorIndexation[]> = {};
   for (const idx of sectorIndexations) {
-    const year = getYear(idx.indexation_date);
-    if (!sectorByYear[year]) sectorByYear[year] = [];
-    sectorByYear[year].push(idx);
+    const sectorName = idx.sectors?.name || `Secteur ${idx.sector_id}`;
+    if (!sectorBySector[sectorName]) sectorBySector[sectorName] = [];
+    sectorBySector[sectorName].push(idx);
+  }
+  // Sort each sector group by date (newest first)
+  for (const key of Object.keys(sectorBySector)) {
+    sectorBySector[key].sort((a, b) => b.indexation_date.localeCompare(a.indexation_date));
   }
 
   function toggleOrgYear(year: string) {
@@ -113,13 +119,13 @@ export default function IndexationsPage() {
     });
   }
 
-  function toggleSectorYear(year: string) {
-    setExpandedSectorYears((prev) => {
+  function toggleSector(sectorName: string) {
+    setExpandedSectors((prev) => {
       const next = new Set(prev);
-      if (next.has(year)) {
-        next.delete(year);
+      if (next.has(sectorName)) {
+        next.delete(sectorName);
       } else {
-        next.add(year);
+        next.add(sectorName);
       }
       return next;
     });
@@ -414,60 +420,52 @@ export default function IndexationsPage() {
             </div>
           )}
 
-          {Object.keys(sectorByYear).length === 0 && (
+          {Object.keys(sectorBySector).length === 0 && (
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
               <p className="text-center text-sm text-slate-500">Aucune indexation sectorielle enregistree.</p>
             </div>
           )}
 
-          {Object.entries(sectorByYear).sort(([a], [b]) => b.localeCompare(a)).map(([year, yearIndexations]) => (
-            <div key={year} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div
-                className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between cursor-pointer"
-                onClick={() => toggleSectorYear(year)}
-              >
-                <div className="flex items-center gap-2">
-                  {expandedSectorYears.has(year) ? (
-                    <ChevronUp className="w-4 h-4 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
-                  )}
-                  <h3 className="text-sm font-semibold text-slate-700">
-                    {year} ({yearIndexations.length} indexation{yearIndexations.length > 1 ? "s" : ""})
-                  </h3>
+          {Object.entries(sectorBySector).sort(([a], [b]) => a.localeCompare(b)).map(([sectorName, sectorIndexationsList]) => {
+            const sectorDProduct = computeDProduct(sectorIndexationsList);
+            return (
+              <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                <div
+                  className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between cursor-pointer"
+                  onClick={() => toggleSector(sectorName)}
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedSectors.has(sectorName) ? (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    )}
+                    <h3 className="text-sm font-semibold text-slate-700">
+                      {sectorName} &mdash; Total&nbsp;: &times;{sectorDProduct.toFixed(6)}
+                    </h3>
+                  </div>
                 </div>
-              </div>
 
-              {expandedSectorYears.has(year) && (
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Date d&apos;effet</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Secteur</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Coefficient</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">DProduct secteur</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase w-24">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {yearIndexations.map((idx) => {
-                      const dProduct = sectorDProducts[idx.sector_id] || 1;
-                      return (
+                {expandedSectors.has(sectorName) && (
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Date d&apos;effet</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Coefficient</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase w-24">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sectorIndexationsList.map((idx) => (
                         <tr key={idx.id} className="hover:bg-slate-50">
                           {editingId === idx.id ? (
                             <>
                               <td className="px-4 py-2">
                                 <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none" />
                               </td>
-                              <td className="px-4 py-2">
-                                <select value={editSectorId} onChange={(e) => setEditSectorId(Number(e.target.value))} className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none">
-                                  {sectors.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
-                                </select>
-                              </td>
                               <td className="px-4 py-2 text-right">
                                 <input type="number" step={0.000001} value={editValue} onChange={(e) => setEditValue(Number(e.target.value))} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none" />
                               </td>
-                              <td className="px-4 py-2 text-right text-sm text-slate-400 font-mono">-</td>
                               <td className="px-4 py-2 text-right">
                                 <div className="flex items-center justify-end gap-1">
                                   <button onClick={() => handleEditSector(idx.id)} className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded"><Check className="w-4 h-4" /></button>
@@ -480,9 +478,7 @@ export default function IndexationsPage() {
                               <td className="px-4 py-3 text-sm text-slate-900 font-medium">
                                 {new Date(idx.indexation_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                               </td>
-                              <td className="px-4 py-3 text-sm text-slate-600">{idx.sectors?.name || `Secteur ${idx.sector_id}`}</td>
                               <td className="px-4 py-3 text-sm text-slate-900 font-mono text-right">{idx.indexation_value.toFixed(6)}</td>
-                              <td className="px-4 py-3 text-sm text-emerald-700 font-mono text-right font-medium">{dProduct.toFixed(6)}</td>
                               <td className="px-4 py-3 text-right">
                                 <div className="flex items-center justify-end gap-1">
                                   <button onClick={() => { setEditingId(idx.id); setEditValue(idx.indexation_value); setEditDate(idx.indexation_date); setEditSectorId(idx.sector_id); }} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded" title="Modifier"><Pencil className="w-3.5 h-3.5" /></button>
@@ -492,13 +488,13 @@ export default function IndexationsPage() {
                             </>
                           )}
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          ))}
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
