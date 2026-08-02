@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Calendar, X, Save, Trash2, Printer, AlertTriangle } from "lucide-react";
+import SearchableSelect from "@/components/searchable-select";
 
 // ============================================================
 // TYPES
@@ -591,19 +592,16 @@ export default function AnnualCalendarPage() {
             ))}
           </select>
 
-          <select
-            value={selectedEmployeeId || ""}
-            onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : null)}
+          <SearchableSelect
+            options={employees.map((emp) => ({
+              value: String(emp.id),
+              label: `${emp.last_name}, ${emp.first_name}`,
+            }))}
+            value={selectedEmployeeId ? String(selectedEmployeeId) : ""}
+            onChange={(v) => setSelectedEmployeeId(v ? Number(v) : null)}
+            placeholder="Rechercher un employé..."
             disabled={!selectedSectorId}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-          >
-            <option value="">-- Employe --</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.last_name}, {emp.first_name}
-              </option>
-            ))}
-          </select>
+          />
 
           <select
             value={selectedYear}
@@ -909,16 +907,17 @@ export default function AnnualCalendarPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Type d&apos;absence</label>
-                      <select
-                        value={entry.absence_code_id || ""}
-                        onChange={(e) => updateModalEntry(idx, "absence_code_id", e.target.value ? Number(e.target.value) : null)}
-                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="">-- Choisir --</option>
-                        {absenceCodes.map((c) => (
-                          <option key={c.id} value={c.id}>{c.code} - {c.description}</option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        options={absenceCodes.map((c) => ({
+                          value: String(c.id),
+                          label: `${c.code} - ${c.description}`,
+                          colorHex: c.color_hex,
+                          textColorHex: c.text_color_hex,
+                        }))}
+                        value={entry.absence_code_id ? String(entry.absence_code_id) : ""}
+                        onChange={(v) => updateModalEntry(idx, "absence_code_id", v ? Number(v) : null)}
+                        placeholder="Rechercher un code..."
+                      />
                     </div>
 
                     {timeUnit === "HOURS_MINUTES" && (

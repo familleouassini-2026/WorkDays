@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Plus, ArrowLeft } from "lucide-react";
+import SearchableSelect, { type SelectOption } from "@/components/searchable-select";
 
 interface Employee {
   id: number;
@@ -17,6 +18,8 @@ interface AbsenceCode {
   label: string;
   time_unit: string;
   default_days: number | null;
+  color_hex: string | null;
+  text_color_hex: string | null;
 }
 
 const inputClass =
@@ -55,7 +58,7 @@ export default function NewAbsencePage() {
           .order("last_name"),
         supabase
           .from("absence_codes")
-          .select("id, code, label, time_unit, default_days")
+          .select("id, code, label, time_unit, default_days, color_hex, text_color_hex")
           .order("code"),
       ]);
       if (empRes.data) setEmployees(empRes.data);
@@ -200,37 +203,33 @@ export default function NewAbsencePage() {
           {/* Employee selection */}
           <div>
             <label className={labelClass}>Employe *</label>
-            <select
+            <SearchableSelect
+              options={employees.map((emp) => ({
+                value: String(emp.id),
+                label: `${emp.last_name}, ${emp.first_name}`,
+              }))}
               value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-              className={inputClass}
+              onChange={setSelectedEmployee}
+              placeholder="Rechercher un employé..."
               required
-            >
-              <option value="">Selectionner un employe</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.last_name}, {emp.first_name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Absence code selection */}
           <div>
             <label className={labelClass}>Code d&apos;absence *</label>
-            <select
+            <SearchableSelect
+              options={absenceCodes.map((code) => ({
+                value: String(code.id),
+                label: `${code.code} - ${code.label}`,
+                colorHex: code.color_hex,
+                textColorHex: code.text_color_hex,
+              }))}
               value={selectedCode}
-              onChange={(e) => setSelectedCode(e.target.value)}
-              className={inputClass}
+              onChange={setSelectedCode}
+              placeholder="Rechercher un code..."
               required
-            >
-              <option value="">Selectionner un code</option>
-              {absenceCodes.map((code) => (
-                <option key={code.id} value={code.id}>
-                  {code.code} - {code.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Date range */}
