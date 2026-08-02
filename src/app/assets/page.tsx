@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Package, Car, Smartphone, Printer, Plus, Users, Pencil, Trash2, UserMinus } from "lucide-react";
+import SearchableSelect from "@/components/searchable-select";
 
 interface Employee { id: number; first_name: string; last_name: string; }
 interface AssetWithAssignment { id: number; type: string; plate_number: string | null; model: string | null; color: string | null; start_date: string | null; end_date: string | null; assignedTo: string | null; assignedEmployeeId: number | null; assignmentId: number | null; assignmentStart: string | null; }
@@ -164,7 +165,7 @@ export default function AssetsPage() {
             <div><label className="block text-xs font-medium text-slate-600 mb-1">Plaque / Numero</label><input type="text" value={formPlate} onChange={(e) => setFormPlate(e.target.value)} placeholder="Ex: 1ABC234" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" /></div>
             <div><label className="block text-xs font-medium text-slate-600 mb-1">Modele</label><input type="text" value={formModel} onChange={(e) => setFormModel(e.target.value)} placeholder="Ex: Toyota Yaris" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" /></div>
             <div><label className="block text-xs font-medium text-slate-600 mb-1">Couleur</label><input type="text" value={formColor} onChange={(e) => setFormColor(e.target.value)} placeholder="Ex: Gris" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" /></div>
-            <div className="md:col-span-2"><label className="block text-xs font-medium text-slate-600 mb-1">Assigner a un employe</label><select value={formAssignTo} onChange={(e) => setFormAssignTo(e.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"><option value="">Non assigne (disponible)</option>{employees.map((emp) => (<option key={emp.id} value={emp.id}>{emp.last_name}, {emp.first_name}</option>))}</select></div>
+            <div className="md:col-span-2"><label className="block text-xs font-medium text-slate-600 mb-1">Assigner a un employe</label><SearchableSelect options={[{value: "", label: "Non assigné (disponible)"}, ...employees.map((emp) => ({value: String(emp.id), label: `${emp.last_name}, ${emp.first_name}`}))]} value={formAssignTo} onChange={setFormAssignTo} placeholder="Rechercher un employé..." /></div>
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={resetForm} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Annuler</button>

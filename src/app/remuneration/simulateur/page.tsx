@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Calculator, TrendingUp, User, Building2, Layers, Plus, Info, ChevronDown, ChevronUp } from "lucide-react";
+import SearchableSelect from "@/components/searchable-select";
 import {
   calculateSeniorityYears,
   calculateSeniorityBreakdown,
@@ -181,19 +182,16 @@ export default function SimulateurPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Selectionner un employe
             </label>
-            <select
+            <SearchableSelect
+              options={employees.map((emp) => ({
+                value: String(emp.id),
+                label: `${emp.last_name}, ${emp.first_name}`,
+                sublabel: emp.sectors?.name || undefined,
+              }))}
               value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Choisir un employe</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.last_name}, {emp.first_name}
-                  {emp.sectors ? ` (${emp.sectors.name})` : ""}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedEmployee}
+              placeholder="Rechercher un employé..."
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
