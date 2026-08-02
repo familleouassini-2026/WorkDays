@@ -99,6 +99,19 @@ export default function EmployeesPage() {
   // Get unique contract types from data
   const contractTypes = Array.from(new Set(employees.map((e) => e.contract_type).filter(Boolean))) as string[];
 
+  async function handleSectorChange(empId: number, sectorId: number | null) {
+    const supabase = createClient();
+    await supabase.from("employees").update({ sector_id: sectorId }).eq("id", empId);
+    // Update local state optimistically
+    setEmployees((prev) =>
+      prev.map((e) =>
+        e.id === empId
+          ? { ...e, sector_id: sectorId, sectors: sectorId ? sectors.find((s) => s.id === sectorId) ? { name: sectors.find((s) => s.id === sectorId)!.name } : null : null }
+          : e
+      )
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -228,8 +241,19 @@ export default function EmployeesPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]">
-                    {emp.sectors?.name || <span className="text-slate-400 italic">Non assigné</span>}
+                  <td className="px-4 py-3 text-sm text-slate-600 truncate max-w-[200px]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <select
+                      value={emp.sector_id || ""}
+                      onChange={(e) => handleSectorChange(emp.id, e.target.value ? Number(e.target.value) : null)}
+                      className="w-full px-1 py-0.5 border-0 bg-transparent text-sm text-slate-600 hover:bg-slate-100 rounded cursor-pointer focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                    >
+                      <option value="">— Non assigné —</option>
+                      {sectors.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 hidden md:table-cell">
                     {emp.contract_type || "—"}

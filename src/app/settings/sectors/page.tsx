@@ -85,8 +85,11 @@ export default function SectorsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Supprimer ce secteur ? Les employes lies devront etre reassignes.")) return;
+    if (!confirm("Supprimer ce secteur ?\n\n• Les barèmes liés seront supprimés\n• Les employés seront désassignés (sector_id = null)\n\nCette action est irréversible.")) return;
     const supabase = createClient();
+    // Cascade: remove baremes + unassign employees
+    await supabase.from("seniority_scales").delete().eq("sector_id", id);
+    await supabase.from("employees").update({ sector_id: null }).eq("sector_id", id);
     await supabase.from("sectors").delete().eq("id", id);
     fetchData();
   }

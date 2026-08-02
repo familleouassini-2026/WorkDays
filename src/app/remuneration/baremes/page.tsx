@@ -92,6 +92,12 @@ export default function BaremesPage() {
     if (!error) { await fetchData(); }
   }
 
+  async function handleDeleteAll(sectorId: number) {
+    const supabase = createClient();
+    const { error } = await supabase.from("seniority_scales").delete().eq("sector_id", sectorId);
+    if (!error) { await fetchData(); }
+  }
+
   function startEdit(scale: SeniorityScale) {
     setEditingId(scale.id);
     setEditYears(scale.years);
@@ -168,6 +174,7 @@ export default function BaremesPage() {
                       </p>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -187,6 +194,20 @@ export default function BaremesPage() {
                       <><Plus className="w-3.5 h-3.5" /> Ajouter un palier</>
                     )}
                   </button>
+                  {sectorScales.length > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Supprimer TOUS les ${sectorScales.length} paliers de "${sector.name}" ?`)) {
+                          handleDeleteAll(sector.id);
+                        }
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Tout supprimer
+                    </button>
+                  )}
+                </div>
                 </div>
 
                 {/* Add form */}
