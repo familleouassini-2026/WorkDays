@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import {
   calculateSeniorityYears,
+  calculateSeniorityBreakdown,
   findBaseSalary,
   calculateFullSalary,
   formatHoursMinutes,
@@ -139,11 +140,8 @@ function minutesToHM(m: number | null) {
 }
 
 function seniorityBadge(hireDate: string | null, grantedDate: string | null) {
-  const start = grantedDate || hireDate;
-  if (!start) return null;
-  const diff = Date.now() - new Date(start).getTime();
-  const years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-  return years;
+  const { acquise } = calculateSeniorityBreakdown(hireDate, grantedDate);
+  return Math.floor(acquise);
 }
 
 // ---------- PAGE ----------
@@ -657,36 +655,40 @@ export default function EmployeeProfilePage() {
             <div className="px-4 pb-4 border-t border-slate-100">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-sm">
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
-                  <span className="text-slate-500">Date d&apos;entr&eacute;e</span>
+                  <span className="text-slate-500">Date d&apos;entr&eacute;e en service</span>
                   <span className="font-medium text-slate-900">{formatDate(employee.date_of_hire)}</span>
                 </div>
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
-                  <span className="text-slate-500">Anciennet&eacute; accord&eacute;e</span>
+                  <span className="text-slate-500">Date d&apos;anciennet&eacute; accord&eacute;e</span>
                   <span className="font-medium text-slate-900">
-                    {employee.granted_seniority != null ? `${employee.granted_seniority} an${employee.granted_seniority > 1 ? "s" : ""}` : "Aucune"}
+                    {employee.granted_seniority_date ? formatDate(employee.granted_seniority_date) : "\u2014"}
                   </span>
                 </div>
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
-                  <span className="text-slate-500">Date accord&eacute;e</span>
-                  <span className="font-medium text-slate-900">{formatDate(employee.granted_seniority_date)}</span>
-                </div>
-                <div className="flex justify-between sm:flex-col sm:gap-0.5">
-                  <span className="text-slate-500">Anciennet&eacute; acquise (calcul&eacute;e)</span>
+                  <span className="text-slate-500">(A) Anciennet&eacute; accord&eacute;e</span>
                   <span className="font-medium text-slate-900">
                     {(() => {
-                      const years = calculateSeniorityYears(
-                        employee.date_of_hire,
-                        employee.granted_seniority,
-                        employee.granted_seniority_date
-                      );
-                      return `${years} an${years > 1 ? "s" : ""}`;
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
+                      return bd.accordee > 0 ? `${bd.accordee.toFixed(2)} an${bd.accordee >= 2 ? "s" : ""}` : "Aucune";
                     })()}
                   </span>
                 </div>
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
-                  <span className="text-slate-500">Date effective de d&eacute;but</span>
+                  <span className="text-slate-500">(B) Anciennet&eacute; acquise (totale)</span>
                   <span className="font-medium text-slate-900">
-                    {formatDate(employee.granted_seniority_date || employee.date_of_hire)}
+                    {(() => {
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
+                      return `${bd.acquise.toFixed(2)} an${bd.acquise >= 2 ? "s" : ""}`;
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5 sm:col-span-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <span className="text-blue-700 font-medium">(D) Anciennet&eacute; prise en compte</span>
+                  <span className="font-bold text-blue-900 text-lg">
+                    {(() => {
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
+                      return `${Math.floor(bd.acquise)} an${Math.floor(bd.acquise) > 1 ? "s" : ""}`;
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
@@ -697,6 +699,9 @@ export default function EmployeeProfilePage() {
                   </span>
                 </div>
               </div>
+              <p className="text-xs text-slate-400 mt-3 italic">
+                Accord&eacute;e = entr&eacute;e &minus; date accord&eacute;e. Acquise = date accord&eacute;e &rarr; aujourd&apos;hui. Prise en compte = floor(acquise).
+              </p>
               <div className="mt-3 pt-3 border-t border-slate-100">
                 <Link
                   href={`/employees/${employee.id}/edit`}

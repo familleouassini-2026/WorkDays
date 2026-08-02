@@ -55,9 +55,50 @@ export interface SeniorityScaleRow {
 // ============================================================
 
 /**
- * Calculate seniority in years from effective seniority date.
- * Business rule: effective_date = granted_seniority_date ?? date_of_hire
- * If granted_seniority (number) is set, use it directly.
+ * Calculate seniority breakdown matching Access logic:
+ * 
+ * - granted_seniority_date = fictitious date BEFORE date_of_hire
+ *   (e.g. hire=2003, granted_date=1998 → 5 years bonus)
+ * - (A) Ancienneté accordée = date_of_hire - granted_seniority_date (bonus years)
+ * - (B) Ancienneté acquise = granted_seniority_date → referenceDate (total from fictitious start)
+ *   = (date_of_hire → referenceDate) + accordée
+ * - (D) Ancienneté prise en compte = floor(acquise) — used for barème lookup
+ *
+ * If no granted_seniority_date, accordée = 0, acquise = date_of_hire → today.
+ */
+export function calculateSeniorityBreakdown(
+  dateOfHire: string | null,
+  grantedSeniorityDate: string | null,
+  referenceDate: Date = new Date()
+): {
+  accordee: number;
+  acquise: number;
+  dateEffective: string | null;
+} {
+  if (!dateOfHire) return { accordee: 0, acquise: 0, dateEffective: null };
+
+  const hireDate = new Date(dateOfHire);
+  const effectiveStart = grantedSeniorityDate ? new Date(grantedSeniorityDate) : hireDate;
+
+  // Accordée = difference between hire and effective start (years)
+  const accordeMs = Math.max(0, hireDate.getTime() - effectiveStart.getTime());
+  const accordee = accordeMs / (1000 * 60 * 60 * 24 * 365.25);
+
+  // Acquise = effective start → reference date (total seniority from fictitious date)
+  const acquiseMs = Math.max(0, referenceDate.getTime() - effectiveStart.getTime());
+  const acquise = acquiseMs / (1000 * 60 * 60 * 24 * 365.25);
+
+  return {
+    accordee: Math.round(accordee * 100) / 100,
+    acquise: Math.round(acquise * 100) / 100,
+    dateEffective: grantedSeniorityDate || dateOfHire,
+  };
+}
+
+/**
+ * Calculate seniority years for barème lookup.
+ * Uses granted_seniority_date as effective start → returns floor(acquise).
+ * Compatible with old signature for backward compat.
  */
 export function calculateSeniorityYears(
   dateOfHire: string | null,
@@ -65,21 +106,8 @@ export function calculateSeniorityYears(
   grantedSeniorityDate: string | null,
   referenceDate: Date = new Date()
 ): number {
-  // If a numeric granted seniority is specified, use it directly
-  // But we need to ADD it to the time since the hire date to get the real seniority
-  // Actually in the Access data, granted_seniority_date IS the effective start date
-  // and granted_seniority is additional years offset? No — looking at the seed data:
-  // Employee 23: date_of_hire=2003-01-01, granted_seniority=4.0, granted_seniority_date=1998-01-01
-  // So granted_seniority_date IS the effective start (4 years before hire)
-  // The correct logic: use granted_seniority_date as the effective start if set, else date_of_hire
-  
-  const effectiveDate = grantedSeniorityDate || dateOfHire;
-  if (!effectiveDate) return 0;
-
-  const start = new Date(effectiveDate);
-  const diffMs = referenceDate.getTime() - start.getTime();
-  const diffYears = diffMs / (1000 * 60 * 60 * 24 * 365.25);
-  return Math.floor(diffYears);
+  const { acquise } = calculateSeniorityBreakdown(dateOfHire, grantedSeniorityDate, referenceDate);
+  return Math.floor(acquise);
 }
 
 // ============================================================
