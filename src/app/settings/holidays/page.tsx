@@ -141,7 +141,7 @@ export default function HolidaysPage() {
           <p className="text-slate-500 mt-4">Chargement...</p>
         </div>
       ) : holidays.length > 0 ? (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
