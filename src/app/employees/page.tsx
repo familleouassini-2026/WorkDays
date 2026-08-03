@@ -36,7 +36,7 @@ export default function EmployeesPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [sectorFilter, setSectorFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [contractFilter, setContractFilter] = useState("");
 
   useEffect(() => {
@@ -161,15 +161,19 @@ export default function EmployeesPage() {
             ))}
           </select>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="active">Actifs</option>
-            <option value="inactive">Inactifs</option>
-          </select>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            {([["all", "Tous"], ["active", "Actifs"], ["inactive", "Inactifs"]] as const).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setStatusFilter(val)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  statusFilter === val ? "bg-white text-blue-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
           <select
             value={contractFilter}
