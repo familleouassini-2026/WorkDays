@@ -1,5 +1,10 @@
-import { createClient } from "@/lib/supabase/client";
-
+/**
+ * Audit log helper — writes to audit_log via server-side API route.
+ * 
+ * Why API route instead of direct Supabase browser client?
+ * The browser client uses the anon key which is subject to RLS policies.
+ * The API route uses the server client which bypasses RLS issues.
+ */
 export async function auditLog(params: {
   tableName: string;
   recordId: number;
@@ -10,37 +15,29 @@ export async function auditLog(params: {
   context?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = createClient();
-    const changedFields: string[] = [];
-
-    if (params.action === "UPDATE" && params.oldValues && params.newValues) {
-      for (const key of Object.keys(params.newValues)) {
-        if (JSON.stringify(params.oldValues[key]) !== JSON.stringify(params.newValues[key])) {
-          changedFields.push(key);
-        }
-      }
-    }
-
-    const { error } = await supabase.from("audit_log").insert({
-      table_name: params.tableName,
-      record_id: params.recordId,
-      action: params.action,
-      old_values: params.oldValues || null,
-      new_values: params.newValues || null,
-      changed_fields: changedFields.length > 0 ? changedFields : null,
-      performed_by: params.performedBy || "gestionnaire",
-      performed_at: new Date().toISOString(),
-      context: params.context || null,
+    const res = await fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableName: params.tableName,
+        recordId: params.recordId,
+        action: params.action,
+        oldValues: params.oldValues || null,
+        newValues: params.newValues || null,
+        performedBy: params.performedBy || "gestionnaire",
+        context: params.context || null,
+      }),
     });
 
-    if (error) {
-      console.error("[auditLog] Insert failed:", error.message, error.details, error.hint);
-      return { success: false, error: error.message };
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: res.statusText }));
+      console.error("[auditLog] API call failed:", data.error);
+      return { success: false, error: data.error };
     }
 
     return { success: true };
   } catch (err) {
-    console.error("[auditLog] Unexpected error:", err);
+    console.error("[auditLog] Fetch error:", err);
     return { success: false, error: String(err) };
   }
 }
