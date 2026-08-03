@@ -405,7 +405,7 @@ export default function EncoderDrawer() {
                 )}
                 {isHours && (
                   <div>
-                    <input type="number" value={addMinutes} onChange={(e) => setAddMinutes(e.target.value)} placeholder="Minutes (ex: 480 = 8h, 60 = 1h)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />
+                    <input type="number" value={addMinutes} onChange={(e) => setAddMinutes(e.target.value)} placeholder="Vide = journée complète" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />
                     {addMinutes && Number(addMinutes) > 0 && (
                       <p className={`text-[10px] mt-0.5 ${Number(addMinutes) > 0 && Number(addMinutes) < 60 ? "text-amber-600 font-medium" : "text-slate-500"}`}>
                         = {Math.floor(Number(addMinutes) / 60)}h{String(Number(addMinutes) % 60).padStart(2, "0")}
@@ -417,14 +417,16 @@ export default function EncoderDrawer() {
                 {!isHours && addCode && <input type="number" step="0.5" value={addDays} onChange={(e) => setAddDays(e.target.value)} placeholder="Jours (ex: 1)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />}
                 {addStart && timesheet && isHours && (
                   <p className="text-[10px] text-slate-500">
-                    Horaire ce jour: {(() => { const m = getScheduleMinutes(timesheet, new Date(addStart)); return `${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; })()}
-                    {addEnd && " (par jour ouvré)"}
+                    {!addMinutes ? "⏱️ Journée complète = " : "Horaire ce jour: "}
+                    {(() => { const m = getScheduleMinutes(timesheet, new Date(addStart)); return `${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; })()}
+                    {addEnd && !addMinutes && " par jour (selon horaire)"}
+                    {addEnd && addMinutes && " (par jour ouvré)"}
                   </p>
                 )}
                 {validationWarning && (
                   <p className="text-[10px] text-red-600 font-medium bg-red-50 px-2 py-1 rounded">{validationWarning}</p>
                 )}
-                <button onClick={handleAdd} disabled={saving || !addStart || !addCode || (isHours && !addMinutes) || (balanceInfo !== null && balanceInfo.entitled - balanceInfo.used <= 0)} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                <button onClick={handleAdd} disabled={saving || !addStart || !addCode || (balanceInfo !== null && balanceInfo.entitled - balanceInfo.used <= 0)} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
                   {saving ? "..." : (balanceInfo && balanceInfo.entitled - balanceInfo.used <= 0) ? "Solde épuisé" : "Enregistrer"}
                 </button>
               </div>
