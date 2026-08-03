@@ -31,7 +31,7 @@ export default function EncoderDrawer() {
   const [saving, setSaving] = useState(false);
   const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
   const [showAudit, setShowAudit] = useState(false);
-  const [auditRecordId, setAuditRecordId] = useState<number | null>(null);
+  const [auditLabel, setAuditLabel] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -130,12 +130,27 @@ export default function EncoderDrawer() {
     fetchEntries();
   }
 
-  async function showHistoryFn(entryId: number) {
-    setAuditRecordId(entryId);
+  async function showHistoryFn(entry: CalendarEntry) {
+    if (!selectedEmp) return;
+    const absenceDate = entry.absence_date;
+    setAuditLabel(absenceDate);
     setShowAudit(true);
     const supabase = createClient();
-    const { data } = await supabase.from("audit_log").select("id, action, old_values, new_values, changed_fields, performed_at, context").eq("table_name", "year_calendar").eq("record_id", entryId).order("performed_at", { ascending: false });
-    if (data) setAuditHistory(data);
+    // Fetch all audit entries for this employee + date (across all record IDs)
+    const { data } = await supabase
+      .from("audit_log")
+      .select("id, action, old_values, new_values, changed_fields, performed_at, context")
+      .eq("table_name", "year_calendar")
+      .or(`new_values->>absence_date.eq.${absenceDate},old_values->>absence_date.eq.${absenceDate}`)
+      .order("performed_at", { ascending: false });
+    // Filter client-side for this employee (JSONB OR queries are limited)
+    const empId = selectedEmp.id;
+    const filtered = (data || []).filter((row) => {
+      const nv = row.new_values as Record<string, unknown> | null;
+      const ov = row.old_values as Record<string, unknown> | null;
+      return (nv && Number(nv.employee_id) === empId) || (ov && Number(ov.employee_id) === empId);
+    });
+    setAuditHistory(filtered);
   }
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -254,7 +269,7 @@ export default function EncoderDrawer() {
                             {entry.absence_days && <span className="text-[10px] text-slate-500">{entry.absence_days}j</span>}
                           </div>
                           <div className="flex gap-0.5">
-                            <button onClick={() => showHistoryFn(entry.id)} className="p-1 rounded hover:bg-slate-100 text-slate-400"><History className="w-3 h-3" /></button>
+                            <button onClick={() => showHistoryFn(entry)} className="p-1 rounded hover:bg-slate-100 text-slate-400"><History className="w-3 h-3" /></button>
                             <button onClick={() => handleDelete(entry)} className="p-1 rounded hover:bg-red-50 text-red-400"><Trash2 className="w-3 h-3" /></button>
                           </div>
                         </div>
@@ -291,7 +306,7 @@ export default function EncoderDrawer() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowAudit(false)}>
           <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm mx-4 max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-slate-900">Historique #{auditRecordId}</h3>
+              <h3 className="text-xs font-semibold text-slate-900">Historique {auditLabel ? new Date(auditLabel + "T00:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</h3>
               <button onClick={() => setShowAudit(false)} className="p-1 rounded hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
             {auditHistory.length === 0 ? (
