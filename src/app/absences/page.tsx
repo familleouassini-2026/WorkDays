@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CalendarDays, Plus, Filter, List, Calendar, BarChart3 } from "lucide-react";
+import { CalendarDays, Plus, Filter, List, Calendar, BarChart3, Zap } from "lucide-react";
 import Link from "next/link";
 
 interface AbsenceEntry {
@@ -38,6 +38,7 @@ const tabs = [
   { label: "Soldes", href: "/absences/balances", icon: BarChart3 },
   { label: "Absenteisme", href: "/absences/absenteeism", icon: BarChart3 },
   { label: "Nouvelle absence", href: "/absences/new", icon: Plus },
+  { label: "Encodeur", href: "/absences/encoder", icon: Zap },
 ];
 
 export default function AbsencesPage() {
