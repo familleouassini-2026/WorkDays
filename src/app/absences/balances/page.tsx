@@ -169,7 +169,16 @@ export default function AbsenceBalancesPage() {
         const bought = boughtVacs.find((b) => b.employee_id === emp.id);
         const hasBought = bought?.bought || false;
 
-        const totalHoursEntitled = calculateVacationHours(weeks, hasBought, weeklyHours);
+        // Droit CA = valeur gestionnaire dans vacation_rights (seule source de vérité)
+        let totalMinutesEntitled = 0;
+        if (vacCode) {
+          const manualRight = rights.find(
+            (r) => r.employee_id === emp.id && r.absence_code_id === vacCode.id
+          );
+          if (manualRight) {
+            totalMinutesEntitled = manualRight.hours * 60 + manualRight.minutes;
+          }
+        }
 
         // Sum consumed vacation minutes from year_calendar for code "CA"
         let totalMinutesUsed = 0;
@@ -183,7 +192,6 @@ export default function AbsenceBalancesPage() {
           );
         }
 
-        const totalMinutesEntitled = totalHoursEntitled * 60;
         const balanceMinutes = totalMinutesEntitled - totalMinutesUsed;
 
         vacRows.push({
@@ -193,7 +201,7 @@ export default function AbsenceBalancesPage() {
           weeksEntitled: weeks + (hasBought ? 1 : 0),
           boughtVacation: hasBought,
           weeklyHours,
-          totalHoursEntitled,
+          totalHoursEntitled: totalMinutesEntitled / 60,
           totalMinutesUsed,
           balanceMinutes,
           policyDescription: description,
