@@ -55,8 +55,8 @@ export default function EmployeeBaremesPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>;
   if (!employee) return <div className="text-center py-12"><p className="text-slate-500">Employ&eacute; non trouv&eacute;.</p><Link href="/employees" className="text-blue-600 hover:underline mt-2 inline-block">Retour</Link></div>;
 
-  const seniorityBreakdown = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
-  const seniorityYears = Math.floor(seniorityBreakdown.acquise);
+  const seniorityBreakdown = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, new Date(), employee.granted_seniority);
+  const seniorityYears = Math.floor(seniorityBreakdown.totale);
   const maxPalier = scales.length > 0 ? Math.max(...scales.map(s => s.years)) : null;
   const cappedYears = maxPalier !== null ? Math.min(seniorityYears, maxPalier) : seniorityYears;
   const matchingScale = [...scales].sort((a, b) => b.years - a.years).find((s) => cappedYears >= s.years);

@@ -113,14 +113,14 @@ export default function DashboardPage() {
 
       // Calculate salary alerts (employees changing palier this year)
       {
-        const { data: salEmp } = await supabase.from("employees").select("id, first_name, last_name, date_of_hire, granted_seniority_date, sector_id").eq("is_inactive", false).not("sector_id", "is", null);
+        const { data: salEmp } = await supabase.from("employees").select("id, first_name, last_name, date_of_hire, granted_seniority, granted_seniority_date, sector_id").eq("is_inactive", false).not("sector_id", "is", null);
         const { data: salScales } = await supabase.from("seniority_scales").select("sector_id, years, base_salary");
         if (salEmp && salScales) {
           const currentYear = new Date().getFullYear();
           const alerts: SalaryAlert[] = [];
           for (const emp of salEmp as any[]) {
-            const bd = calculateSeniorityBreakdown(emp.date_of_hire, emp.granted_seniority_date);
-            const yearsNow = Math.floor(bd.acquise);
+            const bd = calculateSeniorityBreakdown(emp.date_of_hire, emp.granted_seniority_date, new Date(), emp.granted_seniority);
+            const yearsNow = Math.floor(bd.totale);
             const yearsNextYear = yearsNow + 1;
             const sectorScales = (salScales as any[]).filter((s) => s.sector_id === emp.sector_id).sort((a, b) => b.years - a.years);
             const currentScale = sectorScales.find((s) => yearsNow >= s.years);
