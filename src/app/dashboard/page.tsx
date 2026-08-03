@@ -12,7 +12,7 @@ interface AbsenteeismAlert { employeeName: string; incidents: number; level: "wa
 interface BirthdayEmployee { id: number; first_name: string; last_name: string; date_of_birth: string; }
 interface RecentHire { id: number; first_name: string; last_name: string; date_of_hire: string; }
 interface ExpiringContract { id: number; first_name: string; last_name: string; end_date: string; }
-interface SalaryAlert { id: number; name: string; currentYears: number; nextPalier: number; currentSalary: number; nextSalary: number; }
+interface SalaryAlert { id: number; name: string; currentYears: number; previousYears: number; currentSalary: number; previousSalary: number; difference: number; }
 
 export default function DashboardPage() {
   const [activeEmployees, setActiveEmployees] = useState<number>(0);
@@ -111,31 +111,45 @@ export default function DashboardPage() {
         setAbsenteeismAlerts(alerts);
       }
 
-      // Calculate salary alerts (employees changing palier this year)
+      // Calculate salary alerts (employees whose seniority crossed a palier this year vs last year)
       {
         const { data: salEmp } = await supabase.from("employees").select("id, first_name, last_name, date_of_hire, granted_seniority, granted_seniority_date, sector_id").eq("is_inactive", false).not("sector_id", "is", null);
         const { data: salScales } = await supabase.from("seniority_scales").select("sector_id, years, base_salary");
+        const { data: orgIdx } = await supabase.from("organisation_indexations").select("id, indexation_value");
+        const { data: secIdx } = await supabase.from("sector_indexations").select("id, sector_id, indexation_value");
+        const { data: empIdx } = await supabase.from("employee_indexations").select("id, employee_id, indexation_value");
         if (salEmp && salScales) {
-          const currentYear = new Date().getFullYear();
           const alerts: SalaryAlert[] = [];
+          const orgFactor = (orgIdx || []).reduce((acc: number, idx: any) => acc * Number(idx.indexation_value), 1);
+
           for (const emp of salEmp as any[]) {
             const bd = calculateSeniorityBreakdown(emp.date_of_hire, emp.granted_seniority_date, new Date(), emp.granted_seniority);
             const yearsNow = Math.floor(bd.totale);
-            const yearsNextYear = yearsNow + 1;
+            const yearsPrevious = yearsNow - 1;
             const sectorScales = (salScales as any[]).filter((s) => s.sector_id === emp.sector_id).sort((a, b) => b.years - a.years);
-            const currentScale = sectorScales.find((s) => yearsNow >= s.years);
-            const nextScale = sectorScales.find((s) => yearsNextYear >= s.years);
-            if (currentScale && nextScale && currentScale.years !== nextScale.years && nextScale.base_salary !== currentScale.base_salary) {
-              alerts.push({
-                id: emp.id,
-                name: `${emp.last_name} ${emp.first_name}`,
-                currentYears: yearsNow,
-                nextPalier: nextScale.years,
-                currentSalary: currentScale.base_salary,
-                nextSalary: nextScale.base_salary,
-              });
+            const currentScale = sectorScales.find((s: any) => yearsNow >= s.years);
+            const previousScale = sectorScales.find((s: any) => yearsPrevious >= s.years);
+            if (currentScale && previousScale && currentScale.years !== previousScale.years) {
+              // Calculate indexed salaries (same as alertes page)
+              const sectorFactor = (secIdx || []).filter((idx: any) => idx.sector_id === emp.sector_id).reduce((acc: number, idx: any) => acc * Number(idx.indexation_value), 1);
+              const personalSum = (empIdx || []).filter((idx: any) => idx.employee_id === emp.id).reduce((acc: number, idx: any) => acc + Number(idx.indexation_value), 0);
+              const currentIndexed = Number(currentScale.base_salary) * orgFactor * sectorFactor + personalSum;
+              const previousIndexed = Number(previousScale.base_salary) * orgFactor * sectorFactor + personalSum;
+              const difference = currentIndexed - previousIndexed;
+              if (difference > 0) {
+                alerts.push({
+                  id: emp.id,
+                  name: `${emp.last_name} ${emp.first_name}`,
+                  currentYears: yearsNow,
+                  previousYears: yearsPrevious,
+                  currentSalary: currentIndexed,
+                  previousSalary: previousIndexed,
+                  difference,
+                });
+              }
             }
           }
+          alerts.sort((a, b) => b.difference - a.difference);
           setSalaryAlerts(alerts);
         }
       }
@@ -268,16 +282,16 @@ export default function DashboardPage() {
                 <Link href="/remuneration/alertes" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Voir detail →</Link>
               </div>
               {salaryAlerts.length === 0 ? (
-                <p className="text-sm text-slate-500">Aucun changement de palier prévu cette année.</p>
+                <p className="text-sm text-slate-500">Aucun changement de palier cette ann&eacute;e.</p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {salaryAlerts.slice(0, 5).map((alert) => (
                     <Link key={alert.id} href={`/employees/${alert.id}/baremes`} className="flex items-center justify-between p-2.5 bg-green-50 border border-green-100 rounded-lg hover:bg-green-100 transition-colors">
                       <div>
                         <p className="text-sm font-medium text-slate-900">{alert.name}</p>
-                        <p className="text-xs text-slate-500">{alert.currentYears} → {alert.nextPalier} ans</p>
+                        <p className="text-xs text-slate-500">{alert.previousYears} &rarr; {alert.currentYears} ans</p>
                       </div>
-                      <span className="text-xs font-medium text-green-700">+{(alert.nextSalary - alert.currentSalary).toFixed(0)}€</span>
+                      <span className="text-xs font-medium text-green-700">+{alert.difference.toLocaleString("fr-BE", { style: "currency", currency: "EUR" })}</span>
                     </Link>
                   ))}
                   {salaryAlerts.length > 5 && (
