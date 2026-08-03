@@ -432,18 +432,24 @@ export default function EmployeeProfilePage() {
     ? Math.round((totalMinutes / timesheet.full_time_minutes) * 100)
     : null;
 
-  // Vacation data
-  const vacRight = vacationRights.find((r) => r.absence_codes?.code === "CA");
-  const vacTotalMinutes = vacRight ? ((vacRight.hours || 0) * 60 + (vacRight.minutes || 0)) : 0;
-  const vacDays = vacRight?.days || 0;
-  const vacHasHours = vacTotalMinutes > 0;
-  const vacLabel = vacHasHours
-    ? `${Math.floor(vacTotalMinutes / 60)}h${String(vacTotalMinutes % 60).padStart(2, "0")}`
-    : `${vacDays}j`;
-  const vacUsedLabel = vacHasHours
-    ? formatHoursMinutes(vacationUsed * 60) // vacationUsed is in days if days mode
-    : `${vacationUsed}j`;
-  const vacHasRight = vacTotalMinutes > 0 || vacDays > 0;
+  // Vacation data — aggregate ALL types
+  const totalRightsMinutes = vacationRights.reduce((sum, r) => {
+    return sum + ((r.hours || 0) * 60 + (r.minutes || 0));
+  }, 0);
+  const totalRightsDays = vacationRights.reduce((sum, r) => sum + (r.days || 0), 0);
+  const hasAnyRight = totalRightsMinutes > 0 || totalRightsDays > 0;
+
+  // Build compact breakdown for card (top 3 codes)
+  const rightsBreakdown = vacationRights
+    .filter((r) => (r.hours || 0) > 0 || (r.minutes || 0) > 0 || (r.days || 0) > 0)
+    .map((r) => ({
+      code: r.absence_codes?.code || "?",
+      label: r.absence_codes?.description || "",
+      value: (r.hours || 0) * 60 + (r.minutes || 0) > 0
+        ? `${r.hours || 0}h${String(r.minutes || 0).padStart(2, "0")}`
+        : `${r.days || 0}j`,
+    }))
+    .slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -543,40 +549,39 @@ export default function EmployeeProfilePage() {
           </Link>
         </div>
 
-        {/* Card Conges */}
+        {/* Card Conges — tous types */}
         <Link
           href={`/employees/${employee.id}/vacation-rights`}
           className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-amber-300 hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-2 mb-3">
             <TreePalm className="w-4 h-4 text-amber-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Cong&eacute;s (V)</h3>
+            <h3 className="text-sm font-semibold text-slate-700">Cong&eacute;s ({new Date().getFullYear()})</h3>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">
-              {vacHasRight ? vacLabel : "\u2014"}
-            </span>
-            <span className="text-sm text-slate-500">droit total</span>
-          </div>
-          {vacHasRight && vacHasHours && (
-            <div className="mt-3 w-full bg-slate-100 rounded-full h-2.5">
-              <div
-                className="bg-amber-500 h-2.5 rounded-full transition-all"
-                style={{ width: `${Math.min(100, ((vacationUsed) / (vacTotalMinutes / 60)) * 100)}%` }}
-              />
-            </div>
-          )}
-          {vacHasRight && !vacHasHours && (
-            <div className="mt-3 w-full bg-slate-100 rounded-full h-2.5">
-              <div
-                className="bg-amber-500 h-2.5 rounded-full transition-all"
-                style={{ width: `${Math.min(100, (vacationUsed / vacDays) * 100)}%` }}
-              />
-            </div>
-          )}
-          {!vacHasRight && (
-            <p className="text-xs text-slate-400 mt-2">Aucun droit configur&eacute; pour cette ann&eacute;e</p>
+          {hasAnyRight ? (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-slate-900">
+                  {totalRightsMinutes > 0 ? `${Math.floor(totalRightsMinutes / 60)}h${String(totalRightsMinutes % 60).padStart(2, "0")}` : ""}
+                  {totalRightsMinutes > 0 && totalRightsDays > 0 ? " + " : ""}
+                  {totalRightsDays > 0 ? `${totalRightsDays}j` : ""}
+                </span>
+                <span className="text-xs text-slate-500">total droits</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {rightsBreakdown.map((r) => (
+                  <span key={r.code} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-600">
+                    <span className="font-medium">{r.code}</span> {r.value}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-2xl font-bold text-slate-900">&mdash;</span>
+              <p className="text-xs text-slate-400 mt-2">Aucun droit configur&eacute; pour cette ann&eacute;e</p>
+            </>
           )}
         </Link>
 
