@@ -333,9 +333,42 @@ export default function EncoderDrawer() {
                     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                     const dayEntries = entryByDate[dateStr] || [];
                     const isWeekend = new Date(year, month, day).getDay() % 6 === 0;
+                    const isStart = addStart === dateStr;
+                    const isEnd = addEnd === dateStr;
+                    const isInRange = addStart && addEnd && dateStr >= addStart && dateStr <= addEnd;
+                    const isSelected = isStart || isEnd;
+
                     return (
-                      <div key={day} className={`aspect-square flex items-center justify-center rounded text-[10px] font-medium ${isWeekend ? "bg-slate-200 text-slate-400" : ""}`}
-                        style={dayEntries.length > 0 ? { backgroundColor: getCodeColor(dayEntries[0].absence_code_id).bg, color: getCodeColor(dayEntries[0].absence_code_id).text } : {}}>
+                      <div
+                        key={day}
+                        onClick={() => {
+                          if (isWeekend) return;
+                          if (!addStart || (addStart && addEnd)) {
+                            // First click or reset
+                            setAddStart(dateStr);
+                            setAddEnd("");
+                            setValidationWarning(null);
+                          } else {
+                            // Second click
+                            if (dateStr < addStart) {
+                              setAddEnd(addStart);
+                              setAddStart(dateStr);
+                            } else if (dateStr === addStart) {
+                              // Same day = single day
+                              setAddEnd("");
+                            } else {
+                              setAddEnd(dateStr);
+                            }
+                          }
+                        }}
+                        className={`aspect-square flex items-center justify-center rounded text-[10px] font-medium cursor-pointer transition-all
+                          ${isWeekend ? "bg-slate-200 text-slate-400 cursor-not-allowed" : ""}
+                          ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-600 text-white" : ""}
+                          ${isInRange && !isSelected ? "bg-emerald-100 text-emerald-800" : ""}
+                          ${!isWeekend && !isSelected && !isInRange && dayEntries.length === 0 ? "hover:bg-emerald-50" : ""}
+                        `}
+                        style={!isSelected && !isInRange && dayEntries.length > 0 ? { backgroundColor: getCodeColor(dayEntries[0].absence_code_id).bg, color: getCodeColor(dayEntries[0].absence_code_id).text } : {}}
+                      >
                         {day}
                       </div>
                     );
@@ -386,10 +419,16 @@ export default function EncoderDrawer() {
               {/* Add form */}
               <div className="bg-emerald-50 rounded-lg p-3 space-y-2">
                 <h4 className="text-xs font-semibold text-emerald-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Ajouter</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[10px] text-slate-500">Début</label><input type="date" value={addStart} onChange={(e) => setAddStart(e.target.value)} className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" /></div>
-                  <div><label className="text-[10px] text-slate-500">Fin</label><input type="date" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" /></div>
-                </div>
+                {addStart ? (
+                  <p className="text-xs text-emerald-700 bg-emerald-100 px-2 py-1 rounded">
+                    {new Date(addStart + "T00:00:00").toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" })}
+                    {addEnd && ` → ${new Date(addEnd + "T00:00:00").toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" })}`}
+                    {!addEnd && " (cliquez un 2e jour pour une période)"}
+                    <button onClick={() => { setAddStart(""); setAddEnd(""); }} className="ml-2 text-emerald-500 hover:text-emerald-700">✕</button>
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-slate-400">Cliquez sur un jour du calendrier</p>
+                )}
                 <select value={addCode} onChange={(e) => setAddCode(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs focus:border-emerald-500 focus:outline-none">
                   <option value="">— Code absence —</option>
                   {codes.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.description}</option>)}
