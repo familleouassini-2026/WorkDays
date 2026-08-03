@@ -30,13 +30,14 @@ function minutesToHM(m: number | null) {
 export default function SchedulesPage() {
   const [timesheets, setTimesheets] = useState<TimesheetRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient();
       const { data } = await supabase
         .from("timesheets")
-        .select("*, employees(id, first_name, last_name, job_title)")
+        .select("*, employees(id, first_name, last_name, job_title, is_inactive)")
         .eq("is_active", true)
         .order("id");
 
@@ -45,6 +46,10 @@ export default function SchedulesPage() {
     }
     fetchData();
   }, []);
+
+  const filtered = showInactive
+    ? timesheets
+    : timesheets.filter((ts) => !(ts.employees as any)?.is_inactive);
 
   if (loading) {
     return (
@@ -60,19 +65,25 @@ export default function SchedulesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Horaires</h1>
           <p className="text-slate-500 mt-1">
-            Horaires hebdomadaires des employés ({timesheets.length} horaire{timesheets.length > 1 ? "s" : ""} actif{timesheets.length > 1 ? "s" : ""})
+            Horaires hebdomadaires ({filtered.length} employé{filtered.length > 1 ? "s" : ""})
           </p>
         </div>
-        <Link
-          href="/schedules/rtt"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Calculator className="w-4 h-4" />
-          Calcul RTT
-        </Link>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            <button onClick={() => setShowInactive(false)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${!showInactive ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}>Actifs</button>
+            <button onClick={() => setShowInactive(true)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${showInactive ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}>Tous</button>
+          </div>
+          <Link
+            href="/schedules/rtt"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Calculator className="w-4 h-4" />
+            Calcul RTT
+          </Link>
+        </div>
       </div>
 
-      {timesheets.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="bg-white rounded-lg border p-12 text-center">
           <Clock className="w-12 h-12 text-slate-300 mx-auto" />
           <p className="text-slate-500 mt-4">Aucun horaire défini.</p>
@@ -95,7 +106,7 @@ export default function SchedulesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {timesheets.map((ts) => {
+              {filtered.map((ts) => {
                 const total =
                   (ts.monday_minutes || 0) +
                   (ts.tuesday_minutes || 0) +

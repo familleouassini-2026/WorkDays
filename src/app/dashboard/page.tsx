@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { UserX, Users, CalendarDays, AlertTriangle, Shield, Clock, Gavel, Cake, UserPlus, CalendarClock } from "lucide-react";
-import { ABSENTEEISM_EXCLUDED_CODES, getAbsenteeismAlertLevel } from "@/lib/calculations";
+import { UserX, Users, CalendarDays, AlertTriangle, Shield, Clock, Gavel, Cake, UserPlus, CalendarClock, TrendingUp } from "lucide-react";
+import { ABSENTEEISM_EXCLUDED_CODES, getAbsenteeismAlertLevel, calculateSeniorityBreakdown, findBaseSalary } from "@/lib/calculations";
 
 interface RecentAbsence { id: number; absence_date: string; employee_id: number; employees: { first_name: string; last_name: string } | null; absence_codes: { code: string; description: string } | null; }
 interface Meeting { id: number; meeting_date: string; description: string | null; type: string; }
@@ -12,6 +12,7 @@ interface AbsenteeismAlert { employeeName: string; incidents: number; level: "wa
 interface BirthdayEmployee { id: number; first_name: string; last_name: string; date_of_birth: string; }
 interface RecentHire { id: number; first_name: string; last_name: string; date_of_hire: string; }
 interface ExpiringContract { id: number; first_name: string; last_name: string; end_date: string; }
+interface SalaryAlert { id: number; name: string; currentYears: number; nextPalier: number; currentSalary: number; nextSalary: number; }
 
 export default function DashboardPage() {
   const [activeEmployees, setActiveEmployees] = useState<number>(0);
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const [birthdays, setBirthdays] = useState<BirthdayEmployee[]>([]);
   const [recentHires, setRecentHires] = useState<RecentHire[]>([]);
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
+  const [salaryAlerts, setSalaryAlerts] = useState<SalaryAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -107,6 +109,35 @@ export default function DashboardPage() {
         });
         alerts.sort((a, b) => b.incidents - a.incidents);
         setAbsenteeismAlerts(alerts);
+      }
+
+      // Calculate salary alerts (employees changing palier this year)
+      {
+        const { data: salEmp } = await supabase.from("employees").select("id, first_name, last_name, date_of_hire, granted_seniority_date, sector_id").eq("is_inactive", false).not("sector_id", "is", null);
+        const { data: salScales } = await supabase.from("seniority_scales").select("sector_id, years, base_salary");
+        if (salEmp && salScales) {
+          const currentYear = new Date().getFullYear();
+          const alerts: SalaryAlert[] = [];
+          for (const emp of salEmp as any[]) {
+            const bd = calculateSeniorityBreakdown(emp.date_of_hire, emp.granted_seniority_date);
+            const yearsNow = Math.floor(bd.acquise);
+            const yearsNextYear = yearsNow + 1;
+            const sectorScales = (salScales as any[]).filter((s) => s.sector_id === emp.sector_id).sort((a, b) => b.years - a.years);
+            const currentScale = sectorScales.find((s) => yearsNow >= s.years);
+            const nextScale = sectorScales.find((s) => yearsNextYear >= s.years);
+            if (currentScale && nextScale && currentScale.years !== nextScale.years) {
+              alerts.push({
+                id: emp.id,
+                name: `${emp.last_name} ${emp.first_name}`,
+                currentYears: yearsNow,
+                nextPalier: nextScale.years,
+                currentSalary: currentScale.base_salary,
+                nextSalary: nextScale.base_salary,
+              });
+            }
+          }
+          setSalaryAlerts(alerts);
+        }
       }
 
       setLoading(false);
@@ -230,6 +261,32 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Salary Alerts */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-green-600" />Alertes augmentation salaire</h2>
+                <Link href="/remuneration/alertes" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Voir detail →</Link>
+              </div>
+              {salaryAlerts.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucun changement de palier prévu cette année.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {salaryAlerts.slice(0, 5).map((alert) => (
+                    <Link key={alert.id} href={`/employees/${alert.id}/baremes`} className="flex items-center justify-between p-2.5 bg-green-50 border border-green-100 rounded-lg hover:bg-green-100 transition-colors">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{alert.name}</p>
+                        <p className="text-xs text-slate-500">{alert.currentYears} → {alert.nextPalier} ans</p>
+                      </div>
+                      <span className="text-xs font-medium text-green-700">+{(alert.nextSalary - alert.currentSalary).toFixed(0)}€</span>
+                    </Link>
+                  ))}
+                  {salaryAlerts.length > 5 && (
+                    <p className="text-xs text-slate-500 text-center pt-1">+ {salaryAlerts.length - 5} autre(s)</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Absenteeism Alerts */}
             <div className="card p-6">
               <div className="flex items-center justify-between mb-4">
