@@ -111,7 +111,7 @@
         "src/app/absences/page.tsx"
       ],
       "accessOrigin": "extracted/queries/qry_rpt_AbsencesForYear.sql",
-      "notes": "Filtres année/type/nom, groupement par mois"
+      "notes": "Filtres annee dynamique (distinct years from DB + annee courante)/type/nom, groupement par mois"
     },
     {
       "id": "absences-calendar",
@@ -249,7 +249,7 @@
         "src/app/governance/requests/page.tsx"
       ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Log_Requests.cls",
-      "notes": "Dashboard + 3 sous-modules : Réunions (CRUD + participants + agenda HTML), Décisions (CRUD + décideurs + liens réunion/demande), Demandes (CRUD + workflow statut + actions inline accept/reject/complete + filtre + deadline overdue)."
+      "notes": "Dashboard + 3 sous-modules : Reunions (CRUD + participants + agenda HTML + edit/delete inline), Decisions (CRUD + decideurs + liens reunion/demande + edit/delete inline), Demandes (CRUD + workflow statut + actions inline accept/reject/complete + filtre + deadline overdue)."
     },
     {
       "id": "leasing",
@@ -291,7 +291,7 @@
         "src/app/settings/sectors/page.tsx"
       ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_Secteurs.cls",
-      "notes": "CRUD secteurs (nom, code bareme, groupe RTT, IFIC) avec edit/delete. Lien depuis /settings."
+      "notes": "CRUD secteurs (nom, code bareme, groupe RTT, IFIC) avec edit/delete. Colonnes: Secteur, Bareme, Groupe RTT, RTT Actif (checkmark), IFIC (checkmark), Cat. IFIC (number), Actions. Lien depuis /settings."
     },
     {
       "id": "settings-holidays",
@@ -318,6 +318,18 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-05",
+      "pr": "#110",
+      "description": "3 UI fixes: (1) Absences year filter is now dynamic - fetches distinct years from year_calendar table and always includes current year. (2) Governance Decisions and Meetings pages now have edit and delete buttons (Pencil/Trash2 icons) on each row, with confirmation on delete and form reuse for editing. (3) Sectors table replaces confusing single IFIC column with 3 clear columns: RTT Actif (checkmark), IFIC (checkmark), Cat. IFIC (number).",
+      "filesChanged": [
+        "src/app/absences/page.tsx",
+        "src/app/governance/decisions/page.tsx",
+        "src/app/governance/meetings/page.tsx",
+        "src/app/settings/sectors/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-05",
       "pr": "#109",

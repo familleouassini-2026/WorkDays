@@ -14,6 +14,8 @@ import {
   X,
   ArrowLeft,
   LinkIcon,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 // ============================================================
@@ -63,6 +65,7 @@ export default function DecisionsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   // Form state
   const [formDescription, setFormDescription] = useState("");
@@ -145,40 +148,94 @@ export default function DecisionsPage() {
 
     const supabase = createClient();
 
-    const { data: newDecision, error } = await supabase
-      .from("decisions")
-      .insert({
-        description: formDescription,
-        decision_date: formDate || null,
-        meeting_id: formMeetingId ? Number(formMeetingId) : null,
-        request_id: formRequestId ? Number(formRequestId) : null,
-      })
-      .select("id")
-      .single();
+    if (editingId) {
+      // Update existing decision
+      const { error } = await supabase
+        .from("decisions")
+        .update({
+          description: formDescription,
+          decision_date: formDate || null,
+          meeting_id: formMeetingId ? Number(formMeetingId) : null,
+          request_id: formRequestId ? Number(formRequestId) : null,
+        })
+        .eq("id", editingId);
 
-    if (error || !newDecision) {
-      alert("Erreur: " + (error?.message || ""));
-      setSaving(false);
-      return;
-    }
+      if (error) {
+        alert("Erreur: " + error.message);
+        setSaving(false);
+        return;
+      }
 
-    if (formMakers.length > 0) {
-      await supabase.from("decision_makers").insert(
-        formMakers.map((empId) => ({
-          decision_id: newDecision.id,
-          employee_id: empId,
-        }))
-      );
+      // Replace makers
+      await supabase.from("decision_makers").delete().eq("decision_id", editingId);
+      if (formMakers.length > 0) {
+        await supabase.from("decision_makers").insert(
+          formMakers.map((empId) => ({
+            decision_id: editingId,
+            employee_id: empId,
+          }))
+        );
+      }
+    } else {
+      // Create new decision
+      const { data: newDecision, error } = await supabase
+        .from("decisions")
+        .insert({
+          description: formDescription,
+          decision_date: formDate || null,
+          meeting_id: formMeetingId ? Number(formMeetingId) : null,
+          request_id: formRequestId ? Number(formRequestId) : null,
+        })
+        .select("id")
+        .single();
+
+      if (error || !newDecision) {
+        alert("Erreur: " + (error?.message || ""));
+        setSaving(false);
+        return;
+      }
+
+      if (formMakers.length > 0) {
+        await supabase.from("decision_makers").insert(
+          formMakers.map((empId) => ({
+            decision_id: newDecision.id,
+            employee_id: empId,
+          }))
+        );
+      }
     }
 
     // Reset
+    resetForm();
+    setSaving(false);
+    fetchData();
+  }
+
+  function startEdit(dec: Decision) {
+    setEditingId(dec.id);
+    setFormDescription(dec.description);
+    setFormDate(dec.decision_date || "");
+    setFormMeetingId(dec.meeting_id?.toString() || "");
+    setFormRequestId(dec.request_id?.toString() || "");
+    setFormMakers(dec.makers.map((m) => m.id));
+    setShowForm(true);
+  }
+
+  function resetForm() {
+    setEditingId(null);
     setFormDescription("");
     setFormDate("");
     setFormMeetingId("");
     setFormRequestId("");
     setFormMakers([]);
     setShowForm(false);
-    setSaving(false);
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm("Supprimer cette decision ?\n\nCette action est irreversible.")) return;
+    const supabase = createClient();
+    await supabase.from("decision_makers").delete().eq("decision_id", id);
+    await supabase.from("decisions").delete().eq("id", id);
     fetchData();
   }
 
@@ -210,7 +267,7 @@ export default function DecisionsPage() {
           </div>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { resetForm(); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -225,7 +282,7 @@ export default function DecisionsPage() {
           className="bg-white rounded-lg border border-purple-200 shadow-sm p-6 space-y-4"
         >
           <h3 className="text-sm font-semibold text-slate-900">
-            Enregistrer une decision
+            {editingId ? "Modifier la decision" : "Enregistrer une decision"}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -319,7 +376,7 @@ export default function DecisionsPage() {
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={resetForm}
               className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800"
             >
               Annuler
@@ -329,7 +386,7 @@ export default function DecisionsPage() {
               disabled={saving}
               className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
             >
-              {saving ? "Enregistrement..." : "Creer la decision"}
+              {saving ? "Enregistrement..." : editingId ? "Enregistrer" : "Creer la decision"}
             </button>
           </div>
         </form>
@@ -398,6 +455,20 @@ export default function DecisionsPage() {
                     <Users className="w-3 h-3" />
                     {dec.makers.length}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startEdit(dec); }}
+                    className="p-1.5 rounded hover:bg-slate-100 text-slate-500"
+                    title="Modifier"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(dec.id); }}
+                    className="p-1.5 rounded hover:bg-red-50 text-red-500"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                   {expandedId === dec.id ? (
                     <ChevronUp className="w-4 h-4 text-slate-400" />
                   ) : (
