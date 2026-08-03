@@ -136,7 +136,7 @@ export default function EncoderDrawer() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-20 z-50 flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-full shadow-lg hover:bg-emerald-700 transition-all hover:scale-105"
+        className="fixed bottom-16 right-4 z-50 flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-full shadow-lg hover:bg-emerald-700 transition-all hover:scale-105"
       >
         <CalendarPlus className="w-4 h-4" />
         <span className="hidden sm:inline">Encoder</span>
