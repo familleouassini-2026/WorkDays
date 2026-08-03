@@ -313,11 +313,21 @@
         "src/app/absences/annual/page.tsx"
       ],
       "accessOrigin": "extracted/vba_modules/Form_frm_YearCalendar.cls",
-      "notes": "Vue 12 mois par employe. 3 sections toujours visibles (calendrier, detail, recap). Multi-absence par jour (bandes empilees max 3 + badge +N). Jours feries rouge, weekends gris. Modal warning jour ferie. Impression A4 couleur 2 pages."
+      "notes": "Vue 12 mois par employe. 3 sections toujours visibles (calendrier, detail, recap). Multi-absence par jour (bandes empilees max 3 + badge +N). Jours feries rouge, weekends gris. Clic sur jour ouvre l'Encodeur rapide (drawer) avec employe et date pre-selectionnes. Impression A4 couleur 2 pages."
     }
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-05",
+      "pr": "#109",
+      "description": "Calendrier annuel: remplacement du modal d'encodage par l'Encodeur rapide (drawer). EncoderDrawer accepte desormais des props externes (externalOpen, onExternalClose, preselectedEmployeeId, preselectedDate, onSaved) pour etre controle programmatiquement. Le calendrier annuel ouvre le drawer avec employe et date pre-selectionnes au clic sur un jour, et rafraichit les donnees apres sauvegarde.",
+      "filesChanged": [
+        "src/components/encoder-drawer.tsx",
+        "src/app/absences/annual/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-03",
       "pr": "#107",

@@ -22,8 +22,17 @@ function getScheduleMinutes(ts: Timesheet | null, date: Date): number {
   return ts[DOW_FIELDS[dow]] || 0;
 }
 
-export default function EncoderDrawer() {
-  const [open, setOpen] = useState(false);
+interface EncoderDrawerProps {
+  externalOpen?: boolean;
+  onExternalClose?: () => void;
+  preselectedEmployeeId?: number;
+  preselectedDate?: string;
+  onSaved?: () => void;
+}
+
+export default function EncoderDrawer({ externalOpen, onExternalClose, preselectedEmployeeId, preselectedDate, onSaved }: EncoderDrawerProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen || internalOpen;
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [codes, setCodes] = useState<AbsenceCode[]>([]);
   const [search, setSearch] = useState("");
@@ -47,6 +56,36 @@ export default function EncoderDrawer() {
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
   const [balanceInfo, setBalanceInfo] = useState<{ entitled: number; used: number; unit: "minutes" | "days" } | null>(null);
+
+  // Handle external open with preselected employee and date
+  useEffect(() => {
+    if (externalOpen && initialized && preselectedEmployeeId) {
+      const emp = employees.find((e) => e.id === preselectedEmployeeId);
+      if (emp) {
+        setSelectedEmp(emp);
+        setSearch(`${emp.last_name} ${emp.first_name}`);
+      }
+    }
+  }, [externalOpen, initialized, preselectedEmployeeId, employees]);
+
+  useEffect(() => {
+    if (externalOpen && preselectedDate) {
+      setAddStart(preselectedDate);
+      setAddEnd("");
+      const d = new Date(preselectedDate);
+      setMonth(d.getMonth());
+      setYear(d.getFullYear());
+    }
+  }, [externalOpen, preselectedDate]);
+
+  function setOpen(value: boolean) {
+    if (!value) {
+      if (onExternalClose) onExternalClose();
+      setInternalOpen(false);
+    } else {
+      setInternalOpen(true);
+    }
+  }
 
   useEffect(() => {
     if (!open || initialized) return;
@@ -201,6 +240,7 @@ export default function EncoderDrawer() {
     setAddStart(""); setAddEnd(""); setAddCode(""); setAddMinutes(""); setAddDays("");
     setSaving(false);
     fetchEntries();
+    if (onSaved) onSaved();
   }
 
   async function handleDelete(entry: CalendarEntry) {
@@ -270,6 +310,8 @@ export default function EncoderDrawer() {
 
   // Floating button when closed
   if (!open) {
+    // If externally controlled, don't show floating button
+    if (externalOpen !== undefined) return null;
     return (
       <button
         onClick={() => setOpen(true)}
