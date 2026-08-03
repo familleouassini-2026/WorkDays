@@ -134,7 +134,7 @@ export default function AssetsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Actifs</h1>
           <p className="text-slate-500 mt-1">Vehicules, telephones et imprimantes — {totalAssets} actif{totalAssets > 1 ? "s" : ""}</p>
@@ -150,7 +150,7 @@ export default function AssetsPage() {
         <div className="bg-white rounded-lg border p-4"><div className="flex items-center gap-3"><Package className="w-5 h-5 text-amber-600" /><div><p className="text-2xl font-bold text-slate-900">{available}</p><p className="text-xs text-slate-600">Disponibles</p></div></div></div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {[{ key: "ALL", label: "Tous" }, { key: "VOITURES", label: "Vehicules" }, { key: "MOBILES", label: "Telephones" }, { key: "IMPRIMANTES", label: "Imprimantes" }].map((opt) => (
           <button key={opt.key} onClick={() => setFilterType(opt.key)} className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${filterType === opt.key ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>{opt.label}</button>
         ))}

@@ -115,7 +115,7 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Personnel</h1>
           <p className="text-slate-500 text-sm mt-0.5">
@@ -148,11 +148,11 @@ export default function EmployeesPage() {
         </div>
 
         {/* Filter row */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
           <select
             value={sectorFilter}
             onChange={(e) => setSectorFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full sm:w-auto px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="">Tous les secteurs</option>
             <option value="none">Sans secteur</option>
@@ -178,7 +178,7 @@ export default function EmployeesPage() {
           <select
             value={contractFilter}
             onChange={(e) => setContractFilter(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full sm:w-auto px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="">Tous les contrats</option>
             {contractTypes.map((ct) => (

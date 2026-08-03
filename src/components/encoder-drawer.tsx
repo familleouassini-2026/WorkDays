@@ -92,8 +92,15 @@ export default function EncoderDrawer() {
     }
     for (const day of daysToInsert) {
       const record = { employee_id: selectedEmp.id, absence_date: day, absence_code_id: Number(addCode), absence_minutes: isHours ? (Number(addMinutes) || null) : null, absence_days: !isHours ? (Number(addDays) || 1) : null, year: Number(day.split("-")[0]) };
-      const { data } = await supabase.from("year_calendar").insert(record).select("id").single();
-      if (data) await auditLog({ tableName: "year_calendar", recordId: data.id, action: "INSERT", newValues: record, context: "Encodeur rapide" });
+      const { data, error: insertError } = await supabase.from("year_calendar").insert(record).select("id").single();
+      if (insertError) {
+        console.error("[encoder] Insert year_calendar failed:", insertError.message);
+        continue;
+      }
+      if (data) {
+        const auditResult = await auditLog({ tableName: "year_calendar", recordId: data.id, action: "INSERT", newValues: record, context: "Encodeur rapide" });
+        if (!auditResult.success) console.error("[encoder] Audit log failed for INSERT:", auditResult.error);
+      }
     }
     setAddStart(""); setAddEnd(""); setAddCode(""); setAddMinutes(""); setAddDays("");
     setSaving(false);
@@ -104,7 +111,8 @@ export default function EncoderDrawer() {
     const supabase = createClient();
     const { error } = await supabase.from("year_calendar").delete().eq("id", entry.id);
     if (!error) {
-      await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide" });
+      const auditResult = await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide" });
+      if (!auditResult.success) console.error("[encoder] Audit log failed for DELETE:", auditResult.error);
       fetchEntries();
     }
   }
@@ -113,8 +121,11 @@ export default function EncoderDrawer() {
     if (!selectedEmp || entries.length === 0) return;
     const supabase = createClient();
     for (const entry of entries) {
-      await supabase.from("year_calendar").delete().eq("id", entry.id);
-      await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide - suppression masse" });
+      const { error } = await supabase.from("year_calendar").delete().eq("id", entry.id);
+      if (!error) {
+        const auditResult = await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide - suppression masse" });
+        if (!auditResult.success) console.error("[encoder] Audit log failed for mass DELETE:", auditResult.error);
+      }
     }
     fetchEntries();
   }

@@ -119,7 +119,7 @@ export default function RTTEntitlementsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bareme RTT</h1>
           <p className="text-slate-500 mt-1">
@@ -129,7 +129,7 @@ export default function RTTEntitlementsPage() {
         <select
           value={selectedSector}
           onChange={(e) => setSelectedSector(e.target.value)}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full sm:w-auto rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="">Tous</option>
           {rttSectors.map((s) => (
@@ -187,14 +187,14 @@ export default function RTTEntitlementsPage() {
 
               {/* Add row form */}
               {expandedSectors.has(sectorName) && addingSectorId === sectorId && (
-                <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
+                <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-col sm:flex-row sm:items-center gap-3">
                   <input
                     type="number"
                     min={0}
                     value={newSeniorityStart}
                     onChange={(e) => setNewSeniorityStart(Number(e.target.value))}
                     placeholder="Age minimum"
-                    className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full sm:w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                   />
                   <input
                     type="number"
@@ -203,7 +203,7 @@ export default function RTTEntitlementsPage() {
                     value={newHoursPerYear || ""}
                     onChange={(e) => setNewHoursPerYear(Number(e.target.value))}
                     placeholder="Heures/an"
-                    className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full sm:w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                   />
                   <button
                     onClick={() => handleAdd(sectorId)}

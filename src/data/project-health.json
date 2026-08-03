@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-01",
+  "lastUpdated": "2026-08-04",
   "architecture": {
     "steering": [
       {
@@ -93,7 +93,12 @@
       "name": "Gestion des employés",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#people",
-      "code": ["src/app/employees/page.tsx", "src/app/employees/[id]/page.tsx", "src/app/employees/[id]/edit/page.tsx", "src/app/employees/new/page.tsx"],
+      "code": [
+        "src/app/employees/page.tsx",
+        "src/app/employees/[id]/page.tsx",
+        "src/app/employees/[id]/edit/page.tsx",
+        "src/app/employees/new/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Emp_Employee Details.cls",
       "notes": "Liste, détail (dashboard KPI), ajout, édition, suppression. Page profil v2: 6 cards KPI cliquables (liens vers modules), 3 sections expandables (Ancienneté, Augmentations, Absences Sommaire), quick actions enrichies (Encoder absence, Calendrier annuel, Simulateur salaire, Éditer). Mobile-first 1col/2col."
     },
@@ -102,7 +107,9 @@
       "name": "Liste des absences",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#absences",
-      "code": ["src/app/absences/page.tsx"],
+      "code": [
+        "src/app/absences/page.tsx"
+      ],
       "accessOrigin": "extracted/queries/qry_rpt_AbsencesForYear.sql",
       "notes": "Filtres année/type/nom, groupement par mois"
     },
@@ -111,7 +118,9 @@
       "name": "Calendrier des absences",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#absences",
-      "code": ["src/app/absences/calendar/page.tsx"],
+      "code": [
+        "src/app/absences/calendar/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_YearCalendar.cls",
       "notes": "Grille mensuelle, navigation, couleurs par code"
     },
@@ -120,7 +129,9 @@
       "name": "Réservation d'absence",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#absences",
-      "code": ["src/app/absences/new/page.tsx"],
+      "code": [
+        "src/app/absences/new/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Abs_HolidayInputForm.cls",
       "notes": "Wizard : employé → code → dates → durée. Écriture atomique avec rollback."
     },
@@ -129,7 +140,10 @@
       "name": "Soldes de congés",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#vacation-entitlement",
-      "code": ["src/app/absences/balances/page.tsx", "src/lib/calculations.ts"],
+      "code": [
+        "src/app/absences/balances/page.tsx",
+        "src/lib/calculations.ts"
+      ],
       "accessOrigin": "extracted/queries/qry_subFormVacPDSDSummary.sql",
       "notes": "Complet : calcul ancienneté → semaines (vacation_policies) + bought vacation + heures/minutes via timesheet + consommation year_calendar. Vue vacation détaillée + vue tous codes."
     },
@@ -138,7 +152,10 @@
       "name": "Politique d'absentéisme",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#absenteeism-policy",
-      "code": ["src/app/absences/absenteeism/page.tsx", "src/lib/calculations.ts"],
+      "code": [
+        "src/app/absences/absenteeism/page.tsx",
+        "src/lib/calculations.ts"
+      ],
       "accessOrigin": "extracted/queries/qry_rpt_AbsenteeismPolicy.sql",
       "notes": "Fenêtre glissante configurable (3/6/9/12 mois), exclusion codes V/F/PC/MAT/JF/CSS/JP/HS, comptage incidents, seuils alertes (normal/attention/critique), détail expandable par employé avec date d'expiration."
     },
@@ -147,7 +164,9 @@
       "name": "Barèmes salariaux",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#salary",
-      "code": ["src/app/remuneration/baremes/page.tsx"],
+      "code": [
+        "src/app/remuneration/baremes/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sal_Seniority.cls",
       "notes": "Table seniority_scales par secteur"
     },
@@ -156,7 +175,9 @@
       "name": "Historique indexations",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#salary",
-      "code": ["src/app/remuneration/indexations/page.tsx"],
+      "code": [
+        "src/app/remuneration/indexations/page.tsx"
+      ],
       "accessOrigin": "extracted/queries/qry_Sec_indexCal.sql",
       "notes": "Tableau chronologique avec facteur cumulé"
     },
@@ -165,7 +186,10 @@
       "name": "Simulateur salaire complet",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#salary",
-      "code": ["src/app/remuneration/simulateur/page.tsx", "src/lib/calculations.ts"],
+      "code": [
+        "src/app/remuneration/simulateur/page.tsx",
+        "src/lib/calculations.ts"
+      ],
       "accessOrigin": "extracted/queries/qry_Sec_indexCal.sql",
       "notes": "Formule complète : base(barème) × DProduct(org_indexations) × DProduct(sector_indexations) + SUM(employee_indexations). Date de simulation configurable, décomposition visuelle du calcul, historique indexations collapsible, détail augmentations personnelles."
     },
@@ -174,7 +198,9 @@
       "name": "Calcul RTT",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#rtt",
-      "code": ["src/app/schedules/rtt/page.tsx"],
+      "code": [
+        "src/app/schedules/rtt/page.tsx"
+      ],
       "accessOrigin": "extracted/queries/Qry_RTTCalc.sql",
       "notes": "Calcul complet : age-based, prorata anniversaire, ajuste % temps travail."
     },
@@ -183,7 +209,9 @@
       "name": "Alertes augmentation salaire",
       "status": "implemented",
       "spec": ".kiro/specs/business-rules.md#salary",
-      "code": ["src/app/remuneration/alertes/page.tsx"],
+      "code": [
+        "src/app/remuneration/alertes/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_SectorialSalaryChanging.cls",
       "notes": "Detecte les employes dont l'anciennete change de palier cette annee. Cards expandable + tableau complet."
     },
@@ -192,7 +220,9 @@
       "name": "Horaires hebdomadaires",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#time",
-      "code": ["src/app/schedules/page.tsx"],
+      "code": [
+        "src/app/schedules/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_TimeSheet.cls",
       "notes": "Tableau des timesheets actifs avec total/jour et % temps plein"
     },
@@ -201,7 +231,9 @@
       "name": "Dashboard dynamique",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#dashboard",
-      "code": ["src/app/dashboard/page.tsx"],
+      "code": [
+        "src/app/dashboard/page.tsx"
+      ],
       "accessOrigin": null,
       "notes": "KPIs Supabase (employés actifs, absences today/mois), dernières absences"
     },
@@ -210,7 +242,12 @@
       "name": "Gouvernance (réunions/décisions/demandes)",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#governance",
-      "code": ["src/app/governance/page.tsx", "src/app/governance/meetings/page.tsx", "src/app/governance/decisions/page.tsx", "src/app/governance/requests/page.tsx"],
+      "code": [
+        "src/app/governance/page.tsx",
+        "src/app/governance/meetings/page.tsx",
+        "src/app/governance/decisions/page.tsx",
+        "src/app/governance/requests/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Log_Requests.cls",
       "notes": "Dashboard + 3 sous-modules : Réunions (CRUD + participants + agenda HTML), Décisions (CRUD + décideurs + liens réunion/demande), Demandes (CRUD + workflow statut + actions inline accept/reject/complete + filtre + deadline overdue)."
     },
@@ -219,7 +256,9 @@
       "name": "Gestion des actifs (leasing)",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#assets",
-      "code": ["src/app/assets/page.tsx"],
+      "code": [
+        "src/app/assets/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Cmn_Leasing.cls",
       "notes": "CRUD actifs (véhicules/téléphones/imprimantes) avec grille cards, filtre par type, badge assigné/disponible, formulaire création + assignation employé. Seed data: 8 véhicules."
     },
@@ -228,7 +267,9 @@
       "name": "Rapports (CSV + PDF)",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#reports",
-      "code": ["src/app/reports/page.tsx"],
+      "code": [
+        "src/app/reports/page.tsx"
+      ],
       "accessOrigin": "extracted/reports_all.md",
       "notes": "3 rapports (absences/employe, absences/mois, apercu salarial) + export CSV + export PDF (window.print). Selecteur annee."
     },
@@ -246,7 +287,9 @@
       "name": "Gestion des secteurs",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#settings",
-      "code": ["src/app/settings/sectors/page.tsx"],
+      "code": [
+        "src/app/settings/sectors/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_Secteurs.cls",
       "notes": "CRUD secteurs (nom, code bareme, groupe RTT, IFIC) avec edit/delete. Lien depuis /settings."
     },
@@ -255,7 +298,9 @@
       "name": "Gestion des jours feries",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#settings",
-      "code": ["src/app/settings/holidays/page.tsx"],
+      "code": [
+        "src/app/settings/holidays/page.tsx"
+      ],
       "accessOrigin": null,
       "notes": "CRUD jours feries (filtre annee, table date/jour/nom, add/edit/delete modal, seed 2026-2027 Belgique). Lien depuis /settings."
     },
@@ -264,13 +309,28 @@
       "name": "Calendrier annuel individuel",
       "status": "implemented",
       "spec": ".kiro/specs/feature-specifications.md#absences",
-      "code": ["src/app/absences/annual/page.tsx"],
+      "code": [
+        "src/app/absences/annual/page.tsx"
+      ],
       "accessOrigin": "extracted/vba_modules/Form_frm_YearCalendar.cls",
       "notes": "Vue 12 mois par employe. 3 sections toujours visibles (calendrier, detail, recap). Multi-absence par jour (bandes empilees max 3 + badge +N). Jours feries rouge, weekends gris. Modal warning jour ferie. Impression A4 couleur 2 pages."
     }
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-04",
+      "pr": "#88",
+      "description": "Fix audit_log: ajout error handling + performed_by/performed_at explicites + console.error sur échec. Fix mobile responsive: dropdowns/selects w-full sur mobile (<375px) pour pages Personnel, Absences, Actifs, RTT Entitlements. Headers flex-col sur mobile.",
+      "filesChanged": [
+        "src/lib/audit.ts",
+        "src/components/encoder-drawer.tsx",
+        "src/app/employees/page.tsx",
+        "src/app/absences/page.tsx",
+        "src/app/assets/page.tsx",
+        "src/app/settings/rtt-entitlements/page.tsx"
+      ]
+    },
     {
       "date": "2026-08-01",
       "pr": "#39",
