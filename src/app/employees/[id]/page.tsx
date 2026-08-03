@@ -434,7 +434,16 @@ export default function EmployeeProfilePage() {
 
   // Vacation data
   const vacRight = vacationRights.find((r) => r.absence_codes?.code === "CA");
-  const vacTotal = vacRight?.days || 0;
+  const vacTotalMinutes = vacRight ? ((vacRight.hours || 0) * 60 + (vacRight.minutes || 0)) : 0;
+  const vacDays = vacRight?.days || 0;
+  const vacHasHours = vacTotalMinutes > 0;
+  const vacLabel = vacHasHours
+    ? `${Math.floor(vacTotalMinutes / 60)}h${String(vacTotalMinutes % 60).padStart(2, "0")}`
+    : `${vacDays}j`;
+  const vacUsedLabel = vacHasHours
+    ? formatHoursMinutes(vacationUsed * 60) // vacationUsed is in days if days mode
+    : `${vacationUsed}j`;
+  const vacHasRight = vacTotalMinutes > 0 || vacDays > 0;
 
   return (
     <div className="space-y-6">
@@ -546,19 +555,27 @@ export default function EmployeeProfilePage() {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-900">
-              {vacTotal > 0 ? vacTotal - vacationUsed : "\u2014"}
+              {vacHasRight ? vacLabel : "\u2014"}
             </span>
-            <span className="text-sm text-slate-500">/ {vacTotal} jours restants</span>
+            <span className="text-sm text-slate-500">droit total</span>
           </div>
-          {vacTotal > 0 && (
+          {vacHasRight && vacHasHours && (
             <div className="mt-3 w-full bg-slate-100 rounded-full h-2.5">
               <div
                 className="bg-amber-500 h-2.5 rounded-full transition-all"
-                style={{ width: `${Math.min(100, (vacationUsed / vacTotal) * 100)}%` }}
+                style={{ width: `${Math.min(100, ((vacationUsed) / (vacTotalMinutes / 60)) * 100)}%` }}
               />
             </div>
           )}
-          {vacTotal === 0 && (
+          {vacHasRight && !vacHasHours && (
+            <div className="mt-3 w-full bg-slate-100 rounded-full h-2.5">
+              <div
+                className="bg-amber-500 h-2.5 rounded-full transition-all"
+                style={{ width: `${Math.min(100, (vacationUsed / vacDays) * 100)}%` }}
+              />
+            </div>
+          )}
+          {!vacHasRight && (
             <p className="text-xs text-slate-400 mt-2">Aucun droit configur&eacute; pour cette ann&eacute;e</p>
           )}
         </Link>
@@ -577,8 +594,19 @@ export default function EmployeeProfilePage() {
             <span className="text-2xl font-bold text-slate-900">
               {rttTotal !== null ? formatHoursMinutes(rttTotal) : "\u2014"}
             </span>
-            <span className="text-xs text-slate-500">accord&eacute;es</span>
+            <span className="text-xs text-slate-500">bar&egrave;me</span>
           </div>
+          {(() => {
+            const rttRight = vacationRights.find((r) => r.absence_codes?.code === "RTT");
+            const rttManual = rttRight ? (rttRight.hours || 0) * 60 + (rttRight.minutes || 0) : 0;
+            if (rttManual > 0 && rttTotal !== null && Math.abs(rttManual - rttTotal) > 1) {
+              return <p className="text-[10px] text-amber-600 mt-1">⚠️ Gestionnaire: {formatHoursMinutes(rttManual)} (diff&eacute;rence)</p>;
+            }
+            if (rttManual > 0 && rttTotal === null) {
+              return <p className="text-[10px] text-slate-500 mt-1">Gestionnaire: {formatHoursMinutes(rttManual)}</p>;
+            }
+            return null;
+          })()}
         </Link>
 
         {/* Card Absences recentes */}

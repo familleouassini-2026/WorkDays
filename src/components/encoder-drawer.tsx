@@ -1,9 +1,10 @@
 "use client";
+"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { auditLog } from "@/lib/audit";
-import { ChevronLeft, ChevronRight, Plus, Trash2, History, X, CalendarPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, History, X, CalendarPlus, AlertTriangle } from "lucide-react";
 
 interface Employee { id: number; first_name: string; last_name: string; }
 interface AbsenceCode { id: number; code: string; description: string; color_hex: string | null; text_color_hex: string | null; time_unit: string; }
@@ -33,6 +34,7 @@ export default function EncoderDrawer() {
   const [showAudit, setShowAudit] = useState(false);
   const [auditLabel, setAuditLabel] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
+  const [balanceInfo, setBalanceInfo] = useState<{ entitled: number; used: number; unit: "minutes" | "days" } | null>(null);
 
   useEffect(() => {
     if (!open || initialized) return;
@@ -78,6 +80,48 @@ export default function EncoderDrawer() {
 
   const selectedCodeObj = codes.find((c) => String(c.id) === addCode);
   const isHours = selectedCodeObj?.time_unit === "HOURS_MINUTES";
+
+  // Fetch balance for selected code + employee
+  useEffect(() => {
+    if (!selectedEmp || !addCode) { setBalanceInfo(null); return; }
+    async function fetchBalance() {
+      const supabase = createClient();
+      const codeId = Number(addCode);
+      const currentYear = new Date().getFullYear();
+      const codeObj = codes.find((c) => c.id === codeId);
+      if (!codeObj) return;
+
+      // Get entitlement from vacation_rights
+      const { data: right } = await supabase
+        .from("vacation_rights")
+        .select("days, hours, minutes")
+        .eq("employee_id", selectedEmp!.id)
+        .eq("absence_code_id", codeId)
+        .eq("year", currentYear)
+        .single();
+
+      if (!right) { setBalanceInfo(null); return; }
+
+      // Get consumption from year_calendar
+      const { data: consumed } = await supabase
+        .from("year_calendar")
+        .select("absence_minutes, absence_days")
+        .eq("employee_id", selectedEmp!.id)
+        .eq("absence_code_id", codeId)
+        .eq("year", currentYear);
+
+      if (codeObj.time_unit === "HOURS_MINUTES") {
+        const entitled = right.hours * 60 + right.minutes;
+        const used = (consumed || []).reduce((sum, c) => sum + (c.absence_minutes || 0), 0);
+        setBalanceInfo({ entitled, used, unit: "minutes" });
+      } else {
+        const entitled = right.days;
+        const used = (consumed || []).reduce((sum, c) => sum + (c.absence_days || 0), 0);
+        setBalanceInfo({ entitled, used, unit: "days" });
+      }
+    }
+    fetchBalance();
+  }, [selectedEmp, addCode, codes]);
 
   async function handleAdd() {
     if (!selectedEmp || !addCode || !addStart) return;
@@ -290,10 +334,29 @@ export default function EncoderDrawer() {
                   <option value="">— Code absence —</option>
                   {codes.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.description}</option>)}
                 </select>
+                {balanceInfo && (
+                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] ${
+                    balanceInfo.entitled - balanceInfo.used <= 0
+                      ? "bg-red-50 text-red-700"
+                      : balanceInfo.entitled - balanceInfo.used < (balanceInfo.unit === "minutes" ? 480 : 2)
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                  }`}>
+                    <span>Solde: {balanceInfo.unit === "minutes"
+                      ? `${Math.floor((balanceInfo.entitled - balanceInfo.used) / 60)}h${String(Math.abs((balanceInfo.entitled - balanceInfo.used) % 60)).padStart(2, "0")}`
+                      : `${balanceInfo.entitled - balanceInfo.used}j`
+                    }</span>
+                    <span className="text-slate-400">/ {balanceInfo.unit === "minutes"
+                      ? `${Math.floor(balanceInfo.entitled / 60)}h${String(balanceInfo.entitled % 60).padStart(2, "0")}`
+                      : `${balanceInfo.entitled}j`
+                    }</span>
+                    {balanceInfo.entitled - balanceInfo.used <= 0 && <AlertTriangle className="w-3 h-3" />}
+                  </div>
+                )}
                 {isHours && <input type="number" value={addMinutes} onChange={(e) => setAddMinutes(e.target.value)} placeholder="Minutes (ex: 480 = 8h)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />}
                 {!isHours && addCode && <input type="number" step="0.5" value={addDays} onChange={(e) => setAddDays(e.target.value)} placeholder="Jours (ex: 1)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />}
-                <button onClick={handleAdd} disabled={saving || !addStart || !addCode} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-                  {saving ? "..." : "Enregistrer"}
+                <button onClick={handleAdd} disabled={saving || !addStart || !addCode || (isHours && !addMinutes) || (balanceInfo !== null && balanceInfo.entitled - balanceInfo.used <= 0)} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                  {saving ? "..." : (balanceInfo && balanceInfo.entitled - balanceInfo.used <= 0) ? "Solde épuisé" : "Enregistrer"}
                 </button>
               </div>
             </>
