@@ -56,6 +56,13 @@ export default function SettingsPage() {
           </div>
           <p className="text-sm text-slate-500">Transférer les données staging vers les tables de production</p>
         </Link>
+        <Link href="/settings/feedback" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all md:col-span-2">
+          <div className="flex items-center gap-2 mb-1">
+            <Building2 className="w-4 h-4 text-purple-600" />
+            <h3 className="font-semibold text-slate-900">Feedbacks utilisateur</h3>
+          </div>
+          <p className="text-sm text-slate-500">Voir, trier et exporter les retours de la phase de test</p>
+        </Link>
       </div>
     </div>
   );
