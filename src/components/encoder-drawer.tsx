@@ -37,6 +37,7 @@ export default function EncoderDrawer() {
   const [addMinutes, setAddMinutes] = useState("");
   const [addDays, setAddDays] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | "all" | null>(null);
   const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
   const [showAudit, setShowAudit] = useState(false);
   const [auditLabel, setAuditLabel] = useState<string>("");
@@ -202,6 +203,7 @@ export default function EncoderDrawer() {
   }
 
   async function handleDelete(entry: CalendarEntry) {
+    setDeleting(entry.id);
     const supabase = createClient();
     const { error } = await supabase.from("year_calendar").delete().eq("id", entry.id);
     if (!error) {
@@ -209,10 +211,12 @@ export default function EncoderDrawer() {
       if (!auditResult.success) console.error("[encoder] Audit log failed for DELETE:", auditResult.error);
       fetchEntries();
     }
+    setDeleting(null);
   }
 
   async function handleDeleteAll() {
     if (!selectedEmp || entries.length === 0) return;
+    setDeleting("all");
     const supabase = createClient();
     for (const entry of entries) {
       const { error } = await supabase.from("year_calendar").delete().eq("id", entry.id);
@@ -222,6 +226,7 @@ export default function EncoderDrawer() {
       }
     }
     fetchEntries();
+    setDeleting(null);
   }
 
   async function showHistoryFn(entry: CalendarEntry) {
@@ -343,7 +348,10 @@ export default function EncoderDrawer() {
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-semibold text-slate-500 uppercase">Ce mois ({entries.length})</h4>
                 {entries.length > 0 && (
-                  <button onClick={handleDeleteAll} className="text-[10px] text-red-500 hover:text-red-700 font-medium">Supprimer tout</button>
+                  <button onClick={handleDeleteAll} disabled={deleting !== null} className="text-[10px] text-red-500 hover:text-red-700 font-medium disabled:opacity-50 flex items-center gap-1">
+                    {deleting === "all" && <span className="inline-block w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />}
+                    Supprimer tout
+                  </button>
                 )}
               </div>
                 {loading ? (
@@ -364,7 +372,9 @@ export default function EncoderDrawer() {
                           </div>
                           <div className="flex gap-0.5">
                             <button onClick={() => showHistoryFn(entry)} className="p-1 rounded hover:bg-slate-100 text-slate-400"><History className="w-3 h-3" /></button>
-                            <button onClick={() => handleDelete(entry)} className="p-1 rounded hover:bg-red-50 text-red-400"><Trash2 className="w-3 h-3" /></button>
+                            <button onClick={() => handleDelete(entry)} disabled={deleting !== null} className="p-1 rounded hover:bg-red-50 text-red-400 disabled:opacity-50">
+                              {deleting === entry.id ? <span className="inline-block w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                            </button>
                           </div>
                         </div>
                       );
