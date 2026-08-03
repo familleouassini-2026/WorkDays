@@ -151,24 +151,25 @@ export default function AnnualCalendarPage() {
     loadInitial();
   }, []);
 
-  // Load employees when sector changes
+  // Load employees when sector changes (or all if no sector)
   useEffect(() => {
     async function loadEmployees() {
-      if (!selectedSectorId) {
-        setEmployees([]);
-        setSelectedEmployeeId(null);
-        return;
-      }
       const supabase = createClient();
-      const { data } = await supabase
+      let query = supabase
         .from("employees")
         .select("id, first_name, last_name, sector_id, is_inactive")
-        .eq("sector_id", selectedSectorId)
         .eq("is_inactive", false)
         .order("last_name");
+      if (selectedSectorId) {
+        query = query.eq("sector_id", selectedSectorId);
+      }
+      const { data } = await query;
       if (data) {
         setEmployees(data);
-        setSelectedEmployeeId(null);
+        // If current selection is not in the new list, clear it
+        if (selectedEmployeeId && !data.find((e) => e.id === selectedEmployeeId)) {
+          setSelectedEmployeeId(null);
+        }
       }
     }
     loadEmployees();
@@ -580,17 +581,14 @@ export default function AnnualCalendarPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-4">
-          <select
-            value={selectedSectorId || ""}
-            onChange={(e) => setSelectedSectorId(e.target.value ? Number(e.target.value) : null)}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="">-- Secteur --</option>
-            {sectors.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+          <SearchableSelect
+            options={[{ value: "", label: "Tous les secteurs" }, ...sectors.map((s) => ({ value: String(s.id), label: s.name }))]}
+            value={selectedSectorId ? String(selectedSectorId) : ""}
+            onChange={(v) => setSelectedSectorId(v ? Number(v) : null)}
+            placeholder="Secteur..."
+            className="w-full sm:w-48"
+          />
 
           <SearchableSelect
             options={employees.map((emp) => ({
@@ -600,13 +598,13 @@ export default function AnnualCalendarPage() {
             value={selectedEmployeeId ? String(selectedEmployeeId) : ""}
             onChange={(v) => setSelectedEmployeeId(v ? Number(v) : null)}
             placeholder="Rechercher un employé..."
-            disabled={!selectedSectorId}
+            className="w-full sm:w-64"
           />
 
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full sm:w-auto rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
