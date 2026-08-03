@@ -91,7 +91,7 @@ export default function AbsencesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Absences & Congés</h1>
           <p className="text-slate-500 mt-1">
@@ -108,7 +108,7 @@ export default function AbsencesPage() {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-full sm:w-fit overflow-x-auto">
         {tabs.map((tab) => (
           <Link
             key={tab.href}
@@ -127,18 +127,18 @@ export default function AbsencesPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
           <input
             type="text"
             placeholder="Rechercher un employé..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 min-w-[200px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full sm:flex-1 sm:min-w-[200px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full sm:w-auto rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             {[2025, 2024, 2023, 2022, 2021].map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -147,7 +147,7 @@ export default function AbsencesPage() {
           <select
             value={selectedCode}
             onChange={(e) => setSelectedCode(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full sm:w-auto rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="">Tous les types</option>
             {codes.map((c) => (
