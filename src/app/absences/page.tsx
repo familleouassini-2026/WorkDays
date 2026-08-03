@@ -44,10 +44,33 @@ const tabs = [
 export default function AbsencesPage() {
   const [absences, setAbsences] = useState<AbsenceEntry[]>([]);
   const [codes, setCodes] = useState<AbsenceCode[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>([new Date().getFullYear()]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedCode, setSelectedCode] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    async function fetchYears() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("year_calendar")
+        .select("year")
+        .order("year", { ascending: false });
+
+      if (data) {
+        const currentYear = new Date().getFullYear();
+        const dbYears = Array.from(new Set(data.map((r: { year: number }) => r.year)));
+        // Always include the current year
+        if (!dbYears.includes(currentYear)) {
+          dbYears.push(currentYear);
+        }
+        dbYears.sort((a: number, b: number) => b - a);
+        setAvailableYears(dbYears);
+      }
+    }
+    fetchYears();
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -140,7 +163,7 @@ export default function AbsencesPage() {
             onChange={(e) => setSelectedYear(Number(e.target.value))}
             className="w-full sm:w-auto rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
-            {[2025, 2024, 2023, 2022, 2021].map((y) => (
+            {availableYears.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>

@@ -11,6 +11,8 @@ import {
   ChevronUp,
   X,
   ArrowLeft,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 // ============================================================
@@ -52,6 +54,7 @@ export default function MeetingsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   // Form state
   const [formDate, setFormDate] = useState("");
@@ -119,42 +122,95 @@ export default function MeetingsPage() {
 
     const supabase = createClient();
 
-    // Insert meeting
-    const { data: newMeeting, error } = await supabase
-      .from("meetings")
-      .insert({
-        meeting_date: formDate,
-        type: formType,
-        description: formDescription,
-        agenda: formAgenda || null,
-      })
-      .select("id")
-      .single();
+    if (editingId) {
+      // Update existing meeting
+      const { error } = await supabase
+        .from("meetings")
+        .update({
+          meeting_date: formDate,
+          type: formType,
+          description: formDescription,
+          agenda: formAgenda || null,
+        })
+        .eq("id", editingId);
 
-    if (error || !newMeeting) {
-      alert("Erreur lors de la creation: " + (error?.message || ""));
-      setSaving(false);
-      return;
-    }
+      if (error) {
+        alert("Erreur: " + error.message);
+        setSaving(false);
+        return;
+      }
 
-    // Insert attendees
-    if (formAttendees.length > 0) {
-      await supabase.from("meeting_attendees").insert(
-        formAttendees.map((empId) => ({
-          meeting_id: newMeeting.id,
-          employee_id: empId,
-        }))
-      );
+      // Replace attendees
+      await supabase.from("meeting_attendees").delete().eq("meeting_id", editingId);
+      if (formAttendees.length > 0) {
+        await supabase.from("meeting_attendees").insert(
+          formAttendees.map((empId) => ({
+            meeting_id: editingId,
+            employee_id: empId,
+          }))
+        );
+      }
+    } else {
+      // Insert meeting
+      const { data: newMeeting, error } = await supabase
+        .from("meetings")
+        .insert({
+          meeting_date: formDate,
+          type: formType,
+          description: formDescription,
+          agenda: formAgenda || null,
+        })
+        .select("id")
+        .single();
+
+      if (error || !newMeeting) {
+        alert("Erreur lors de la creation: " + (error?.message || ""));
+        setSaving(false);
+        return;
+      }
+
+      // Insert attendees
+      if (formAttendees.length > 0) {
+        await supabase.from("meeting_attendees").insert(
+          formAttendees.map((empId) => ({
+            meeting_id: newMeeting.id,
+            employee_id: empId,
+          }))
+        );
+      }
     }
 
     // Reset form & refresh
+    resetForm();
+    setSaving(false);
+    fetchData();
+  }
+
+  function startEdit(meeting: Meeting) {
+    setEditingId(meeting.id);
+    setFormDate(meeting.meeting_date);
+    setFormType(meeting.type as MeetingType);
+    setFormDescription(meeting.description || "");
+    setFormAgenda(meeting.agenda || "");
+    setFormAttendees(meeting.attendees.map((a) => a.id));
+    setShowForm(true);
+  }
+
+  function resetForm() {
+    setEditingId(null);
     setFormDate("");
     setFormType("CA");
     setFormDescription("");
     setFormAgenda("");
     setFormAttendees([]);
     setShowForm(false);
-    setSaving(false);
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm("Supprimer cette reunion ?\n\nCette action est irreversible.")) return;
+    const supabase = createClient();
+    await supabase.from("meeting_attendees").delete().eq("meeting_id", id);
+    await supabase.from("meetings").delete().eq("id", id);
     fetchData();
   }
 
@@ -189,7 +245,7 @@ export default function MeetingsPage() {
           </div>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { resetForm(); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -204,7 +260,7 @@ export default function MeetingsPage() {
           className="bg-white rounded-lg border border-blue-200 shadow-sm p-6 space-y-4"
         >
           <h3 className="text-sm font-semibold text-slate-900">
-            Creer une reunion
+            {editingId ? "Modifier la reunion" : "Creer une reunion"}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -294,7 +350,7 @@ export default function MeetingsPage() {
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={resetForm}
               className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800"
             >
               Annuler
@@ -304,7 +360,7 @@ export default function MeetingsPage() {
               disabled={saving}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? "Enregistrement..." : "Creer la reunion"}
+              {saving ? "Enregistrement..." : editingId ? "Enregistrer" : "Creer la reunion"}
             </button>
           </div>
         </form>
@@ -363,6 +419,20 @@ export default function MeetingsPage() {
                     <Users className="w-3 h-3" />
                     {meeting.attendees.length}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startEdit(meeting); }}
+                    className="p-1.5 rounded hover:bg-slate-100 text-slate-500"
+                    title="Modifier"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(meeting.id); }}
+                    className="p-1.5 rounded hover:bg-red-50 text-red-500"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                   {expandedId === meeting.id ? (
                     <ChevronUp className="w-4 h-4 text-slate-400" />
                   ) : (

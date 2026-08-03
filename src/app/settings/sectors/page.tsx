@@ -140,7 +140,9 @@ export default function SectorsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Secteur</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Bareme</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Groupe RTT</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">RTT Actif</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">IFIC</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Cat. IFIC</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -151,12 +153,18 @@ export default function SectorsPage() {
                     <p className="text-sm font-medium text-slate-900">{sec.name}</p>
                     {sec.mission && <p className="text-xs text-slate-500">{sec.mission}</p>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-center">{sec.code_bareme || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600 text-center">{sec.code_bareme || "\u2014"}</td>
                   <td className="px-4 py-3 text-center">
-                    {sec.rtt_group_name ? <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{sec.rtt_group_name}</span> : <span className="text-xs text-slate-400">—</span>}
+                    {sec.rtt_group_name ? <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{sec.rtt_group_name}</span> : <span className="text-xs text-slate-400">\u2014</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {sec.is_ific ? <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">Cat {sec.ific_category}</span> : <span className="text-xs text-slate-400">{sec.has_rtt ? "RTT" : "—"}</span>}
+                    {sec.has_rtt ? <span className="text-green-600 font-bold">\u2713</span> : <span className="text-red-500 font-bold">\u2717</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {sec.is_ific ? <span className="text-green-600 font-bold">\u2713</span> : <span className="text-red-500 font-bold">\u2717</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center text-sm text-slate-600">
+                    {sec.is_ific && sec.ific_category ? sec.ific_category : "\u2014"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
