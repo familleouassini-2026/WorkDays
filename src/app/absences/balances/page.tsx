@@ -82,7 +82,7 @@ export default function AbsenceBalancesPage() {
   const [codeBalances, setCodeBalances] = useState<CodeBalanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [viewMode, setViewMode] = useState<"vacation" | "all">("vacation");
+  const [viewMode, setViewMode] = useState<"vacation" | "all">("all");
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -169,7 +169,16 @@ export default function AbsenceBalancesPage() {
         const bought = boughtVacs.find((b) => b.employee_id === emp.id);
         const hasBought = bought?.bought || false;
 
-        const totalHoursEntitled = calculateVacationHours(weeks, hasBought, weeklyHours);
+        // Droit CA = valeur gestionnaire dans vacation_rights (seule source de vérité)
+        let totalMinutesEntitled = 0;
+        if (vacCode) {
+          const manualRight = rights.find(
+            (r) => r.employee_id === emp.id && r.absence_code_id === vacCode.id
+          );
+          if (manualRight) {
+            totalMinutesEntitled = manualRight.hours * 60 + manualRight.minutes;
+          }
+        }
 
         // Sum consumed vacation minutes from year_calendar for code "CA"
         let totalMinutesUsed = 0;
@@ -183,7 +192,6 @@ export default function AbsenceBalancesPage() {
           );
         }
 
-        const totalMinutesEntitled = totalHoursEntitled * 60;
         const balanceMinutes = totalMinutesEntitled - totalMinutesUsed;
 
         vacRows.push({
@@ -193,7 +201,7 @@ export default function AbsenceBalancesPage() {
           weeksEntitled: weeks + (hasBought ? 1 : 0),
           boughtVacation: hasBought,
           weeklyHours,
-          totalHoursEntitled,
+          totalHoursEntitled: totalMinutesEntitled / 60,
           totalMinutesUsed,
           balanceMinutes,
           policyDescription: description,
@@ -307,11 +315,8 @@ export default function AbsenceBalancesPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
         <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
         <div className="text-sm text-blue-800">
-          <strong>Calcul automatique :</strong> Les droits vacances sont calcules
-          automatiquement selon l&apos;anciennete (politique configurable) ×
-          heures hebdomadaires (timesheet actif) + semaine achetee si applicable.
-          Les autres codes utilisent les droits saisis manuellement dans{" "}
-          <code className="bg-blue-100 px-1 rounded">vacation_rights</code>.
+          <strong>Droits de cong&eacute;s :</strong> Les droits sont saisis par le gestionnaire dans{" "}
+          <code className="bg-blue-100 px-1 rounded">vacation_rights</code> (source : secr&eacute;tariat social). Solde = Droit − Consomm&eacute;.
         </div>
       </div>
 
@@ -428,9 +433,7 @@ function VacationView({ balances }: { balances: BalanceRow[] }) {
       {/* Legend */}
       <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
         <p className="text-xs text-slate-500">
-          <strong>Formule :</strong> Droit = (Semaines par anciennete + Semaine
-          achetee) × Heures hebdomadaires. Solde = Droit − Consomme (depuis
-          year_calendar).
+          <strong>Source :</strong> Droits saisis par le gestionnaire (vacation_rights). Solde = Droit − Consomm&eacute; (year_calendar).
         </p>
       </div>
     </div>
