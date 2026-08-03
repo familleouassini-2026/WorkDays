@@ -101,10 +101,21 @@ export default function EncoderDrawer() {
   }
 
   async function handleDelete(entry: CalendarEntry) {
-    if (!confirm("Supprimer cette absence ?")) return;
     const supabase = createClient();
-    await supabase.from("year_calendar").delete().eq("id", entry.id);
-    await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide" });
+    const { error } = await supabase.from("year_calendar").delete().eq("id", entry.id);
+    if (!error) {
+      await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide" });
+      fetchEntries();
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (!selectedEmp || entries.length === 0) return;
+    const supabase = createClient();
+    for (const entry of entries) {
+      await supabase.from("year_calendar").delete().eq("id", entry.id);
+      await auditLog({ tableName: "year_calendar", recordId: entry.id, action: "DELETE", oldValues: entry as unknown as Record<string, unknown>, context: "Encodeur rapide - suppression masse" });
+    }
     fetchEntries();
   }
 
@@ -209,7 +220,12 @@ export default function EncoderDrawer() {
 
               {/* Entries list */}
               <div>
-                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Ce mois ({entries.length})</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase">Ce mois ({entries.length})</h4>
+                {entries.length > 0 && (
+                  <button onClick={handleDeleteAll} className="text-[10px] text-red-500 hover:text-red-700 font-medium">Supprimer tout</button>
+                )}
+              </div>
                 {loading ? (
                   <div className="text-center py-3"><div className="animate-spin w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>
                 ) : entries.length === 0 ? (
