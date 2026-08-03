@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CalendarDays, Plus, Filter, List, Calendar, BarChart3, Zap } from "lucide-react";
+import { CalendarDays, List, Calendar, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 interface AbsenceEntry {
@@ -37,8 +36,6 @@ const tabs = [
   { label: "Calendrier annuel", href: "/absences/annual", icon: Calendar },
   { label: "Soldes", href: "/absences/balances", icon: BarChart3 },
   { label: "Absenteisme", href: "/absences/absenteeism", icon: BarChart3 },
-  { label: "Nouvelle absence", href: "/absences/new", icon: Plus },
-  { label: "Encodeur", href: "/absences/encoder", icon: Zap },
 ];
 
 export default function AbsencesPage() {
@@ -121,13 +118,6 @@ export default function AbsencesPage() {
             {filteredAbsences.length} absence{filteredAbsences.length > 1 ? "s" : ""} en {selectedYear}
           </p>
         </div>
-        <Link
-          href="/absences/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Nouvelle absence
-        </Link>
       </div>
 
       {/* Tabs Navigation */}

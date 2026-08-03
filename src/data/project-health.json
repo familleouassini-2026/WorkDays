@@ -111,7 +111,7 @@
         "src/app/absences/page.tsx"
       ],
       "accessOrigin": "extracted/queries/qry_rpt_AbsencesForYear.sql",
-      "notes": "Filtres annee dynamique (distinct years from DB + annee courante)/type/nom, groupement par mois"
+      "notes": "Filtres annee dynamique (distinct years from DB + annee courante)/type/nom, groupement par mois. Tabs reduits a 5 (Liste, Calendrier, Calendrier annuel, Soldes, Absenteisme) - encodage uniquement via le drawer flottant global."
     },
     {
       "id": "absences-calendar",
@@ -318,6 +318,15 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-05",
+      "pr": "#111",
+      "description": "Remove redundant absence encoding UI: removed 'Nouvelle absence' header button, removed 'Nouvelle absence' and 'Encodeur' tabs from absences page. The floating Encoder Drawer (green button, globally available) is now the single entry point for encoding absences.",
+      "filesChanged": [
+        "src/app/absences/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-05",
       "pr": "#110",
