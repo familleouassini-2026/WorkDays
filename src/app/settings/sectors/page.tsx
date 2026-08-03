@@ -133,7 +133,7 @@ export default function SectorsPage() {
       ) : sectors.length === 0 ? (
         <div className="bg-white rounded-lg border p-12 text-center"><Layers className="w-12 h-12 text-slate-300 mx-auto" /><p className="text-slate-500 mt-4">Aucun secteur configure.</p></div>
       ) : (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>

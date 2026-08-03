@@ -298,7 +298,7 @@ export default function IndexationsPage() {
           )}
 
           {Object.entries(orgByYear).sort(([a], [b]) => b.localeCompare(a)).map(([year, yearIndexations]) => (
-            <div key={year} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div key={year} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
               <div
                 className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between cursor-pointer"
                 onClick={() => toggleOrgYear(year)}
@@ -429,7 +429,7 @@ export default function IndexationsPage() {
           {Object.entries(sectorBySector).sort(([a], [b]) => a.localeCompare(b)).map(([sectorName, sectorIndexationsList]) => {
             const sectorDProduct = computeDProduct(sectorIndexationsList);
             return (
-              <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div key={sectorName} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
                 <div
                   className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between cursor-pointer"
                   onClick={() => toggleSector(sectorName)}
