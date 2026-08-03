@@ -1,0 +1,26 @@
+{
+  "project_type": "Next.js 14 App Router + Supabase + Tailwind CSS HR management application",
+  "language": "TypeScript",
+  "build_system": "Next.js with npm - standard next build",
+  "test_framework": "No test framework configured (no jest/vitest in package.json)",
+  "build_command": "cd /projects/sandbox/WorkDays && npm run build",
+  "test_command": "cd /projects/sandbox/WorkDays && npm run lint",
+  "verification_instructions": "Run npm run build to verify TypeScript compilation and Next.js static analysis passes",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "cd /projects/sandbox/WorkDays && npm install (node_modules already present)",
+  "environment_constraints": "COMMON_DEPENDENCIES network mode - npm packages available. No Supabase CLI available for migration testing. Vercel auto-deploys from GitHub main branch.",
+  "contribution_requirements": "Code in English, UI in French. Use 'use client' directive for interactive components. Tailwind CSS only for styling. Must update src/data/project-health.json after changes. Commit messages: type: description format.",
+  "key_patterns": "Client components with 'use client' directive, createClient() from @/lib/supabase/client for browser Supabase access, lucide-react for icons, slate/blue/white color scheme with rounded-lg shadow-sm cards, pages are colocated in src/app/<route>/page.tsx, shared components in src/components/. Existing reports page has CSV and PDF export via window.print(). The app uses AppShell layout wrapper.",
+  "relevant_files": [
+    "src/app/reports/page.tsx",
+    "src/app/reports/layout.tsx",
+    "src/lib/supabase/client.ts",
+    "src/lib/calculations.ts",
+    "src/data/project-health.json",
+    "src/components/encoder-drawer.tsx",
+    "docs/database-schema.md",
+    "tailwind.config.ts",
+    "package.json"
+  ],
+  "directory_structure": "src/app/ contains route folders (dashboard, employees, absences, reports, remuneration, governance, schedules, settings, assets, login). src/lib/ has supabase client and calculations. src/components/ has shared components (encoder-drawer, layout/AppShell). src/data/ has project-health.json. supabase/migrations/ has numbered SQL migrations (001-019 exist). docs/ has database-schema.md."
+}

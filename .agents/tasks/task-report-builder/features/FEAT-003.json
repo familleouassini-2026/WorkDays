@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Create the report execution page (/reports/[id]) and update the reports listing page with template management",
+  "status": "completed",
+  "steps": [
+    "Create src/app/reports/[id]/page.tsx as a 'use client' component that: (1) loads a report_template by id from Supabase, (2) executes the report using executeReport from report-engine.ts, (3) applies grouping/totals via applyGrouping, (4) renders the full result as an HTML table with proper print CSS styles, (5) includes CSV export button (client-side blob download), (6) includes PDF export button (window.print() with dedicated print-optimized layout).",
+    "Implement the PDF print view with these exact CSS rules: @page { margin: 15mm; }, table { width: 100%; border-collapse: collapse; }, thead { display: table-header-group; } for header repeat, tr { page-break-inside: avoid; }, td/th { padding: 6px 8px; border: 1px solid #e2e8f0; word-wrap: break-word; white-space: normal; }. Column widths by type: date=90px, number=70px, boolean=50px, text=proportional (flex). NEVER truncate content - cells expand in height. Orientation set via @page size (portrait or landscape).",
+    "Implement CSV export: generate CSV string from full data (no row limit), create Blob, trigger download with filename based on report name and date.",
+    "Modify src/app/reports/page.tsx to add: (1) a 'Nouveau rapport' button linking to /reports/builder, (2) a 'Rapports sauvegardés' section that fetches and lists all report_templates from Supabase, (3) each template card shows name, description, creation date, and action buttons: Utiliser (link to /reports/[id]), Modifier (link to /reports/builder?id=X), Dupliquer (link to /reports/builder?duplicate=X), Supprimer (with confirmation). Keep the existing static reports section above the templates section.",
+    "Update src/data/project-health.json: add a new feature entry for 'report-builder' with status 'implemented', update the reports-pdf feature notes to mention the builder, add a recentChanges entry for this PR."
+  ],
+  "acceptance_criteria": [
+    "The /reports/[id] page loads a template, executes it, and displays results in a table",
+    "PDF export uses window.print() with proper @media print CSS - no truncation, headers repeat, orientation respected",
+    "CSV export downloads a complete file with all rows",
+    "The /reports page shows a 'Nouveau rapport' button and lists saved templates with Utiliser/Modifier/Dupliquer/Supprimer actions",
+    "Deleting a template shows confirmation and removes it from the database",
+    "project-health.json is updated with the new feature entry and recent changes",
+    "npm run build passes"
+  ],
+  "verification": [
+    "Run npm run build and confirm no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": "Build passes (exit code 0). Pre-existing /employees/new static generation error unrelated to our changes. All 3 files implemented: [id]/page.tsx (report execution with print CSS, CSV export, grouped/flat table rendering), page.tsx (Nouveau rapport button + saved templates listing with CRUD actions), project-health.json (feature entry + recentChanges + lastUpdated)."
+}

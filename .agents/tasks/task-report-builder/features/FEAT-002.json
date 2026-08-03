@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create the Report Builder wizard page (/reports/builder) with 6-step stepper for creating/editing report templates",
+  "status": "completed",
+  "steps": [
+    "Create src/app/reports/builder/page.tsx as a 'use client' component with a 6-step wizard stepper UI. The stepper shows steps 1-6 with navigation prev/next buttons and visual step indicators.",
+    "Step 1 - Table Selection: Display clickable cards (multi-select) for each table from schema-metadata.ts. Each card shows a French display name, an icon, and the number of available columns. When tables are selected, auto-resolve joins using resolveJoins from report-engine.ts. Show a warning if selected tables have no direct FK relationship.",
+    "Step 2 - Column Selection: Show checkboxes grouped by selected table. Each checkbox shows the French label and a small icon indicating type (date, text, number, boolean). Enforce the max 10 columns soft limit (show warning but allow override).",
+    "Step 3 - Filters (optional): Allow adding filter rows with field selector (from selected columns), operator dropdown (eq, neq, gt, lt, gte, lte, like, is_null, is_not_null), and value input. Support multiple filters.",
+    "Step 4 - Groupements + Totaux (optional): Allow selecting groupBy columns from the chosen columns. Allow adding aggregation functions (SUM, COUNT, AVG) on numeric columns with a custom label.",
+    "Step 5 - Tri (optional): Allow selecting sort columns with direction (asc/desc). Multiple sort levels supported.",
+    "Step 6 - Export Options: Name field, title field, orientation selector (portrait/landscape/auto with auto-detection logic: <=5 cols = portrait, 6+ = landscape). Save button that persists to report_templates table via Supabase.",
+    "Include a live preview panel (collapsible) that shows the first 20 rows of results by calling executeReport from report-engine.ts. The preview renders as an HTML table matching the final PDF output style.",
+    "Support loading an existing template via ?id=X query parameter for editing mode. Support ?duplicate=X for creating a new template from an existing one."
+  ],
+  "acceptance_criteria": [
+    "The page renders at /reports/builder with all 6 steps navigable",
+    "Table selection shows cards from schema-metadata with French names",
+    "Column selection respects the tables chosen in step 1",
+    "The preview panel shows a formatted table with real data (or empty state if no data)",
+    "Saving a template writes to report_templates table with the full config JSONB",
+    "Editing mode (?id=X) pre-fills the wizard with existing template data",
+    "Duplicate mode (?duplicate=X) loads template but saves as new (no id reuse)",
+    "Auto-orientation detection works (<=5 cols portrait, 6+ landscape)",
+    "npm run build passes"
+  ],
+  "verification": [
+    "Run npm run build and confirm no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": "Used Suspense boundary wrapper to fix Next.js useSearchParams() CSR bailout error during static generation. The pre-existing /employees/new build error (missing env vars) is unrelated and persists. Build passes successfully for the builder page. The exit code is 0 but shows error only for /employees/new which is pre-existing."
+}

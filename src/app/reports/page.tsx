@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Download, Calendar, Users, TrendingUp, FileText } from "lucide-react";
+import { Download, Calendar, Users, TrendingUp, FileText, Plus, Play, Pencil, Copy, Trash2 } from "lucide-react";
+import Link from "next/link";
 import {
   calculateSeniorityYears,
   findBaseSalary,
@@ -43,9 +44,32 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  useEffect(() => {
+    async function fetchTemplates() {
+      setTemplatesLoading(true);
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("report_templates")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setTemplates(data || []);
+      setTemplatesLoading(false);
+    }
+    fetchTemplates();
+  }, []);
+
+  async function deleteTemplate(templateId: string) {
+    if (!confirm("Supprimer ce rapport sauvegarde ?")) return;
+    const supabase = createClient();
+    await supabase.from("report_templates").delete().eq("id", templateId);
+    setTemplates((prev) => prev.filter((t) => t.id !== templateId));
+  }
 
   const reports = [
     { id: "absences-employee", label: "Absences par employe", description: "Total absences par type et par employe pour l'annee", icon: Users, color: "text-blue-600 bg-blue-50" },
@@ -245,9 +269,15 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Rapports</h1>
           <p className="text-slate-500 mt-1">Generez et exportez des rapports RH</p>
         </div>
-        <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-          {years.map((y) => (<option key={y} value={y}>{y}</option>))}
-        </select>
+        <div className="flex items-center gap-3">
+          <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+            {years.map((y) => (<option key={y} value={y}>{y}</option>))}
+          </select>
+          <Link href="/reports/builder" className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
+            <Plus className="w-4 h-4" />
+            Nouveau rapport
+          </Link>
+        </div>
       </div>
 
       {/* Report selection */}
@@ -368,6 +398,75 @@ export default function ReportsPage() {
           <p className="text-slate-500 mt-4">Selectionnez un rapport ci-dessus pour le generer.</p>
         </div>
       )}
+
+      {/* Saved templates section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-slate-900">Rapports sauvegardes</h2>
+        {templatesLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+          </div>
+        ) : templates.length === 0 ? (
+          <div className="bg-white rounded-lg border border-slate-200 p-8 text-center">
+            <FileText className="w-10 h-10 text-slate-300 mx-auto" />
+            <p className="text-slate-500 mt-3 text-sm">Aucun rapport sauvegarde. Utilisez le bouton &quot;Nouveau rapport&quot; pour en creer un.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {templates.map((tpl) => {
+              const config = tpl.config as { tables?: string[]; columns?: unknown[] } | null;
+              const tableCount = config?.tables?.length || 0;
+              const columnCount = config?.columns?.length || 0;
+              const createdDate = tpl.created_at
+                ? new Date(tpl.created_at).toLocaleDateString("fr-FR")
+                : "-";
+
+              return (
+                <div key={tpl.id} className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{tpl.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Cree le {createdDate} &middot; {tableCount} table{tableCount !== 1 ? "s" : ""}, {columnCount} colonne{columnCount !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <Link
+                      href={`/reports/${tpl.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+                    >
+                      <Play className="w-3 h-3" />
+                      Utiliser
+                    </Link>
+                    <Link
+                      href={`/reports/builder?id=${tpl.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Modifier
+                    </Link>
+                    <Link
+                      href={`/reports/builder?duplicate=${tpl.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Dupliquer
+                    </Link>
+                    <button
+                      onClick={() => deleteTemplate(tpl.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
