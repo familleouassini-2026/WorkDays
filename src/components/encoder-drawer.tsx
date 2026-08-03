@@ -9,9 +9,17 @@ interface Employee { id: number; first_name: string; last_name: string; }
 interface AbsenceCode { id: number; code: string; description: string; color_hex: string | null; text_color_hex: string | null; time_unit: string; }
 interface CalendarEntry { id: number; absence_date: string; absence_code_id: number; absence_minutes: number | null; absence_days: number | null; reason: string | null; }
 interface AuditEntry { id: number; action: string; old_values: Record<string, unknown> | null; new_values: Record<string, unknown> | null; changed_fields: string[] | null; performed_at: string; context: string | null; }
+interface Timesheet { monday_minutes: number | null; tuesday_minutes: number | null; wednesday_minutes: number | null; thursday_minutes: number | null; friday_minutes: number | null; saturday_minutes: number | null; sunday_minutes: number | null; }
 
 const DAYS = ["L", "M", "M", "J", "V", "S", "D"];
 const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+const DOW_FIELDS: (keyof Timesheet)[] = ["sunday_minutes", "monday_minutes", "tuesday_minutes", "wednesday_minutes", "thursday_minutes", "friday_minutes", "saturday_minutes"];
+
+function getScheduleMinutes(ts: Timesheet | null, date: Date): number {
+  if (!ts) return 480; // default 8h if no timesheet
+  const dow = date.getDay(); // 0=sun, 1=mon...
+  return ts[DOW_FIELDS[dow]] || 0;
+}
 
 export default function EncoderDrawer() {
   const [open, setOpen] = useState(false);
@@ -33,6 +41,9 @@ export default function EncoderDrawer() {
   const [showAudit, setShowAudit] = useState(false);
   const [auditLabel, setAuditLabel] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
+  const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [validationWarning, setValidationWarning] = useState<string | null>(null);
   const [balanceInfo, setBalanceInfo] = useState<{ entitled: number; used: number; unit: "minutes" | "days" } | null>(null);
 
   useEffect(() => {
@@ -51,6 +62,23 @@ export default function EncoderDrawer() {
   }, [open, initialized]);
 
   useEffect(() => { if (selectedEmp && open) fetchEntries(); }, [selectedEmp, month, year, open]);
+
+  // Fetch timesheet + holidays when employee changes
+  useEffect(() => {
+    if (!selectedEmp) { setTimesheet(null); return; }
+    async function fetchSchedule() {
+      const supabase = createClient();
+      const [tsRes, holRes] = await Promise.all([
+        supabase.from("timesheets")
+          .select("monday_minutes, tuesday_minutes, wednesday_minutes, thursday_minutes, friday_minutes, saturday_minutes, sunday_minutes")
+          .eq("employee_id", selectedEmp!.id).eq("is_active", true).single(),
+        supabase.from("holidays").select("holiday_date").eq("year", new Date().getFullYear()),
+      ]);
+      if (tsRes.data) setTimesheet(tsRes.data as Timesheet);
+      if (holRes.data) setHolidays(new Set(holRes.data.map((h: { holiday_date: string }) => h.holiday_date)));
+    }
+    fetchSchedule();
+  }, [selectedEmp]);
 
   async function fetchEntries() {
     if (!selectedEmp) return;
@@ -119,16 +147,45 @@ export default function EncoderDrawer() {
   async function handleAdd() {
     if (!selectedEmp || !addCode || !addStart) return;
     setSaving(true);
+    setValidationWarning(null);
     const supabase = createClient();
     const start = new Date(addStart);
     const end = addEnd ? new Date(addEnd) : start;
     const daysToInsert: string[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dow = d.getDay();
-      if (dow !== 0 && dow !== 6) daysToInsert.push(d.toISOString().split("T")[0]);
+      const dateStr = d.toISOString().split("T")[0];
+      // Skip weekends
+      if (dow === 0 || dow === 6) continue;
+      // Skip holidays
+      if (holidays.has(dateStr)) continue;
+      // Skip days where employee doesn't work (0 minutes scheduled)
+      const scheduledMin = getScheduleMinutes(timesheet, d);
+      if (scheduledMin === 0) continue;
+      daysToInsert.push(dateStr);
+    }
+    if (daysToInsert.length === 0) {
+      setValidationWarning("Aucun jour ouvré dans cette période (weekends/fériés/non travaillé).");
+      setSaving(false);
+      return;
+    }
+    // Validate minutes vs schedule for HOURS_MINUTES codes
+    if (isHours && addMinutes) {
+      const inputMin = Number(addMinutes);
+      for (const day of daysToInsert) {
+        const scheduledMin = getScheduleMinutes(timesheet, new Date(day));
+        if (inputMin > scheduledMin) {
+          const dayLabel = new Date(day + "T00:00:00").toLocaleDateString("fr-BE", { weekday: "short", day: "2-digit", month: "2-digit" });
+          setValidationWarning(`${dayLabel}: ${inputMin} min dépasse l'horaire (${scheduledMin} min = ${Math.floor(scheduledMin/60)}h${String(scheduledMin%60).padStart(2,"0")}). Réduisez ou ajustez.`);
+          setSaving(false);
+          return;
+        }
+      }
     }
     for (const day of daysToInsert) {
-      const record = { employee_id: selectedEmp.id, absence_date: day, absence_code_id: Number(addCode), absence_minutes: isHours ? (Number(addMinutes) || null) : null, absence_days: !isHours ? (Number(addDays) || 1) : null, year: Number(day.split("-")[0]) };
+      const scheduledMin = getScheduleMinutes(timesheet, new Date(day));
+      const minutesForDay = isHours ? (Number(addMinutes) || scheduledMin) : null;
+      const record = { employee_id: selectedEmp.id, absence_date: day, absence_code_id: Number(addCode), absence_minutes: isHours ? minutesForDay : null, absence_days: !isHours ? (Number(addDays) || 1) : null, year: Number(day.split("-")[0]) };
       const { data, error: insertError } = await supabase.from("year_calendar").insert(record).select("id").single();
       if (insertError) {
         console.error("[encoder] Insert year_calendar failed:", insertError.message);
@@ -358,6 +415,15 @@ export default function EncoderDrawer() {
                   </div>
                 )}
                 {!isHours && addCode && <input type="number" step="0.5" value={addDays} onChange={(e) => setAddDays(e.target.value)} placeholder="Jours (ex: 1)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />}
+                {addStart && timesheet && isHours && (
+                  <p className="text-[10px] text-slate-500">
+                    Horaire ce jour: {(() => { const m = getScheduleMinutes(timesheet, new Date(addStart)); return `${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; })()}
+                    {addEnd && " (par jour ouvré)"}
+                  </p>
+                )}
+                {validationWarning && (
+                  <p className="text-[10px] text-red-600 font-medium bg-red-50 px-2 py-1 rounded">{validationWarning}</p>
+                )}
                 <button onClick={handleAdd} disabled={saving || !addStart || !addCode || (isHours && !addMinutes) || (balanceInfo !== null && balanceInfo.entitled - balanceInfo.used <= 0)} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
                   {saving ? "..." : (balanceInfo && balanceInfo.entitled - balanceInfo.used <= 0) ? "Solde épuisé" : "Enregistrer"}
                 </button>
