@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { BarChart3, Clock, Calendar, ShoppingBag, Info } from "lucide-react";
+import { BarChart3, Clock, Calendar, ShoppingBag, Info, Search, ChevronDown } from "lucide-react";
 import {
   calculateSeniorityYears,
   getVacationWeeks,
@@ -445,91 +445,115 @@ function VacationView({ balances }: { balances: BalanceRow[] }) {
 // ============================================================
 
 function AllCodesView({ balances }: { balances: CodeBalanceRow[] }) {
+  const [search, setSearch] = useState("");
+  const [expandedEmp, setExpandedEmp] = useState<number | null>(null);
+
   if (balances.length === 0) {
     return (
       <div className="bg-white rounded-lg border p-12 text-center">
         <BarChart3 className="w-12 h-12 text-slate-300 mx-auto" />
-        <p className="text-slate-500 mt-4">
-          Aucun droit ou consommation enregistre.
-        </p>
+        <p className="text-slate-500 mt-4">Aucun droit ou consommation enregistre.</p>
       </div>
     );
   }
 
+  // Group by employee
+  const grouped = new Map<number, { name: string; rows: CodeBalanceRow[] }>();
+  for (const row of balances) {
+    if (!grouped.has(row.employeeId)) {
+      grouped.set(row.employeeId, { name: row.employeeName, rows: [] });
+    }
+    grouped.get(row.employeeId)!.rows.push(row);
+  }
+
+  // Filter by search
+  const filtered = search.length >= 2
+    ? Array.from(grouped.entries()).filter(([, v]) => v.name.toLowerCase().includes(search.toLowerCase()))
+    : Array.from(grouped.entries());
+
+  const formatValue = (val: number, unit: string) =>
+    unit === "HOURS_MINUTES" ? formatHoursMinutes(val) : `${val}j`;
+
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                Employe
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                Code absence
-              </th>
-              <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 uppercase">
-                Unite
-              </th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                Droit
-              </th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                Utilise
-              </th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                Solde
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {balances.map((row, idx) => {
-              const isNegative = row.balance < 0;
-              const isLow =
-                row.timeUnit === "HOURS_MINUTES"
-                  ? row.balance > 0 && row.balance <= 480
-                  : row.balance > 0 && row.balance <= 1;
-
-              const balanceClass = isNegative
-                ? "text-red-600 font-bold"
-                : isLow
-                ? "text-amber-600 font-semibold"
-                : "text-emerald-600 font-semibold";
-
-              const formatValue = (val: number) =>
-                row.timeUnit === "HOURS_MINUTES"
-                  ? formatHoursMinutes(val)
-                  : `${val} j`;
-
-              return (
-                <tr key={`${row.employeeId}-${row.codeId}-${idx}`} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-sm text-slate-900 font-medium">
-                    {row.employeeName}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded mr-2">
-                      {row.code}
-                    </span>
-                    {row.codeDescription}
-                  </td>
-                  <td className="px-3 py-3 text-xs text-slate-500 text-center">
-                    {row.timeUnit === "HOURS_MINUTES" ? "H/Min" : "Jours"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-900 text-right font-medium">
-                    {formatValue(row.entitled)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatValue(row.used)}
-                  </td>
-                  <td className={`px-4 py-3 text-sm text-right ${balanceClass}`}>
-                    {formatValue(row.balance)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div className="space-y-3">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Rechercher un employé..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
+
+      {/* Cards per employee */}
+      {filtered.length === 0 ? (
+        <p className="text-sm text-slate-400 text-center py-8">Aucun résultat</p>
+      ) : (
+        filtered.map(([empId, { name, rows }]) => {
+          const isExpanded = expandedEmp === empId;
+          const activeRows = rows.filter((r) => r.entitled > 0 || r.used > 0);
+          if (activeRows.length === 0) return null;
+
+          return (
+            <div key={empId} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setExpandedEmp(isExpanded ? null : empId)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+              >
+                <span className="text-sm font-semibold text-slate-900">{name}</span>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  {activeRows.slice(0, 5).map((r) => {
+                    const bal = r.balance;
+                    const color = bal < 0 ? "bg-red-100 text-red-700" : bal === 0 ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-700";
+                    return (
+                      <span key={r.codeId} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${color}`}>
+                        {r.code} {formatValue(bal, r.timeUnit)}
+                      </span>
+                    );
+                  })}
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="border-t border-slate-100 overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500">Code absence</th>
+                        <th className="text-center px-3 py-2 text-xs font-semibold text-slate-500">Unité</th>
+                        <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500">Droit</th>
+                        <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500">Utilisé</th>
+                        <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500">Solde</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {activeRows.map((r) => {
+                        const balanceClass = r.balance < 0 ? "text-red-600 font-bold" : r.balance === 0 ? "text-slate-500" : "text-emerald-600 font-semibold";
+                        return (
+                          <tr key={r.codeId} className="hover:bg-slate-50">
+                            <td className="px-4 py-2.5 text-sm text-slate-700">
+                              <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded mr-2">{r.code}</span>
+                              {r.codeDescription}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs text-slate-500 text-center">{r.timeUnit === "HOURS_MINUTES" ? "H/Min" : "Jours"}</td>
+                            <td className="px-4 py-2.5 text-sm text-slate-900 text-right font-medium">{formatValue(r.entitled, r.timeUnit)}</td>
+                            <td className="px-4 py-2.5 text-sm text-slate-600 text-right">{formatValue(r.used, r.timeUnit)}</td>
+                            <td className={`px-4 py-2.5 text-sm text-right ${balanceClass}`}>{formatValue(r.balance, r.timeUnit)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
