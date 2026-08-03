@@ -100,7 +100,7 @@
         "src/app/employees/new/page.tsx"
       ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Emp_Employee Details.cls",
-      "notes": "Liste, détail (dashboard KPI), ajout, édition, suppression. Page profil v2: 6 cards KPI cliquables (liens vers modules), 3 sections expandables (Ancienneté, Augmentations, Absences Sommaire), quick actions enrichies (Encoder absence, Calendrier annuel, Simulateur salaire, Éditer). Mobile-first 1col/2col."
+      "notes": "Liste, détail (dashboard KPI), ajout, édition, suppression. Page profil v2: 6 cards KPI cliquables (liens vers modules), 3 sections expandables (Ancienneté avec totale=acquise+accordée plafonné barème, Augmentations, Absences Sommaire), quick actions enrichies (Encoder absence, Calendrier annuel, Simulateur salaire, Éditer). Mobile-first 1col/2col."
     },
     {
       "id": "absences-list",
@@ -202,7 +202,7 @@
         "src/app/schedules/rtt/page.tsx"
       ],
       "accessOrigin": "extracted/queries/Qry_RTTCalc.sql",
-      "notes": "Calcul complet : age-based, prorata anniversaire, ajuste % temps travail."
+      "notes": "Calcul complet : age-based, prorata anniversaire, ajuste % temps travail. RTT card on employee profile fixed (redundant sector filter removed, Number() casts added)."
     },
     {
       "id": "salary-alerts",
@@ -213,7 +213,7 @@
         "src/app/remuneration/alertes/page.tsx"
       ],
       "accessOrigin": "extracted/vba_modules/Form_frm_Sec_SectorialSalaryChanging.cls",
-      "notes": "Detecte les employes dont l'anciennete change de palier cette annee. Cards expandable + tableau complet."
+      "notes": "Detecte les employes dont l'anciennete change de palier cette annee. Cards expandable + tableau complet. Ancienneté = acquise + granted_seniority (corrigé PR#107)."
     },
     {
       "id": "timesheets",
@@ -318,6 +318,20 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-03",
+      "pr": "#107",
+      "description": "Fix ancienneté : totale = acquise + accordée (granted_seniority numeric). Prise en compte = floor(totale), plafonnée au max barème. Fix RTT card: suppression filtre sector redondant (type mismatch), Number() casts, messages diagnostics si RTT=null. Impact: calculations.ts, employee page, baremes, simulateur, alertes, dashboard, RTT detail page.",
+      "filesChanged": [
+        "src/lib/calculations.ts",
+        "src/app/employees/[id]/page.tsx",
+        "src/app/employees/[id]/baremes/page.tsx",
+        "src/app/employees/[id]/rtt/page.tsx",
+        "src/app/dashboard/page.tsx",
+        "src/app/remuneration/alertes/page.tsx",
+        "src/app/remuneration/simulateur/page.tsx"
+      ]
+    },
     {
       "date": "2026-08-04",
       "pr": "#88",

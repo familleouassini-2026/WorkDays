@@ -93,9 +93,9 @@ export default function SimulateurPage() {
 
   // Calculate seniority
   const seniorityBreakdown = employee
-    ? calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, refDate)
-    : { accordee: 0, acquise: 0, dateEffective: null };
-  const seniorityYears = Math.floor(seniorityBreakdown.acquise);
+    ? calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, refDate, employee.granted_seniority)
+    : { accordee: 0, acquise: 0, totale: 0, dateEffective: null };
+  const seniorityYears = Math.floor(seniorityBreakdown.totale);
 
   // Find base salary from scale
   const baseSalary =

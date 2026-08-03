@@ -55,50 +55,55 @@ export interface SeniorityScaleRow {
 // ============================================================
 
 /**
- * Calculate seniority breakdown matching Access logic:
+ * Calculate seniority breakdown:
  * 
- * - granted_seniority_date = fictitious date BEFORE date_of_hire
- *   (e.g. hire=2003, granted_date=1998 → 5 years bonus)
- * - (A) Ancienneté accordée = date_of_hire - granted_seniority_date (bonus years)
- * - (B) Ancienneté acquise = granted_seniority_date → referenceDate (total from fictitious start)
- *   = (date_of_hire → referenceDate) + accordée
- * - (D) Ancienneté prise en compte = floor(acquise) — used for barème lookup
+ * - (A) Ancienneté accordée = granted_seniority numeric field (bonus years granted by employer)
+ * - (B) Ancienneté acquise = (referenceDate - granted_seniority_date) in years
+ *   If no granted_seniority_date, falls back to date_of_hire
+ * - (C) Ancienneté totale = acquise + accordée
+ * - (D) Ancienneté prise en compte = floor(totale) — used for barème/RTT lookup
+ *       Capped at max barème tier when applicable (done externally)
  *
- * If no granted_seniority_date, accordée = 0, acquise = date_of_hire → today.
+ * Example Lidia: acquise=11.22 + accordée=1.00 = totale 12.22 → prise en compte = 12
  */
 export function calculateSeniorityBreakdown(
   dateOfHire: string | null,
   grantedSeniorityDate: string | null,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  grantedSeniority: number | null = null
 ): {
   accordee: number;
   acquise: number;
+  totale: number;
   dateEffective: string | null;
 } {
-  if (!dateOfHire) return { accordee: 0, acquise: 0, dateEffective: null };
+  if (!dateOfHire) return { accordee: 0, acquise: 0, totale: 0, dateEffective: null };
 
   const hireDate = new Date(dateOfHire);
   const effectiveStart = grantedSeniorityDate ? new Date(grantedSeniorityDate) : hireDate;
 
-  // Accordée = difference between hire and effective start (years)
-  const accordeMs = Math.max(0, hireDate.getTime() - effectiveStart.getTime());
-  const accordee = accordeMs / (1000 * 60 * 60 * 24 * 365.25);
+  // Accordée = numeric granted seniority (bonus years)
+  const accordee = grantedSeniority && grantedSeniority > 0 ? grantedSeniority : 0;
 
-  // Acquise = effective start → reference date (total seniority from fictitious date)
+  // Acquise = effective start → reference date (actual time worked from reference start)
   const acquiseMs = Math.max(0, referenceDate.getTime() - effectiveStart.getTime());
   const acquise = acquiseMs / (1000 * 60 * 60 * 24 * 365.25);
+
+  // Totale = acquise + accordée
+  const totale = acquise + accordee;
 
   return {
     accordee: Math.round(accordee * 100) / 100,
     acquise: Math.round(acquise * 100) / 100,
+    totale: Math.round(totale * 100) / 100,
     dateEffective: grantedSeniorityDate || dateOfHire,
   };
 }
 
 /**
  * Calculate seniority years for barème lookup.
- * Uses granted_seniority_date as effective start → returns floor(acquise).
- * Compatible with old signature for backward compat.
+ * Returns floor(totale) = floor(acquise + accordée).
+ * The caller should cap this at max barème tier if needed.
  */
 export function calculateSeniorityYears(
   dateOfHire: string | null,
@@ -106,8 +111,8 @@ export function calculateSeniorityYears(
   grantedSeniorityDate: string | null,
   referenceDate: Date = new Date()
 ): number {
-  const { acquise } = calculateSeniorityBreakdown(dateOfHire, grantedSeniorityDate, referenceDate);
-  return Math.floor(acquise);
+  const { totale } = calculateSeniorityBreakdown(dateOfHire, grantedSeniorityDate, referenceDate, grantedSeniority);
+  return Math.floor(totale);
 }
 
 // ============================================================

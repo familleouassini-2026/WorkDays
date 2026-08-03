@@ -10,6 +10,7 @@ interface Employee {
   last_name: string;
   sector_id: number | null;
   date_of_hire: string | null;
+  granted_seniority: number | null;
   granted_seniority_date: string | null;
   sectors: { name: string } | null;
 }
@@ -66,7 +67,9 @@ function calculateSeniorityMonths(employee: Employee): number {
   const months =
     (now.getFullYear() - start.getFullYear()) * 12 +
     (now.getMonth() - start.getMonth());
-  return Math.max(0, months);
+  // Add granted seniority (in years → months)
+  const grantedMonths = (employee.granted_seniority || 0) * 12;
+  return Math.max(0, months + grantedMonths);
 }
 
 function findApplicableScale(
@@ -125,7 +128,7 @@ export default function AlertesPage() {
           supabase
             .from("employees")
             .select(
-              "id, first_name, last_name, sector_id, date_of_hire, granted_seniority_date, sectors(name)"
+              "id, first_name, last_name, sector_id, date_of_hire, granted_seniority, granted_seniority_date, sectors(name)"
             )
             .eq("is_inactive", false)
             .order("last_name"),

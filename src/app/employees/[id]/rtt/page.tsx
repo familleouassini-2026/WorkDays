@@ -161,13 +161,12 @@ export default function EmployeeRTTPage() {
   const ageAtBirthdayThisYear = currentYear - birthDate.getFullYear();
   const ageLastYear = ageAtBirthdayThisYear - 1;
 
-  const sectorRTT = entitlements.filter((r) => r.sector_id === employee.sector_id);
-
+  // Use all entitlements (already filtered by sector_id in query)
   const findHours = (age: number): number => {
-    const match = sectorRTT
-      .filter((r) => r.seniority_start <= age)
-      .sort((a, b) => b.seniority_start - a.seniority_start)[0];
-    return match ? match.hours_per_year : 0;
+    const match = entitlements
+      .filter((r) => Number(r.seniority_start) <= age)
+      .sort((a, b) => Number(b.seniority_start) - Number(a.seniority_start))[0];
+    return match ? Number(match.hours_per_year) : 0;
   };
 
   const hrPerYearThisYear = findHours(ageAtBirthdayThisYear);

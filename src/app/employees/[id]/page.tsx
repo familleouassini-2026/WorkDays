@@ -139,9 +139,9 @@ function minutesToHM(m: number | null) {
   return `${h}h${min.toString().padStart(2, "0")}`;
 }
 
-function seniorityBadge(hireDate: string | null, grantedDate: string | null) {
-  const { acquise } = calculateSeniorityBreakdown(hireDate, grantedDate);
-  return Math.floor(acquise);
+function seniorityBadge(hireDate: string | null, grantedDate: string | null, grantedSeniority: number | null) {
+  const { totale } = calculateSeniorityBreakdown(hireDate, grantedDate, new Date(), grantedSeniority);
+  return Math.floor(totale);
 }
 
 // ---------- PAGE ----------
@@ -231,12 +231,12 @@ export default function EmployeeProfilePage() {
           const ageAtBirthdayThisYear = currentYear - birthDate.getFullYear();
           const ageLastYear = ageAtBirthdayThisYear - 1;
 
-          const sectorRTT = rttEntitlements.filter((r: { sector_id: number }) => r.sector_id === emp.sector_id);
+          // Use all entitlements (already filtered by sector_id in query)
           const findHours = (age: number): number => {
-            const match = sectorRTT
-              .filter((r: { seniority_start: number }) => r.seniority_start <= age)
-              .sort((a: { seniority_start: number }, b: { seniority_start: number }) => b.seniority_start - a.seniority_start)[0];
-            return match ? match.hours_per_year : 0;
+            const match = rttEntitlements
+              .filter((r: { seniority_start: number }) => Number(r.seniority_start) <= age)
+              .sort((a: { seniority_start: number }, b: { seniority_start: number }) => Number(b.seniority_start) - Number(a.seniority_start))[0];
+            return match ? Number(match.hours_per_year) : 0;
           };
 
           const hrThisYear = findHours(ageAtBirthdayThisYear);
@@ -416,7 +416,7 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  const seniorityYears = seniorityBadge(employee.date_of_hire, employee.granted_seniority_date);
+  const seniorityYears = seniorityBadge(employee.date_of_hire, employee.granted_seniority_date, employee.granted_seniority);
 
   const totalMinutes = timesheet
     ? (timesheet.monday_minutes || 0) +
@@ -594,8 +594,17 @@ export default function EmployeeProfilePage() {
             <span className="text-2xl font-bold text-slate-900">
               {rttTotal !== null ? formatHoursMinutes(rttTotal) : "\u2014"}
             </span>
-            <span className="text-xs text-slate-500">bar&egrave;me</span>
+            <span className="text-xs text-slate-500">{rttTotal !== null ? "bar\u00e8me" : ""}</span>
           </div>
+          {rttTotal === null && !employee.date_of_birth && (
+            <p className="text-[10px] text-amber-600 mt-1">Date de naissance manquante</p>
+          )}
+          {rttTotal === null && !employee.sector_id && (
+            <p className="text-[10px] text-amber-600 mt-1">Secteur non d&eacute;fini</p>
+          )}
+          {rttTotal === null && employee.date_of_birth && employee.sector_id && (
+            <p className="text-[10px] text-slate-400 mt-1">Pas de bar&egrave;me RTT pour ce secteur</p>
+          )}
           {(() => {
             const rttRight = vacationRights.find((r) => r.absence_codes?.code === "RTT");
             const rttManual = rttRight ? (rttRight.hours || 0) * 60 + (rttRight.minutes || 0) : 0;
@@ -702,17 +711,26 @@ export default function EmployeeProfilePage() {
                   <span className="text-slate-500">(A) Anciennet&eacute; accord&eacute;e</span>
                   <span className="font-medium text-slate-900">
                     {(() => {
-                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, new Date(), employee.granted_seniority);
                       return bd.accordee > 0 ? `${bd.accordee.toFixed(2)} an${bd.accordee >= 2 ? "s" : ""}` : "Aucune";
                     })()}
                   </span>
                 </div>
                 <div className="flex justify-between sm:flex-col sm:gap-0.5">
-                  <span className="text-slate-500">(B) Anciennet&eacute; acquise (totale)</span>
+                  <span className="text-slate-500">(B) Anciennet&eacute; acquise</span>
                   <span className="font-medium text-slate-900">
                     {(() => {
-                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, new Date(), employee.granted_seniority);
                       return `${bd.acquise.toFixed(2)} an${bd.acquise >= 2 ? "s" : ""}`;
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between sm:flex-col sm:gap-0.5">
+                  <span className="text-slate-500">(C) Anciennet&eacute; totale (A+B)</span>
+                  <span className="font-medium text-slate-900">
+                    {(() => {
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, new Date(), employee.granted_seniority);
+                      return `${bd.totale.toFixed(2)} an${bd.totale >= 2 ? "s" : ""}`;
                     })()}
                   </span>
                 </div>
@@ -720,15 +738,15 @@ export default function EmployeeProfilePage() {
                   <span className="text-blue-700 font-medium">(D) Anciennet&eacute; prise en compte</span>
                   <span className="font-bold text-blue-900 text-lg">
                     {(() => {
-                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
-                      const raw = Math.floor(bd.acquise);
+                      const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, new Date(), employee.granted_seniority);
+                      const raw = Math.floor(bd.totale);
                       const capped = maxPalierYears !== null ? Math.min(raw, maxPalierYears) : raw;
                       return `${capped} an${capped > 1 ? "s" : ""}`;
                     })()}
                   </span>
                   {maxPalierYears !== null && (() => {
-                    const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date);
-                    const raw = Math.floor(bd.acquise);
+                    const bd = calculateSeniorityBreakdown(employee.date_of_hire, employee.granted_seniority_date, new Date(), employee.granted_seniority);
+                    const raw = Math.floor(bd.totale);
                     return raw > maxPalierYears ? (
                       <span className="text-xs text-blue-500">plafonn&eacute;e au max bar&egrave;me ({maxPalierYears} ans)</span>
                     ) : null;
@@ -743,7 +761,7 @@ export default function EmployeeProfilePage() {
                 </div>
               </div>
               <p className="text-xs text-slate-400 mt-3 italic">
-                Accord&eacute;e = entr&eacute;e &minus; date accord&eacute;e. Acquise = date accord&eacute;e &rarr; aujourd&apos;hui. Prise en compte = floor(acquise).
+                Accord&eacute;e = granted_seniority. Acquise = date accord&eacute;e &rarr; aujourd&apos;hui. Totale = acquise + accord&eacute;e. Prise en compte = floor(totale), plafonn&eacute;e au max bar&egrave;me.
               </p>
               <div className="mt-3 pt-3 border-t border-slate-100">
                 <Link
