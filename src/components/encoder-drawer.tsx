@@ -320,6 +320,19 @@ export default function EncoderDrawer() {
                       <span className="text-[10px] text-slate-400">{new Date(a.performed_at).toLocaleString("fr-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                     {a.context && <p className="text-[10px] text-slate-500">{a.context}</p>}
+                    {(a.new_values || a.old_values) && (() => {
+                      const vals = (a.action === "DELETE" ? a.old_values : a.new_values) as Record<string, unknown> | null;
+                      if (!vals) return null;
+                      const code = codes.find((c) => c.id === Number(vals.absence_code_id));
+                      const minutes = vals.absence_minutes ? `${vals.absence_minutes} min` : null;
+                      const days = vals.absence_days ? `${vals.absence_days}j` : null;
+                      return (
+                        <div className="mt-0.5 text-[10px] text-slate-600 bg-slate-50 rounded px-1.5 py-0.5">
+                          {code && <span className="font-medium">{code.code}</span>}
+                          {(minutes || days) && <span className="ml-1">({minutes || days})</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
