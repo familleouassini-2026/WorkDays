@@ -925,8 +925,14 @@ export default function AnnualCalendarPage() {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Minutes</label>
                         <input type="number" value={entry.absence_minutes}
                           onChange={(e) => updateModalEntry(idx, "absence_minutes", e.target.value)}
-                          placeholder="Ex: 480 pour 8h"
+                          placeholder="Ex: 480 = 8h, 60 = 1h"
                           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        {entry.absence_minutes && Number(entry.absence_minutes) > 0 && (
+                          <p className={`text-xs mt-1 ${Number(entry.absence_minutes) < 60 ? "text-amber-600 font-medium" : "text-slate-500"}`}>
+                            = {Math.floor(Number(entry.absence_minutes) / 60)}h{String(Number(entry.absence_minutes) % 60).padStart(2, "0")}
+                            {Number(entry.absence_minutes) < 60 && " ⚠️ Moins d'1h — vérifiez"}
+                          </p>
+                        )}
                       </div>
                     )}
 

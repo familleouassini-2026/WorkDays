@@ -290,9 +290,19 @@ export default function EncoderDrawer() {
                   <option value="">— Code absence —</option>
                   {codes.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.description}</option>)}
                 </select>
-                {isHours && <input type="number" value={addMinutes} onChange={(e) => setAddMinutes(e.target.value)} placeholder="Minutes (ex: 480 = 8h)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />}
+                {isHours && (
+                  <div>
+                    <input type="number" value={addMinutes} onChange={(e) => setAddMinutes(e.target.value)} placeholder="Minutes (ex: 480 = 8h, 60 = 1h)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />
+                    {addMinutes && Number(addMinutes) > 0 && (
+                      <p className={`text-[10px] mt-0.5 ${Number(addMinutes) > 0 && Number(addMinutes) < 60 ? "text-amber-600 font-medium" : "text-slate-500"}`}>
+                        = {Math.floor(Number(addMinutes) / 60)}h{String(Number(addMinutes) % 60).padStart(2, "0")}
+                        {Number(addMinutes) > 0 && Number(addMinutes) < 60 && " ⚠️ Moins d'1h — vérifiez"}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {!isHours && addCode && <input type="number" step="0.5" value={addDays} onChange={(e) => setAddDays(e.target.value)} placeholder="Jours (ex: 1)" className="w-full px-2 py-1 border rounded text-xs focus:border-emerald-500 focus:outline-none" />}
-                <button onClick={handleAdd} disabled={saving || !addStart || !addCode} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                <button onClick={handleAdd} disabled={saving || !addStart || !addCode || (isHours && !addMinutes)} className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
                   {saving ? "..." : "Enregistrer"}
                 </button>
               </div>
