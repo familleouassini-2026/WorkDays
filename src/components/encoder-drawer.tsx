@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { auditLog } from "@/lib/audit";
 import { ChevronLeft, ChevronRight, Plus, Trash2, History, X, CalendarPlus, AlertTriangle } from "lucide-react";
+import SearchableSelect from "@/components/searchable-select";
 
 interface Employee { id: number; first_name: string; last_name: string; }
 interface AbsenceCode { id: number; code: string; description: string; color_hex: string | null; text_color_hex: string | null; time_unit: string; }
@@ -429,10 +430,17 @@ export default function EncoderDrawer() {
                 ) : (
                   <p className="text-[10px] text-slate-400">Cliquez sur un jour du calendrier</p>
                 )}
-                <select value={addCode} onChange={(e) => setAddCode(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs focus:border-emerald-500 focus:outline-none">
-                  <option value="">— Code absence —</option>
-                  {codes.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.description}</option>)}
-                </select>
+                <SearchableSelect
+                  options={[...codes].sort((a, b) => a.code.localeCompare(b.code)).map((c) => ({
+                    value: String(c.id),
+                    label: `${c.code} - ${c.description}`,
+                    colorHex: c.color_hex,
+                    textColorHex: c.text_color_hex,
+                  }))}
+                  value={addCode}
+                  onChange={(v) => setAddCode(v)}
+                  placeholder="Code absence..."
+                />
                 {balanceInfo && (
                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] ${
                     balanceInfo.entitled - balanceInfo.used <= 0
