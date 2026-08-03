@@ -125,7 +125,7 @@ export default function DashboardPage() {
             const sectorScales = (salScales as any[]).filter((s) => s.sector_id === emp.sector_id).sort((a, b) => b.years - a.years);
             const currentScale = sectorScales.find((s) => yearsNow >= s.years);
             const nextScale = sectorScales.find((s) => yearsNextYear >= s.years);
-            if (currentScale && nextScale && currentScale.years !== nextScale.years) {
+            if (currentScale && nextScale && currentScale.years !== nextScale.years && nextScale.base_salary !== currentScale.base_salary) {
               alerts.push({
                 id: emp.id,
                 name: `${emp.last_name} ${emp.first_name}`,
