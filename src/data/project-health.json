@@ -290,6 +290,21 @@
       "notes": "Module Report Builder complet : selection tables/colonnes, jointures auto via FK, filtres, groupements + totaux (SUM/COUNT/AVG), tri, sauvegarde templates JSONB, edition/duplication, export PDF (window.print avec @media print, orientation auto/portrait/landscape, pas de troncature), CSV et Excel (.xls via HTML table). Wizard 6 etapes avec preview temps reel (20 lignes). Phase 2 : colonnes calculees (anciennete, salaire indexe, age, % temps travail), filtres intelligents (date range, secteur, annee, statut), duplication de rapports, preview enrichi (compteur total, totaux, groupements visuels, indicateur orientation), export PDF ameliore (header/footer repetes, sous-totaux colores, totaux generaux styles), aggregation RPC. Schema metadata complet (30 colonnes employees, secteurs avec mission/groupe RTT, absence_codes avec sort_order/text_color, meetings avec created_at, requests avec requester/priority/completed_at)."
     },
     {
+      "id": "organisation-logo",
+      "name": "Logo organisation pour impression",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#settings",
+      "code": [
+        "src/app/settings/organisation/page.tsx",
+        "src/lib/organisation.ts",
+        "src/app/reports/[id]/page.tsx",
+        "src/app/absences/annual/page.tsx",
+        "supabase/migrations/023-organisation-logo.sql"
+      ],
+      "accessOrigin": null,
+      "notes": "Upload logo (base64, max 500KB, PNG/JPG/SVG) sur page Organisation. Logo affiche dans header impression rapports et calendrier annuel. Helper partage getOrganisation()."
+    },
+    {
       "id": "auth",
       "name": "Authentification et rôles",
       "status": "missing",
@@ -334,6 +349,19 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-06",
+      "pr": null,
+      "description": "Logo organisation : upload base64 (max 500KB, PNG/JPG/SVG) sur /settings/organisation, affichage dans le header d'impression des rapports (/reports/[id]) et du calendrier annuel (/absences/annual). Helper partage src/lib/organisation.ts. Migration SQL 023.",
+      "filesChanged": [
+        "src/app/settings/organisation/page.tsx",
+        "src/lib/organisation.ts",
+        "src/app/reports/[id]/page.tsx",
+        "src/app/absences/annual/page.tsx",
+        "supabase/migrations/023-organisation-logo.sql",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-06",
       "pr": null,

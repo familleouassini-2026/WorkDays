@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, Building2, Save, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Building2, Save, CheckCircle2, Upload, Trash2, ImageIcon } from "lucide-react";
 import Link from "next/link";
 
 interface Organisation {
@@ -20,6 +20,7 @@ interface Organisation {
   fax: string | null;
   full_time_hours: number;
   full_time_minutes: number;
+  logo_base64: string | null;
 }
 
 export default function OrganisationPage() {
@@ -27,7 +28,8 @@ export default function OrganisationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchOrg(); }, []);
 
@@ -56,6 +58,7 @@ export default function OrganisationPage() {
       fax: org.fax,
       full_time_hours: org.full_time_hours,
       full_time_minutes: org.full_time_minutes,
+      logo_base64: org.logo_base64,
     }).eq("id", org.id);
     setSaving(false);
     if (error) { alert("Erreur: " + error.message); return; }
@@ -66,6 +69,41 @@ export default function OrganisationPage() {
   function updateField(field: keyof Organisation, value: string | number) {
     if (!org) return;
     setOrg({ ...org, [field]: value });
+  }
+
+  function handleLogoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    setLogoError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate format
+    const validTypes = ["image/png", "image/jpeg", "image/svg+xml"];
+    if (!validTypes.includes(file.type)) {
+      setLogoError("Format non supporté. Utilisez PNG, JPG ou SVG.");
+      return;
+    }
+
+    // Validate size (500KB max)
+    if (file.size > 500 * 1024) {
+      setLogoError("Le fichier est trop volumineux (max 500 Ko).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (!org) return;
+      setOrg({ ...org, logo_base64: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleLogoRemove() {
+    if (!org) return;
+    setOrg({ ...org, logo_base64: null });
+    setLogoError(null);
   }
 
 
@@ -130,6 +168,58 @@ export default function OrganisationPage() {
             <Field label="Téléphone" value={org.telephone || ""} onChange={(v) => updateField("telephone", v)} />
             <Field label="Fax" value={org.fax || ""} onChange={(v) => updateField("fax", v)} />
           </div>
+        </div>
+
+        {/* Logo */}
+        <div className="bg-white border rounded-lg p-5">
+          <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
+            <ImageIcon className="w-4 h-4 text-blue-600" /> Logo
+          </h3>
+          <p className="text-xs text-slate-500 mb-3">
+            Le logo apparaitra sur les documents imprimes (rapports, calendriers). Max 500 Ko, formats : PNG, JPG, SVG.
+          </p>
+          <div className="flex items-center gap-4 mb-3">
+            {org.logo_base64 ? (
+              <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={org.logo_base64} alt="Logo organisation" className="max-h-16 max-w-[160px] object-contain" />
+              </div>
+            ) : (
+              <div className="w-16 h-16 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center bg-slate-50">
+                <ImageIcon className="w-6 h-6 text-slate-300" />
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml"
+              onChange={handleLogoSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Choisir un fichier
+            </button>
+            {org.logo_base64 && (
+              <button
+                type="button"
+                onClick={handleLogoRemove}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Supprimer
+              </button>
+            )}
+          </div>
+          {logoError && (
+            <p className="text-xs text-red-600 mt-2">{logoError}</p>
+          )}
         </div>
 
         {/* Temps de travail */}
