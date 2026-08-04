@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 interface Notification {
   id: number;
@@ -89,13 +90,19 @@ export default function NotificationsBell() {
 
   async function fetchNotifications() {
     try {
-      const params = new URLSearchParams({ limit: "10" });
-      if (employeeId) params.set("employee_id", String(employeeId));
-      const res = await fetch(`/api/notifications?${params.toString()}`);
-      const json = await res.json();
-      if (json.data) {
-        setNotifications(json.data);
-        setUnreadCount(json.data.filter((n: Notification) => !n.is_read).length);
+      const supabase = createClient();
+      let query = supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (employeeId) {
+        query = query.eq("employee_id", employeeId);
+      }
+      const { data } = await query;
+      if (data) {
+        setNotifications(data);
+        setUnreadCount(data.filter((n: Notification) => !n.is_read).length);
       }
     } catch {
       // Silently fail - notifications are not critical
@@ -104,11 +111,11 @@ export default function NotificationsBell() {
 
   async function markAsRead(id: number) {
     try {
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [id] }),
-      });
+      const supabase = createClient();
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
       );

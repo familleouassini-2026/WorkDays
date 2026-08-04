@@ -88,13 +88,22 @@ export default function NotificationsPage() {
   async function fetchNotifications() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "100" });
-      if (employeeId) params.set("employee_id", String(employeeId));
-      if (filter === "unread") params.set("is_read", "false");
-      if (filter === "read") params.set("is_read", "true");
-      const res = await fetch(`/api/notifications?${params.toString()}`);
-      const json = await res.json();
-      if (json.data) setNotifications(json.data);
+      const supabase = createClient();
+      let query = supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (employeeId) {
+        query = query.eq("employee_id", employeeId);
+      }
+      if (filter === "unread") {
+        query = query.eq("is_read", false);
+      } else if (filter === "read") {
+        query = query.eq("is_read", true);
+      }
+      const { data } = await query;
+      if (data) setNotifications(data);
     } catch (err) {
       console.error("Failed to load notifications:", err);
     }
@@ -103,13 +112,15 @@ export default function NotificationsPage() {
 
   async function markAllAsRead() {
     try {
-      const body: Record<string, unknown> = { mark_all_read: true };
-      if (employeeId) body.employee_id = employeeId;
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const supabase = createClient();
+      let query = supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("is_read", false);
+      if (employeeId) {
+        query = query.eq("employee_id", employeeId);
+      }
+      await query;
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
       console.error("Failed to mark all as read:", err);
@@ -118,11 +129,11 @@ export default function NotificationsPage() {
 
   async function markAsRead(id: number) {
     try {
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [id] }),
-      });
+      const supabase = createClient();
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
       );
