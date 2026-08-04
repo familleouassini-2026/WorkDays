@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Building2, ListChecks, Calendar, Layers, MapPin, Users } from "lucide-react";
+import { ArrowRightLeft, Building2, ListChecks, Calendar, Layers, MapPin, Users, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -56,6 +56,13 @@ export default function SettingsPage() {
         <Link href="/settings/rtt-entitlements" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <h3 className="font-semibold text-slate-900">Barème RTT</h3>
           <p className="text-sm text-slate-500 mt-1">Heures RTT par tranche d&apos;âge et par secteur</p>
+        </Link>
+        <Link href="/settings/import-export" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
+          <div className="flex items-center gap-2 mb-1">
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-900">Import / Export</h3>
+          </div>
+          <p className="text-sm text-slate-500">Importer et exporter les donnees en CSV/Excel</p>
         </Link>
         <Link href="/settings/data-migration" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all md:col-span-2">
           <div className="flex items-center gap-2 mb-1">

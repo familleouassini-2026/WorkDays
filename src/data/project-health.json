@@ -305,6 +305,40 @@
       "notes": "Upload logo (base64, max 500KB, PNG/JPG/SVG) sur page Organisation. Logo affiche dans header impression rapports et calendrier annuel. Helper partage getOrganisation()."
     },
     {
+      "id": "settings-locations",
+      "name": "Gestion des sites",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#settings",
+      "code": [
+        "src/app/settings/locations/page.tsx"
+      ],
+      "accessOrigin": null,
+      "notes": "CRUD sites (nom, adresse, code postal, commune, pays, organisation). Lien depuis /settings."
+    },
+    {
+      "id": "settings-rtt-groups",
+      "name": "Gestion des groupes RTT",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#settings",
+      "code": [
+        "src/app/settings/rtt-groups/page.tsx"
+      ],
+      "accessOrigin": null,
+      "notes": "CRUD groupes RTT (nom). Lien depuis /settings."
+    },
+    {
+      "id": "import-export-module",
+      "name": "Module Import / Export",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#settings",
+      "code": [
+        "src/app/settings/import-export/page.tsx",
+        "src/data/import-templates.ts"
+      ],
+      "accessOrigin": null,
+      "notes": "Import/Export complet pour 16 tables : export Excel (.xls HTML table), import CSV (detection separateur, preview 10 lignes, validation colonnes/types/FK, modes INSERT et UPSERT, barre de progression, rapport final). Templates definissent les colonnes, types, FK references et keyFields pour chaque table. Ordre respecte les dependances FK."
+    },
+    {
       "id": "auth",
       "name": "Authentification et rôles",
       "status": "missing",
@@ -349,6 +383,17 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-06",
+      "pr": null,
+      "description": "Module Import/Export complet : page /settings/import-export avec 16 tables en ordre de dependances FK. Export Excel (.xls HTML table avec labels FR et FK resolues). Import CSV (auto-detect ; ou ,, preview 10 lignes, validation colonnes/types/FK, modes Ajouter et Mettre a jour, barre de progression, rapport final). Templates dans src/data/import-templates.ts. Carte ajoutee sur /settings. project-health.json mis a jour avec features settings-locations, settings-rtt-groups et import-export-module.",
+      "filesChanged": [
+        "src/data/import-templates.ts",
+        "src/app/settings/import-export/page.tsx",
+        "src/app/settings/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-06",
       "pr": null,
