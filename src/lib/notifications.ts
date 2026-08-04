@@ -1,9 +1,11 @@
 /**
- * Notifications helper - creates notifications via server-side API route.
+ * Notifications helper - creates notifications via direct Supabase client.
  *
- * Uses the same pattern as audit.ts: calls an API route that uses
- * the admin client (service_role) to bypass RLS.
+ * RLS is disabled on the notifications table (migration 029),
+ * so the anon key works fine without needing the service_role key.
  */
+import { createClient } from "@/lib/supabase/client";
+
 export async function createNotification(params: {
   employeeId: number | null;
   title: string;
@@ -12,27 +14,24 @@ export async function createNotification(params: {
   link?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch("/api/notifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        employee_id: params.employeeId,
-        title: params.title,
-        message: params.message || null,
-        type: params.type || "info",
-        link: params.link || null,
-      }),
+    const supabase = createClient();
+    const { error } = await supabase.from("notifications").insert({
+      employee_id: params.employeeId,
+      title: params.title,
+      message: params.message || null,
+      type: params.type || "info",
+      link: params.link || null,
+      is_read: false,
     });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ error: res.statusText }));
-      console.error("[createNotification] API call failed:", data.error);
-      return { success: false, error: data.error };
+    if (error) {
+      console.error("[createNotification] Insert failed:", error.message);
+      return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (err) {
-    console.error("[createNotification] Fetch error:", err);
+    console.error("[createNotification] Error:", err);
     return { success: false, error: String(err) };
   }
 }
