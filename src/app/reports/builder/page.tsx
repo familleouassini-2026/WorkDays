@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { schemaMetadata, type TableMetadata } from "@/data/schema-metadata";
+import { schemaMetadata, type TableMetadata, calculatedColumns } from "@/data/schema-metadata";
 import {
   resolveJoins,
   executeReport,
@@ -29,6 +29,7 @@ import {
   Eye,
   ArrowLeft,
   ArrowRight,
+  Calculator,
 } from "lucide-react";
 
 // Step labels in French
@@ -47,6 +48,7 @@ interface FilterRow {
   field: string;
   op: Operator;
   value: string;
+  valueTo?: string; // For date range (end value)
 }
 
 interface SortRow {
@@ -58,6 +60,15 @@ interface TotalRow {
   field: string;
   fn: "SUM" | "COUNT" | "AVG";
   label: string;
+}
+
+interface SectorOption {
+  id: number;
+  name: string;
+}
+
+interface YearOption {
+  year: number;
 }
 
 function getTypeIcon(type: string) {
@@ -109,6 +120,34 @@ function ReportBuilderContent() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
 
+  // Calculated columns state
+  const [selectedCalculatedColumns, setSelectedCalculatedColumns] = useState<string[]>([]);
+
+  // Smart filter options
+  const [sectorOptions, setSectorOptions] = useState<SectorOption[]>([]);
+  const [yearOptions, setYearOptions] = useState<YearOption[]>([]);
+
+  // Load sectors and years for smart filters
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      const supabase = createClient();
+      const [sectorsRes, yearsRes] = await Promise.all([
+        supabase.from("sectors").select("id, name").order("name"),
+        supabase.from("year_calendar").select("year"),
+      ]);
+      if (sectorsRes.data) {
+        setSectorOptions(sectorsRes.data as SectorOption[]);
+      }
+      if (yearsRes.data) {
+        const uniqueYears = Array.from(new Set((yearsRes.data as YearOption[]).map((y) => y.year)))
+          .sort((a, b) => b - a)
+          .map((y) => ({ year: y }));
+        setYearOptions(uniqueYears);
+      }
+    };
+    loadFilterOptions();
+  }, []);
+
   // Load existing template for edit/duplicate mode
   useEffect(() => {
     if (!templateId) return;
@@ -147,10 +186,11 @@ function ReportBuilderContent() {
           direction: s.direction,
         }))
       );
-      setReportName(editId ? (data.name || "") : "");
+      setReportName(editId ? (data.name || "") : duplicateId ? `Copie de ${data.name || ""}` : "");
       setReportTitle(config.title || "");
       setReportDescription(editId ? (data.description || "") : "");
       setOrientation(config.orientation || "auto");
+      setSelectedCalculatedColumns(config.calculatedColumns || []);
     };
     loadTemplate();
   }, [templateId, editId]);
@@ -197,22 +237,55 @@ function ReportBuilderContent() {
     []
   );
 
+  // Helper to determine smart filter type for a field
+  const getFilterWidgetType = (field: string): "date_range" | "sector" | "boolean" | "status" | "year" | "text" => {
+    if (!field) return "text";
+    const parts = field.split(".");
+    const tableName = parts[0];
+    const fieldName = parts[1];
+
+    // Check if field is a date type
+    const tableMeta = schemaMetadata.find((t) => t.tableName === tableName);
+    const colMeta = tableMeta?.columns.find((c) => c.field === fieldName);
+    if (colMeta?.type === "date") return "date_range";
+
+    // Sector dropdown
+    if (field === "employees.sector_id") return "sector";
+
+    // Boolean dropdown
+    if (field === "employees.is_inactive") return "boolean";
+
+    // Status dropdown
+    if (field === "requests.status") return "status";
+
+    // Year dropdown
+    if (fieldName === "year") return "year";
+
+    return "text";
+  };
+
   // Build report config from current state
   const buildConfig = useCallback((): ReportConfig => {
-    const mappedFilters: ReportFilter[] = filters
-      .filter((f) => f.field)
-      .map((f) => {
-        if (f.op === "is_null") {
-          return { field: f.field, op: "is" as const, value: null };
+    const mappedFilters: ReportFilter[] = [];
+    for (const f of filters) {
+      if (!f.field) continue;
+      if (f.op === "is_null") {
+        mappedFilters.push({ field: f.field, op: "is" as const, value: null });
+      } else if (f.op === "is_not_null") {
+        mappedFilters.push({ field: f.field, op: "not_null" as const, value: null });
+      } else if (f.op === "neq") {
+        mappedFilters.push({ field: f.field, op: "neq" as const, value: f.value });
+      } else {
+        // Handle date range: if valueTo is set, generate two filters (gte + lte)
+        const widgetType = getFilterWidgetType(f.field);
+        if (widgetType === "date_range" && f.value && f.valueTo) {
+          mappedFilters.push({ field: f.field, op: "gte" as const, value: f.value });
+          mappedFilters.push({ field: f.field, op: "lte" as const, value: f.valueTo });
+        } else {
+          mappedFilters.push({ field: f.field, op: f.op as ReportFilter["op"], value: f.value });
         }
-        if (f.op === "is_not_null") {
-          return { field: f.field, op: "not_null" as const, value: null };
-        }
-        if (f.op === "neq") {
-          return { field: f.field, op: "neq" as const, value: f.value };
-        }
-        return { field: f.field, op: f.op as ReportFilter["op"], value: f.value };
-      });
+      }
+    }
 
     const mappedJoins: ReportJoin[] = joins.map((j) => ({
       from: j.from,
@@ -238,8 +311,9 @@ function ReportBuilderContent() {
       sortBy: mappedSort,
       orientation,
       title: reportTitle,
+      calculatedColumns: selectedCalculatedColumns.length > 0 ? selectedCalculatedColumns : undefined,
     };
-  }, [selectedTables, selectedColumns, joins, filters, groupBy, totals, sortRows, orientation, reportTitle]);
+  }, [selectedTables, selectedColumns, joins, filters, groupBy, totals, sortRows, orientation, reportTitle, selectedCalculatedColumns]);
 
   // Run preview
   const runPreview = useCallback(async () => {
@@ -285,18 +359,24 @@ function ReportBuilderContent() {
         if (error) throw error;
         setSaveMessage("Rapport mis a jour avec succes.");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("report_templates")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
         setSaveMessage("Rapport sauvegarde avec succes.");
+        // If duplicate mode, redirect to edit the new report
+        if (duplicateId && data?.id) {
+          window.location.href = `/reports/builder?id=${data.id}`;
+        }
       }
     } catch (err) {
       setSaveMessage(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
     } finally {
       setSaving(false);
     }
-  }, [reportName, reportDescription, buildConfig, editId]);
+  }, [reportName, reportDescription, buildConfig, editId, duplicateId]);
 
   // Auto-detect orientation
   const autoOrientation = selectedColumns.length <= 5 ? "portrait" : "landscape";
@@ -384,10 +464,185 @@ function ReportBuilderContent() {
               </div>
             );
           })}
+
+          {/* Calculated Columns Section */}
+          <div className="border-t border-slate-200 pt-6">
+            <h4 className="font-medium text-slate-700 mb-2 flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-purple-500" />
+              Colonnes calculees
+            </h4>
+            <p className="text-sm text-slate-500 mb-3">
+              Colonnes virtuelles calculees cote client a partir des donnees brutes.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {calculatedColumns.map((calcCol) => {
+                const allRequiredTablesSelected = calcCol.requiredTables.every(
+                  (t) => selectedTables.includes(t)
+                );
+                const isChecked = selectedCalculatedColumns.includes(calcCol.id);
+                return (
+                  <label
+                    key={calcCol.id}
+                    className={`flex items-center gap-2 p-2 rounded ${
+                      allRequiredTablesSelected
+                        ? "hover:bg-slate-50 cursor-pointer"
+                        : "opacity-50 cursor-not-allowed"
+                    }`}
+                    title={
+                      allRequiredTablesSelected
+                        ? calcCol.description
+                        : `Requiert les tables : ${calcCol.requiredTables.join(", ")}`
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={!allRequiredTablesSelected}
+                      onChange={() => {
+                        if (!allRequiredTablesSelected) return;
+                        setSelectedCalculatedColumns((prev) =>
+                          prev.includes(calcCol.id)
+                            ? prev.filter((id) => id !== calcCol.id)
+                            : [...prev, calcCol.id]
+                        );
+                      }}
+                      className="rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <Calculator className="w-4 h-4 text-purple-400" />
+                    <div className="flex flex-col">
+                      <span className="text-sm text-slate-700">{calcCol.label}</span>
+                      {!allRequiredTablesSelected && (
+                        <span className="text-xs text-slate-400">
+                          Requiert : {calcCol.requiredTables.join(", ")}
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
+
+  const renderFilterValueWidget = (filter: FilterRow, idx: number) => {
+    if (filter.op === "is_null" || filter.op === "is_not_null") return null;
+
+    const widgetType = getFilterWidgetType(filter.field);
+
+    switch (widgetType) {
+      case "date_range":
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">Du</span>
+            <input
+              type="date"
+              value={filter.value}
+              onChange={(e) => {
+                const updated = [...filters];
+                updated[idx] = { ...updated[idx], value: e.target.value };
+                setFilters(updated);
+              }}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            />
+            <span className="text-xs text-slate-500">Au</span>
+            <input
+              type="date"
+              value={filter.valueTo || ""}
+              onChange={(e) => {
+                const updated = [...filters];
+                updated[idx] = { ...updated[idx], valueTo: e.target.value };
+                setFilters(updated);
+              }}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+        );
+      case "sector":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Secteur --</option>
+            {sectorOptions.map((s) => (
+              <option key={s.id} value={String(s.id)}>{s.name}</option>
+            ))}
+          </select>
+        );
+      case "boolean":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Statut --</option>
+            <option value="false">Actif</option>
+            <option value="true">Inactif</option>
+          </select>
+        );
+      case "status":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Statut --</option>
+            <option value="open">Ouvert</option>
+            <option value="closed">Ferme</option>
+            <option value="completed">Termine</option>
+          </select>
+        );
+      case "year":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Annee --</option>
+            {yearOptions.map((y) => (
+              <option key={y.year} value={String(y.year)}>{y.year}</option>
+            ))}
+          </select>
+        );
+      default:
+        return (
+          <input
+            type="text"
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            placeholder="Valeur"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+          />
+        );
+    }
+  };
 
   const renderStep3 = () => (
     <div>
@@ -399,7 +654,7 @@ function ReportBuilderContent() {
             value={filter.field}
             onChange={(e) => {
               const updated = [...filters];
-              updated[idx] = { ...updated[idx], field: e.target.value };
+              updated[idx] = { ...updated[idx], field: e.target.value, value: "", valueTo: undefined };
               setFilters(updated);
             }}
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
@@ -428,19 +683,7 @@ function ReportBuilderContent() {
             <option value="is_null">est vide</option>
             <option value="is_not_null">n&apos;est pas vide</option>
           </select>
-          {filter.op !== "is_null" && filter.op !== "is_not_null" && (
-            <input
-              type="text"
-              value={filter.value}
-              onChange={(e) => {
-                const updated = [...filters];
-                updated[idx] = { ...updated[idx], value: e.target.value };
-                setFilters(updated);
-              }}
-              placeholder="Valeur"
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
-          )}
+          {renderFilterValueWidget(filter, idx)}
           <button
             onClick={() => setFilters(filters.filter((_, i) => i !== idx))}
             className="p-2 text-red-500 hover:bg-red-50 rounded-lg"

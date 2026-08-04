@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Duplicate template functionality, calculated columns metadata, SQL aggregation RPC, and advanced dynamic filters in the report builder wizard.",
+  "status": "in_progress",
+  "steps": [
+    "1. In src/app/reports/page.tsx - The duplicate button already exists (links to /reports/builder?duplicate=ID). In src/app/reports/builder/page.tsx - The builder already handles the 'duplicate' searchParam by loading the template but clearing the name. Enhance it so that when ?duplicate=ID is used, the name is set to 'Copie de [original name]' and on save it creates a new record (INSERT not UPDATE), then redirects to /reports/builder?id=[new_id] for immediate editing.",
+    "2. In src/data/schema-metadata.ts - Add a new export `calculatedColumns` array. Each entry has: id (string), label (string, French), description (string), requiredTables (string[]), requiredFields (string[] in table.field format), computeFn (string - function name). Define 5 calculated columns: 'seniority_years' (Anciennete en annees, requires employees, fields: employees.date_of_hire + employees.granted_seniority + employees.granted_seniority_date, computeFn: 'computeSeniorityYears'), 'indexed_salary' (Salaire indexe, requires employees+seniority_scales+organisation_indexations+sector_indexations+employee_indexations, computeFn: 'computeIndexedSalary'), 'age' (Age, requires employees, fields: employees.date_of_birth, computeFn: 'computeAge'), 'work_time_percent' (% temps de travail, requires timesheets, fields: timesheets.monday_minutes through sunday_minutes + timesheets.full_time_minutes, computeFn: 'computeWorkTimePercent'), 'seniority_considered' (Anciennete prise en compte, requires employees+seniority_scales, computeFn: 'computeSeniorityConsidered').",
+    "3. In src/lib/report-engine.ts - Add a new exported function `applyCalculatedColumns(data: Record<string, unknown>[], config: ReportConfig, allScales: SeniorityScaleRow[], allIndexations: {org: IndexationRow[], sector: IndexationRow[], employee: EmployeeIndexationRow[]})` that enriches each row with the calculated columns selected in config. Import calculateSeniorityBreakdown, calculateFullSalary, findBaseSalary, calculateSeniorityYears from calculations.ts. Also add the `calculatedColumns` field to the ReportConfig type (optional: string[] of calculated column IDs). Implement the compute functions inline within applyCalculatedColumns: computeSeniorityYears (call calculateSeniorityBreakdown with employees.date_of_hire, employees.granted_seniority_date, new Date(), employees.granted_seniority - return totale), computeIndexedSalary (find base salary from scales using sector_id and seniority, then apply org/sector factors + personal), computeAge (diff from date_of_birth to today in years), computeWorkTimePercent (sum all day minutes / full_time_minutes * 100), computeSeniorityConsidered (floor of total seniority capped at max scale for sector).",
+    "4. Create supabase/migrations/022-report-aggregation-functions.sql with two PostgreSQL functions: (a) get_absence_count_by_employee(p_year INT) RETURNS TABLE(employee_id INT, count BIGINT, total_days NUMERIC, total_minutes NUMERIC) - aggregates year_calendar grouped by employee_id for given year. (b) get_salary_overview() RETURNS TABLE(employee_id INT, sector_id INT, base_salary NUMERIC, seniority_years INT) - joins employees with seniority_scales to return overview.",
+    "5. In src/lib/report-engine.ts - Add a function `executeRpcAggregation(rpcName: string, params: Record<string, unknown>)` that calls supabase.rpc(rpcName, params) and returns data. If the function does not exist (error), return null as fallback so the caller can use client-side calculation instead.",
+    "6. In src/app/reports/builder/page.tsx Step 3 (renderStep3) - Replace the simple text input for filter value with smart filter widgets: (a) If the selected field has type 'date', show two date inputs ('Du' and 'Au') and produce two filters (gte + lte). (b) If the field is 'sector_id' (employees.sector_id), load sectors from Supabase and show a dropdown. (c) If the field is 'is_inactive' (boolean), show a dropdown Actif/Inactif. (d) If the field is 'status' (requests.status), show dropdown open/closed/completed. (e) If the field is 'year', load distinct years from year_calendar and show a dropdown. Update the FilterRow type to support date_range (store as two values). Add state for dynamically loaded filter options (sectors, years).",
+    "7. In src/app/reports/builder/page.tsx Step 2 (renderStep2) - Add a new section 'Colonnes calculees' below the regular columns. Import calculatedColumns from schema-metadata.ts. For each calculated column, show a checkbox. Only enable/show columns whose requiredTables are all selected. Store selected calculated column IDs in state (selectedCalculatedColumns: string[]). Include them in the buildConfig output as config.calculatedColumns."
+  ],
+  "acceptance_criteria": [
+    "Duplicate flow sets name to 'Copie de [original]' and creates new record on save",
+    "calculatedColumns export in schema-metadata.ts has 5 entries with proper requiredTables/requiredFields/computeFn",
+    "applyCalculatedColumns function exists in report-engine.ts and correctly computes all 5 column types",
+    "Migration 022 creates two SQL functions with correct signatures",
+    "executeRpcAggregation exists with fallback-to-null on error",
+    "Step 3 shows smart filter widgets (date range, sector dropdown, boolean dropdown, status dropdown, year dropdown)",
+    "Step 2 shows 'Colonnes calculees' section with availability based on selected tables",
+    "TypeScript compiles without errors (next build passes)"
+  ],
+  "verification": [
+    "Run: export PATH=/opt/toolchains/.nvm/versions/node/v22.23.2/bin:$PATH && cd /projects/sandbox/WorkDays && npx next build 2>&1 | grep -E '(error|Error|✓|✗)' to confirm compilation succeeds"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -249,6 +249,71 @@ export const schemaMetadata: TableMetadata[] = [
 ];
 
 // ============================================================
+// CALCULATED COLUMNS
+// ============================================================
+
+export interface CalculatedColumnDef {
+  id: string;
+  label: string;
+  description: string;
+  requiredTables: string[];
+  requiredFields: string[];
+  computeFn: string;
+}
+
+export const calculatedColumns: CalculatedColumnDef[] = [
+  {
+    id: "seniority_years",
+    label: "Anciennete (annees)",
+    description: "Anciennete totale calculee depuis la date d'embauche, l'anciennete accordee et la date d'anciennete accordee",
+    requiredTables: ["employees"],
+    requiredFields: ["employees.date_of_hire", "employees.granted_seniority", "employees.granted_seniority_date"],
+    computeFn: "computeSeniorityYears",
+  },
+  {
+    id: "indexed_salary",
+    label: "Salaire indexe",
+    description: "Base x facteur organisation x facteur secteur + augmentations personnelles",
+    requiredTables: ["employees", "seniority_scales", "organisation_indexations", "sector_indexations", "employee_indexations"],
+    requiredFields: ["employees.sector_id", "employees.date_of_hire"],
+    computeFn: "computeIndexedSalary",
+  },
+  {
+    id: "age",
+    label: "Age",
+    description: "Age calcule depuis la date de naissance",
+    requiredTables: ["employees"],
+    requiredFields: ["employees.date_of_birth"],
+    computeFn: "computeAge",
+  },
+  {
+    id: "work_time_percent",
+    label: "% temps de travail",
+    description: "Total minutes horaire / minutes temps plein x 100",
+    requiredTables: ["timesheets"],
+    requiredFields: [
+      "timesheets.monday_minutes",
+      "timesheets.tuesday_minutes",
+      "timesheets.wednesday_minutes",
+      "timesheets.thursday_minutes",
+      "timesheets.friday_minutes",
+      "timesheets.saturday_minutes",
+      "timesheets.sunday_minutes",
+      "timesheets.full_time_minutes",
+    ],
+    computeFn: "computeWorkTimePercent",
+  },
+  {
+    id: "seniority_considered",
+    label: "Anciennete prise en compte",
+    description: "Floor de l'anciennete totale, cappee au maximum du bareme du secteur",
+    requiredTables: ["employees", "seniority_scales"],
+    requiredFields: ["employees.date_of_hire", "employees.sector_id"],
+    computeFn: "computeSeniorityConsidered",
+  },
+];
+
+// ============================================================
 // HELPERS
 // ============================================================
 

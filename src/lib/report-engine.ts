@@ -8,6 +8,15 @@
 import { createClient } from "@/lib/supabase/client";
 import { schemaMetadata, type ForeignKey } from "@/data/schema-metadata";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  calculateSeniorityBreakdown,
+  calculateSeniorityYears,
+  findBaseSalary,
+  calculateFullSalary,
+  type IndexationRow,
+  type EmployeeIndexationRow,
+  type SeniorityScaleRow,
+} from "@/lib/calculations";
 
 // ============================================================
 // TYPES
@@ -53,6 +62,7 @@ export interface ReportConfig {
   sortBy: ReportSort[];
   orientation: "auto" | "portrait" | "landscape";
   title: string;
+  calculatedColumns?: string[]; // IDs of calculated columns to include
 }
 
 export interface JoinPath {
@@ -463,4 +473,167 @@ export function resolveJoins(selectedTables: string[]): JoinPath[] {
   }
 
   return joinPaths;
+}
+
+// ============================================================
+// CALCULATED COLUMNS
+// ============================================================
+
+/**
+ * Apply calculated columns to the data rows based on the report config.
+ * Each row is enriched with computed values for the selected calculated columns.
+ */
+export function applyCalculatedColumns(
+  data: Record<string, unknown>[],
+  config: ReportConfig,
+  allScales: SeniorityScaleRow[],
+  allIndexations: {
+    org: IndexationRow[];
+    sector: IndexationRow[];
+    employee: EmployeeIndexationRow[];
+  }
+): Record<string, unknown>[] {
+  const selectedCalcCols = config.calculatedColumns || [];
+  if (selectedCalcCols.length === 0) return data;
+
+  return data.map((row) => {
+    const enrichedRow = { ...row };
+
+    for (const colId of selectedCalcCols) {
+      switch (colId) {
+        case "seniority_years": {
+          const dateOfHire = row["employees.date_of_hire"] as string | null;
+          const grantedSeniority = row["employees.granted_seniority"] as number | null;
+          const grantedSeniorityDate = row["employees.granted_seniority_date"] as string | null;
+          const breakdown = calculateSeniorityBreakdown(
+            dateOfHire,
+            grantedSeniorityDate,
+            new Date(),
+            grantedSeniority
+          );
+          enrichedRow["_calc.seniority_years"] = breakdown.totale;
+          break;
+        }
+        case "indexed_salary": {
+          const sectorId = row["employees.sector_id"] as number | null;
+          const dateOfHire = row["employees.date_of_hire"] as string | null;
+          const grantedSeniority = row["employees.granted_seniority"] as number | null;
+          const grantedSeniorityDate = row["employees.granted_seniority_date"] as string | null;
+          if (sectorId && dateOfHire) {
+            const senYears = calculateSeniorityYears(dateOfHire, grantedSeniority, grantedSeniorityDate);
+            const baseSalary = findBaseSalary(sectorId, senYears, allScales);
+            if (baseSalary !== null) {
+              const employeeId = row["employees.id"] as number | undefined;
+              const personalIncreases = employeeId
+                ? allIndexations.employee.filter((ei) => ei.employee_id === employeeId)
+                : [];
+              const result = calculateFullSalary({
+                baseSalary,
+                orgIndexations: allIndexations.org,
+                sectorIndexations: allIndexations.sector.filter(
+                  (si) => (si as unknown as Record<string, unknown>)["sector_id"] === sectorId
+                ),
+                personalIncreases,
+              });
+              enrichedRow["_calc.indexed_salary"] = Math.round(result.totalSalary * 100) / 100;
+            } else {
+              enrichedRow["_calc.indexed_salary"] = null;
+            }
+          } else {
+            enrichedRow["_calc.indexed_salary"] = null;
+          }
+          break;
+        }
+        case "age": {
+          const dateOfBirth = row["employees.date_of_birth"] as string | null;
+          if (dateOfBirth) {
+            const birth = new Date(dateOfBirth);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+              age--;
+            }
+            enrichedRow["_calc.age"] = age;
+          } else {
+            enrichedRow["_calc.age"] = null;
+          }
+          break;
+        }
+        case "work_time_percent": {
+          const monday = (row["timesheets.monday_minutes"] as number) || 0;
+          const tuesday = (row["timesheets.tuesday_minutes"] as number) || 0;
+          const wednesday = (row["timesheets.wednesday_minutes"] as number) || 0;
+          const thursday = (row["timesheets.thursday_minutes"] as number) || 0;
+          const friday = (row["timesheets.friday_minutes"] as number) || 0;
+          const saturday = (row["timesheets.saturday_minutes"] as number) || 0;
+          const sunday = (row["timesheets.sunday_minutes"] as number) || 0;
+          const fullTime = (row["timesheets.full_time_minutes"] as number) || 0;
+          const totalMinutes = monday + tuesday + wednesday + thursday + friday + saturday + sunday;
+          if (fullTime > 0) {
+            enrichedRow["_calc.work_time_percent"] = Math.round((totalMinutes / fullTime) * 100 * 100) / 100;
+          } else {
+            enrichedRow["_calc.work_time_percent"] = null;
+          }
+          break;
+        }
+        case "seniority_considered": {
+          const dateOfHire = row["employees.date_of_hire"] as string | null;
+          const grantedSeniority = row["employees.granted_seniority"] as number | null;
+          const grantedSeniorityDate = row["employees.granted_seniority_date"] as string | null;
+          const sectorId = row["employees.sector_id"] as number | null;
+          if (dateOfHire) {
+            const breakdown = calculateSeniorityBreakdown(
+              dateOfHire,
+              grantedSeniorityDate,
+              new Date(),
+              grantedSeniority
+            );
+            let considered = Math.floor(breakdown.totale);
+            // Cap at max scale for sector
+            if (sectorId) {
+              const sectorScales = allScales
+                .filter((s) => s.sector_id === sectorId)
+                .sort((a, b) => b.years - a.years);
+              if (sectorScales.length > 0 && considered > sectorScales[0].years) {
+                considered = sectorScales[0].years;
+              }
+            }
+            enrichedRow["_calc.seniority_considered"] = considered;
+          } else {
+            enrichedRow["_calc.seniority_considered"] = null;
+          }
+          break;
+        }
+      }
+    }
+
+    return enrichedRow;
+  });
+}
+
+// ============================================================
+// RPC AGGREGATION
+// ============================================================
+
+/**
+ * Execute a Supabase RPC function for aggregation.
+ * Returns null if the function does not exist or fails (fallback to client-side calculation).
+ */
+export async function executeRpcAggregation(
+  rpcName: string,
+  params: Record<string, unknown>
+): Promise<Record<string, unknown>[] | null> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc(rpcName, params);
+    if (error) {
+      // Function may not exist or other error - return null for fallback
+      console.warn(`[report-engine] RPC "${rpcName}" failed: ${error.message}`);
+      return null;
+    }
+    return data as Record<string, unknown>[] | null;
+  } catch {
+    return null;
+  }
 }

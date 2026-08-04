@@ -1,0 +1,7 @@
+{
+  "task_id": "task-report-builder-phase2",
+  "task_description": "Phase 2 enrichment of the Report Builder module: template duplication with name, advanced dynamic filters (date range, sector dropdown, status dropdown, year dropdown), calculated columns (seniority, indexed salary, age, work time %, seniority considered), SQL RPC aggregation functions, enhanced preview with totals and grouping, improved PDF export with headers/footers/styled totals.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
