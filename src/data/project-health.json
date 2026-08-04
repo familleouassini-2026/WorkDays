@@ -352,6 +352,18 @@
     {
       "date": "2026-08-06",
       "pr": null,
+      "description": "UI labels et bug fix : (1) Correction bug boolean secteurs - \\u2713/\\u2717 affichés en texte brut remplacés par vrais caractères dans des badges ronds colorés. (2) Carte 'Secteurs & Groupes RTT' renommée 'Secteurs'. (3) Carte 'Politique de congés' retirée de /settings. (4) 'Gouvernance' renommé 'Journal interne' dans le sidebar et la page. (5) Description migration données mise à jour.",
+      "filesChanged": [
+        "src/app/settings/sectors/page.tsx",
+        "src/app/settings/page.tsx",
+        "src/app/governance/page.tsx",
+        "src/components/layout/Sidebar.tsx",
+        "src/data/project-health.json"
+      ]
+    },
+    {
+      "date": "2026-08-06",
+      "pr": null,
       "description": "Data migration page rewrite : suppression complete de l'ancien module staging/migration Supabase, remplacement par une page statique checklist de navigation. 8 cartes (Employes, Horaires, Secteurs, Droits conges, Baremes, RTT, Indexations, Actifs/Leasing) avec liens vers les pages concernees. Grille responsive 1col mobile / 2col desktop.",
       "filesChanged": [
         "src/app/settings/data-migration/page.tsx",

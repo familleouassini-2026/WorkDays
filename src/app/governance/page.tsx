@@ -106,9 +106,9 @@ export default function GovernancePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Gouvernance</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Journal interne</h1>
         <p className="text-slate-500 mt-1">
-          Reunions, decisions et demandes du personnel
+          Réunions, décisions et demandes du personnel
         </p>
       </div>
 
