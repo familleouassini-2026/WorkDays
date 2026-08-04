@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-06",
+  "lastUpdated": "2026-08-07",
   "architecture": {
     "steering": [
       {
@@ -355,12 +355,12 @@
       "code": [
         "public/manifest.json",
         "public/sw.js",
-        "public/icon-192x192.svg",
-        "public/icon-512x512.svg",
+        "public/icon-192.svg",
+        "public/icon-512.svg",
         "src/app/layout.tsx"
       ],
       "accessOrigin": null,
-      "notes": "PWA manifest avec icones SVG, service worker pour cache offline, meta tags dans layout. App installable sur mobile."
+      "notes": "PWA manifest avec icones SVG, service worker pour cache offline, meta tags dans layout (mobile-web-app-capable). App installable sur mobile."
     },
     {
       "id": "organigramme",
@@ -373,7 +373,7 @@
         "supabase/migrations/024-manager-id.sql"
       ],
       "accessOrigin": null,
-      "notes": "Vue arborescente des employes par manager_id. Migration ajoute manager_id a employees. Formulaire edit employe inclut le selecteur de responsable."
+      "notes": "Vue arborescente des employes par manager_id. Mode edition avec toggle 'Configurer la hierarchie' : dropdown responsable par employe, sauvegarde immediate. Mode normal : arbre hierarchique avec indentation, ligne verticale CSS, avatar + nom + fonction + secteur + nombre de subordonnes directs. Migration ajoute manager_id a employees."
     },
     {
       "id": "employee-documents",
@@ -397,7 +397,7 @@
         "src/app/self-service/leave-request/page.tsx"
       ],
       "accessOrigin": null,
-      "notes": "Portail employe avec selecteur (simule connexion). Dashboard: solde conges, RTT, salaire, horaire, 5 dernieres absences, documents personnels. Lien demande de conge."
+      "notes": "Portail employe avec selecteur (simule connexion). Dashboard: solde conges, RTT, salaire, horaire, 5 dernieres absences, documents personnels. Bouton 'Demander un conge' ouvre l'EncoderDrawer avec employe pre-selectionne. Bandeau PWA install info en bas de page."
     },
     {
       "id": "leave-workflow",
@@ -423,10 +423,11 @@
         "src/app/notifications/page.tsx",
         "src/app/api/notifications/route.ts",
         "src/lib/notifications.ts",
-        "supabase/migrations/027-notifications.sql"
+        "supabase/migrations/027-notifications.sql",
+        "supabase/migrations/029-grant-new-tables.sql"
       ],
       "accessOrigin": null,
-      "notes": "Systeme de notifications avec cloche dans le layout (badge non-lues, dropdown 10 dernieres). Page /notifications avec filtres lu/non-lu, marquer tout comme lu. Helper createNotification() pour creation via API route admin. Types: info, warning, success, action."
+      "notes": "Systeme de notifications avec cloche dans le layout (badge non-lues, dropdown 10 dernieres). Page /notifications avec filtres lu/non-lu, marquer tout comme lu, bouton 'Creer une notification test' avec dropdown employe. Helper createNotification() pour creation via API route admin. Types: info, warning, success, action. Migration 029: GRANT + DISABLE RLS pour employee_documents, notifications, leave_requests."
     },
     {
       "id": "settings-sectors",
@@ -464,6 +465,20 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-07",
+      "pr": null,
+      "description": "Fix PR#118 bugs: (1) Migration 029 GRANT+DISABLE RLS pour employee_documents, notifications, leave_requests. (2) manifest.json reecrit UTF-8 propre. (3) Meta apple-mobile-web-app-capable remplace par mobile-web-app-capable. (4) Organigramme: mode edition toggle 'Configurer la hierarchie' avec dropdown responsable par employe + sauvegarde immediate. (5) Self-service: bouton 'Demander un conge' ouvre EncoderDrawer avec employe pre-selectionne + bandeau PWA install. (6) Notifications: bouton 'Creer une notification test' avec dropdown employe.",
+      "filesChanged": [
+        "supabase/migrations/029-grant-new-tables.sql",
+        "public/manifest.json",
+        "src/app/layout.tsx",
+        "src/app/employees/organigramme/page.tsx",
+        "src/app/self-service/page.tsx",
+        "src/app/notifications/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-06",
       "pr": null,
