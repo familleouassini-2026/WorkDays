@@ -1,0 +1,22 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create the Report Builder foundation: database migration, schema metadata, and report engine",
+  "status": "completed",
+  "steps": [
+    "Create supabase/migrations/021-report-templates.sql with the report_templates table (id SERIAL PK, name TEXT NOT NULL, description TEXT, config JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())",
+    "Create src/data/schema-metadata.ts with full metadata for 15 tables: employees, sectors, timesheets, year_calendar, absence_codes, vacation_rights, seniority_scales, organisation_indexations, sector_indexations, employee_indexations, locations, holidays, meetings, decisions, requests. Each table needs tableName, displayName (French), columns array (field, label in French, type: text|number|date|boolean), and foreignKeys array (from field -> to table.field). Use the docs/database-schema.md as reference for actual column types.",
+    "Create src/lib/report-engine.ts with: (1) buildSupabaseQuery(config) that constructs a Supabase query from the JSONB config, handling table selection, column selection, joins via Supabase's relational syntax or manual join logic, and filters. (2) executeReport(config) that executes the query and returns data. (3) applyGrouping(data, config) that groups data client-side and calculates SUM/COUNT/AVG totals. (4) resolveJoins(tables) that uses schema-metadata FK definitions to auto-propose joins between selected tables."
+  ],
+  "acceptance_criteria": [
+    "Migration file exists at supabase/migrations/021-report-templates.sql with correct CREATE TABLE statement",
+    "src/data/schema-metadata.ts exports metadata for all 15 specified tables with French display names and proper type annotations",
+    "src/lib/report-engine.ts exports buildSupabaseQuery, executeReport, applyGrouping, and resolveJoins functions",
+    "TypeScript compiles without errors (npm run build passes for these files)"
+  ],
+  "verification": [
+    "Run npm run build and confirm no TypeScript errors in the new files"
+  ],
+  "blocked_reason": null,
+  "findings": "TypeScript compilation passes. Pre-existing build issue: /employees/new page fails during static generation due to missing Supabase env vars (not related to our changes). ESLint is not configured in this project (interactive setup prompt appears). The tsconfig does not have downlevelIteration enabled, so Map iteration with for...of is not allowed - used forEach instead."
+}

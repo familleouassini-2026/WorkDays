@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-004",
+  "type": "fix",
+  "description": "Address v2 review issues: one-to-many flattening, unresolvable tables, filter type coercion, description field",
+  "status": "completed",
+  "steps": [
+    "Fix one-to-many array flattening in executeReport - take first array element",
+    "Add direction field to JoinPath in resolveJoins",
+    "Skip unresolvable tables in buildSupabaseQuery select string",
+    "Parse numeric filter values to Number in client-side filter comparison",
+    "Add description state and textarea to step 6 in builder page",
+    "Include description in handleSave payload",
+    "Load description when editing/duplicating template"
+  ],
+  "acceptance_criteria": [
+    "Array nested values are handled by taking the first element",
+    "JoinPath has a direction field indicating many-to-one or one-to-many",
+    "Unresolvable tables are skipped in the select string",
+    "Numeric filter values are parsed with Number() before comparison",
+    "Description textarea appears in step 6",
+    "Description is included in save payload",
+    "Description is loaded when editing a template",
+    "npm run build passes"
+  ],
+  "verification": [
+    "Run npm run build and confirm no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": "All 4 review issues addressed. Build passes (only pre-existing /employees/new env var error remains). TypeScript compiles cleanly with tsc --noEmit. Template loading now re-resolves joins via resolveJoins() to get correct direction info instead of mapping from stored config."
+}

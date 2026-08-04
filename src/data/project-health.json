@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-04",
+  "lastUpdated": "2026-08-06",
   "architecture": {
     "steering": [
       {
@@ -271,7 +271,23 @@
         "src/app/reports/page.tsx"
       ],
       "accessOrigin": "extracted/reports_all.md",
-      "notes": "3 rapports (absences/employe, absences/mois, apercu salarial) + export CSV + export PDF (window.print). Selecteur annee."
+      "notes": "3 rapports (absences/employe, absences/mois, apercu salarial) + export CSV + export PDF (window.print). Selecteur annee. Voir aussi report-builder pour le generateur dynamique."
+    },
+    {
+      "id": "report-builder",
+      "name": "Report Builder dynamique",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#reports",
+      "code": [
+        "src/app/reports/page.tsx",
+        "src/app/reports/builder/page.tsx",
+        "src/app/reports/[id]/page.tsx",
+        "src/data/schema-metadata.ts",
+        "src/lib/report-engine.ts",
+        "supabase/migrations/021-report-templates.sql"
+      ],
+      "accessOrigin": "extracted/reports_all.md",
+      "notes": "Module Report Builder complet : selection tables/colonnes, jointures auto via FK, filtres, groupements + totaux (SUM/COUNT/AVG), tri, sauvegarde templates JSONB, edition/duplication, export PDF (window.print, @media print, orientation auto/portrait/landscape, pas de troncature) et CSV. Wizard 6 etapes avec preview temps reel (20 lignes)."
     },
     {
       "id": "auth",
@@ -318,6 +334,20 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-06",
+      "pr": "#112",
+      "description": "Report Builder module: dynamic report generator with table/column selection, auto-joins via FK metadata, filters, groupBy+totals (SUM/COUNT/AVG), sort, template save/load/edit/duplicate/delete, PDF export (window.print with @media print, auto orientation, no truncation) and CSV export. Wizard 6 steps with live preview.",
+      "filesChanged": [
+        "supabase/migrations/021-report-templates.sql",
+        "src/data/schema-metadata.ts",
+        "src/lib/report-engine.ts",
+        "src/app/reports/page.tsx",
+        "src/app/reports/builder/page.tsx",
+        "src/app/reports/[id]/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-05",
       "pr": "#111",
