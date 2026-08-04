@@ -29,6 +29,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  // Do not cache API responses - they contain dynamic data that should always be fresh
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) return;
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {

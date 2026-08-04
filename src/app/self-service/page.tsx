@@ -117,7 +117,14 @@ export default function SelfServicePage() {
         .select("id, first_name, last_name, date_of_hire, date_of_birth, sector_id, granted_seniority, granted_seniority_date")
         .eq("is_inactive", false)
         .order("last_name");
-      if (data) setEmployees(data);
+      if (data) {
+        setEmployees(data);
+        // Restore previously selected employee from localStorage
+        const stored = localStorage.getItem("workdays_selected_employee_id");
+        if (stored && data.some((e) => e.id === Number(stored))) {
+          setSelectedId(Number(stored));
+        }
+      }
       setLoading(false);
     }
     loadEmployees();
@@ -135,147 +142,167 @@ export default function SelfServicePage() {
     const currentYear = new Date().getFullYear();
     const emp = employees.find((e) => e.id === empId);
 
-    // Fetch vacation rights
-    const { data: rights } = await supabase
-      .from("vacation_rights")
-      .select("days, hours, minutes, absence_code_id, absence_codes(code, description)")
-      .eq("employee_id", empId)
-      .eq("year", currentYear);
-    setVacationRights((rights as unknown as VacationRight[]) || []);
+    // Parallelize independent queries
+    const [rightsRes, usedRes, tsRes, absencesRes, docsRes] = await Promise.all([
+      // Fetch vacation rights
+      supabase
+        .from("vacation_rights")
+        .select("days, hours, minutes, absence_code_id, absence_codes(code, description)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear),
+      // Fetch vacation used (CA code)
+      supabase
+        .from("year_calendar")
+        .select("absence_days, absence_codes!inner(code)")
+        .eq("employee_id", empId)
+        .eq("year", currentYear)
+        .eq("absence_codes.code", "CA"),
+      // Fetch active timesheet
+      supabase
+        .from("timesheets")
+        .select("*")
+        .eq("employee_id", empId)
+        .eq("is_active", true)
+        .single(),
+      // Fetch recent absences (last 5)
+      supabase
+        .from("year_calendar")
+        .select("absence_date, absence_days, absence_minutes, absence_codes(code, description, color_hex)")
+        .eq("employee_id", empId)
+        .order("absence_date", { ascending: false })
+        .limit(5),
+      // Fetch documents
+      supabase
+        .from("employee_documents")
+        .select("id, name, file_type, file_size, file_base64, category, uploaded_at")
+        .eq("employee_id", empId)
+        .order("uploaded_at", { ascending: false }),
+    ]);
 
-    // Fetch vacation used (CA code)
-    const { data: usedData } = await supabase
-      .from("year_calendar")
-      .select("absence_days, absence_codes!inner(code)")
-      .eq("employee_id", empId)
-      .eq("year", currentYear)
-      .eq("absence_codes.code", "CA");
-    const totalUsed = usedData
-      ? usedData.reduce((sum, r) => sum + ((r as unknown as { absence_days: number | null }).absence_days || 0), 0)
+    setVacationRights((rightsRes.data as unknown as VacationRight[]) || []);
+
+    const totalUsed = usedRes.data
+      ? usedRes.data.reduce((sum, r) => sum + ((r as unknown as { absence_days: number | null }).absence_days || 0), 0)
       : 0;
     setVacationUsedDays(totalUsed);
 
-    // Fetch active timesheet
-    const { data: ts } = await supabase
-      .from("timesheets")
-      .select("*")
-      .eq("employee_id", empId)
-      .eq("is_active", true)
-      .single();
-    setTimesheet(ts as Timesheet | null);
+    const ts = tsRes.data as Timesheet | null;
+    setTimesheet(ts);
 
-    // Calculate RTT
-    if (emp && emp.sector_id && emp.date_of_birth) {
-      const { data: rttEntitlements } = await supabase
-        .from("rtt_entitlements")
-        .select("*")
-        .eq("sector_id", emp.sector_id);
+    setRecentAbsences((absencesRes.data as unknown as AbsenceRow[]) || []);
+    setDocuments((docsRes.data as DocumentRow[]) || []);
 
-      if (rttEntitlements && rttEntitlements.length > 0) {
-        const birthDate = new Date(emp.date_of_birth);
-        const birthMonth = birthDate.getMonth() + 1;
-        const ageAtBirthdayThisYear = currentYear - birthDate.getFullYear();
-        const ageLastYear = ageAtBirthdayThisYear - 1;
+    // RTT and salary calculations depend on sector/timesheet, fetch in parallel
+    if (emp && emp.sector_id) {
+      const rttAndSalaryPromises: Promise<void>[] = [];
 
-        const findHours = (age: number): number => {
-          const match = rttEntitlements
-            .filter((r: { seniority_start: number }) => Number(r.seniority_start) <= age)
-            .sort((a: { seniority_start: number }, b: { seniority_start: number }) => Number(b.seniority_start) - Number(a.seniority_start))[0];
-          return match ? Number(match.hours_per_year) : 0;
-        };
+      // RTT calculation
+      if (emp.date_of_birth) {
+        const rttPromise = (async () => {
+          const { data: rttEntitlements } = await supabase
+            .from("rtt_entitlements")
+            .select("*")
+            .eq("sector_id", emp.sector_id!);
 
-        const hrThisYear = findHours(ageAtBirthdayThisYear);
-        const hrLastYear = findHours(ageLastYear);
+          if (rttEntitlements && rttEntitlements.length > 0) {
+            const birthDate = new Date(emp.date_of_birth!);
+            const birthMonth = birthDate.getMonth() + 1;
+            const ageAtBirthdayThisYear = currentYear - birthDate.getFullYear();
+            const ageLastYear = ageAtBirthdayThisYear - 1;
 
-        const firstPortion = (birthMonth - 1) / 12;
-        const secondPortion = 1 - firstPortion;
-        const totalRTT = firstPortion * hrLastYear + secondPortion * hrThisYear;
+            const findHours = (age: number): number => {
+              const match = rttEntitlements
+                .filter((r: { seniority_start: number }) => Number(r.seniority_start) <= age)
+                .sort((a: { seniority_start: number }, b: { seniority_start: number }) => Number(b.seniority_start) - Number(a.seniority_start))[0];
+              return match ? Number(match.hours_per_year) : 0;
+            };
 
-        let percentWorkTime = 1;
-        if (ts) {
-          const totalMin =
-            ((ts as Timesheet).monday_minutes || 0) +
-            ((ts as Timesheet).tuesday_minutes || 0) +
-            ((ts as Timesheet).wednesday_minutes || 0) +
-            ((ts as Timesheet).thursday_minutes || 0) +
-            ((ts as Timesheet).friday_minutes || 0) +
-            ((ts as Timesheet).saturday_minutes || 0) +
-            ((ts as Timesheet).sunday_minutes || 0);
-          percentWorkTime = totalMin / ((ts as Timesheet).full_time_minutes || 2280);
-        }
+            const hrThisYear = findHours(ageAtBirthdayThisYear);
+            const hrLastYear = findHours(ageLastYear);
 
-        const totalRTTAdjusted = Math.round(totalRTT * percentWorkTime * 100) / 100;
-        setRttMinutes(totalRTTAdjusted * 60);
+            const firstPortion = (birthMonth - 1) / 12;
+            const secondPortion = 1 - firstPortion;
+            const totalRTT = firstPortion * hrLastYear + secondPortion * hrThisYear;
+
+            let percentWorkTime = 1;
+            if (ts) {
+              const totalMin =
+                (ts.monday_minutes || 0) +
+                (ts.tuesday_minutes || 0) +
+                (ts.wednesday_minutes || 0) +
+                (ts.thursday_minutes || 0) +
+                (ts.friday_minutes || 0) +
+                (ts.saturday_minutes || 0) +
+                (ts.sunday_minutes || 0);
+              percentWorkTime = totalMin / (ts.full_time_minutes || 2280);
+            }
+
+            const totalRTTAdjusted = Math.round(totalRTT * percentWorkTime * 100) / 100;
+            setRttMinutes(totalRTTAdjusted * 60);
+          } else {
+            setRttMinutes(null);
+          }
+        })();
+        rttAndSalaryPromises.push(rttPromise);
       } else {
         setRttMinutes(null);
       }
-    } else {
-      setRttMinutes(null);
-    }
 
-    // Fetch recent absences (last 5)
-    const { data: absences } = await supabase
-      .from("year_calendar")
-      .select("absence_date, absence_days, absence_minutes, absence_codes(code, description, color_hex)")
-      .eq("employee_id", empId)
-      .order("absence_date", { ascending: false })
-      .limit(5);
-    setRecentAbsences((absences as unknown as AbsenceRow[]) || []);
+      // Salary calculation
+      const salaryPromise = (async () => {
+        const seniorityYears = calculateSeniorityYears(
+          emp.date_of_hire,
+          emp.granted_seniority,
+          emp.granted_seniority_date
+        );
 
-    // Calculate salary
-    if (emp && emp.sector_id) {
-      const seniorityYears = calculateSeniorityYears(
-        emp.date_of_hire,
-        emp.granted_seniority,
-        emp.granted_seniority_date
-      );
+        const [scalesRes, orgIdxRes, secIdxRes, empIdxRes] = await Promise.all([
+          supabase
+            .from("seniority_scales")
+            .select("*")
+            .eq("sector_id", emp.sector_id!),
+          supabase
+            .from("organisation_indexations")
+            .select("id, indexation_value, indexation_date"),
+          supabase
+            .from("sector_indexations")
+            .select("id, indexation_value, indexation_date")
+            .eq("sector_id", emp.sector_id!),
+          supabase
+            .from("employee_indexations")
+            .select("id, employee_id, indexation_value, indexation_date")
+            .eq("employee_id", empId),
+        ]);
 
-      const { data: scales } = await supabase
-        .from("seniority_scales")
-        .select("*")
-        .eq("sector_id", emp.sector_id);
+        const scales = scalesRes.data;
+        const orgIdx = orgIdxRes.data;
+        const secIdx = secIdxRes.data;
+        const empIdx = empIdxRes.data;
 
-      const { data: orgIdx } = await supabase
-        .from("organisation_indexations")
-        .select("id, indexation_value, indexation_date");
-
-      const { data: secIdx } = await supabase
-        .from("sector_indexations")
-        .select("id, indexation_value, indexation_date")
-        .eq("sector_id", emp.sector_id);
-
-      const { data: empIdx } = await supabase
-        .from("employee_indexations")
-        .select("id, employee_id, indexation_value, indexation_date")
-        .eq("employee_id", empId);
-
-      if (scales && scales.length > 0) {
-        const baseSalary = findBaseSalary(emp.sector_id, seniorityYears, scales);
-        if (baseSalary) {
-          const result = calculateFullSalary({
-            baseSalary,
-            orgIndexations: orgIdx || [],
-            sectorIndexations: secIdx || [],
-            personalIncreases: empIdx || [],
-          });
-          setSalary(result.totalSalary);
+        if (scales && scales.length > 0) {
+          const baseSalary = findBaseSalary(emp.sector_id!, seniorityYears, scales);
+          if (baseSalary) {
+            const result = calculateFullSalary({
+              baseSalary,
+              orgIndexations: orgIdx || [],
+              sectorIndexations: secIdx || [],
+              personalIncreases: empIdx || [],
+            });
+            setSalary(result.totalSalary);
+          } else {
+            setSalary(null);
+          }
         } else {
           setSalary(null);
         }
-      } else {
-        setSalary(null);
-      }
+      })();
+      rttAndSalaryPromises.push(salaryPromise);
+
+      await Promise.all(rttAndSalaryPromises);
     } else {
+      setRttMinutes(null);
       setSalary(null);
     }
-
-    // Fetch documents
-    const { data: docs } = await supabase
-      .from("employee_documents")
-      .select("id, name, file_type, file_size, file_base64, category, uploaded_at")
-      .eq("employee_id", empId)
-      .order("uploaded_at", { ascending: false });
-    setDocuments((docs as DocumentRow[]) || []);
 
     setDataLoading(false);
   }
@@ -323,7 +350,18 @@ export default function SelfServicePage() {
         </label>
         <select
           value={selectedId || ""}
-          onChange={(e) => setSelectedId(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => {
+            const val = e.target.value ? Number(e.target.value) : null;
+            setSelectedId(val);
+            // Store in localStorage so notifications-bell can scope by employee
+            if (val) {
+              localStorage.setItem("workdays_selected_employee_id", String(val));
+            } else {
+              localStorage.removeItem("workdays_selected_employee_id");
+            }
+            // Dispatch custom event for same-tab listeners
+            window.dispatchEvent(new Event("workdays_employee_changed"));
+          }}
           className="w-full max-w-md px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">-- Choisir un employe --</option>

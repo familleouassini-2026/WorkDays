@@ -94,17 +94,32 @@ function TreeNodeComponent({
         {/* Employee card */}
         <Link
           href={`/employees/${node.employee.id}`}
-          className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-blue-300 hover:shadow transition-all group flex-1 min-w-0"
+          className={`flex items-center gap-3 px-3 py-2 border rounded-lg shadow-sm hover:shadow transition-all group flex-1 min-w-0 ${
+            node.employee.is_inactive
+              ? "bg-slate-50 border-slate-200 opacity-60"
+              : "bg-white border-slate-200 hover:border-blue-300"
+          }`}
         >
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-medium text-blue-700">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+            node.employee.is_inactive ? "bg-slate-200" : "bg-blue-100"
+          }`}>
+            <span className={`text-xs font-medium ${
+              node.employee.is_inactive ? "text-slate-500" : "text-blue-700"
+            }`}>
               {node.employee.first_name?.[0]}
               {node.employee.last_name?.[0]}
             </span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-900 truncate group-hover:text-blue-700">
+            <p className={`text-sm font-medium truncate ${
+              node.employee.is_inactive
+                ? "text-slate-500"
+                : "text-slate-900 group-hover:text-blue-700"
+            }`}>
               {node.employee.last_name} {node.employee.first_name}
+              {node.employee.is_inactive && (
+                <span className="ml-1 text-xs text-slate-400 font-normal">(inactif)</span>
+              )}
             </p>
             <p className="text-xs text-slate-500 truncate">
               {node.employee.job_title || "Pas de fonction"}
@@ -145,7 +160,9 @@ export default function OrganigrammePage() {
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient();
-      const { data, error: fetchErr } = await supabase
+
+      // First, fetch all active employees
+      const { data: activeData, error: fetchErr } = await supabase
         .from("employees")
         .select("id, first_name, last_name, job_title, manager_id, sector_id, is_inactive, sectors(name)")
         .eq("is_inactive", false)
@@ -153,9 +170,35 @@ export default function OrganigrammePage() {
 
       if (fetchErr) {
         setError("Impossible de charger les donnees.");
-      } else if (data) {
-        setEmployees(data as unknown as Employee[]);
+        setLoading(false);
+        return;
       }
+
+      const activeEmployees = (activeData || []) as unknown as Employee[];
+
+      // Collect manager_ids that reference inactive employees (not in active set)
+      const activeIds = new Set(activeEmployees.map((e) => e.id));
+      const missingManagerIds = new Set<number>();
+      for (const emp of activeEmployees) {
+        if (emp.manager_id && !activeIds.has(emp.manager_id)) {
+          missingManagerIds.add(emp.manager_id);
+        }
+      }
+
+      // Fetch inactive managers so their children don't become orphan roots
+      let allEmployees = activeEmployees;
+      if (missingManagerIds.size > 0) {
+        const { data: inactiveManagers } = await supabase
+          .from("employees")
+          .select("id, first_name, last_name, job_title, manager_id, sector_id, is_inactive, sectors(name)")
+          .in("id", Array.from(missingManagerIds));
+
+        if (inactiveManagers && inactiveManagers.length > 0) {
+          allEmployees = [...activeEmployees, ...(inactiveManagers as unknown as Employee[])];
+        }
+      }
+
+      setEmployees(allEmployees);
       setLoading(false);
     }
     fetchData();

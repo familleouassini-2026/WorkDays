@@ -48,6 +48,13 @@ export default function ApprovalsPage() {
   const [rejectModal, setRejectModal] = useState<LeaveRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
 
+  // Read "logged in" employee from localStorage for approved_by tracking
+  const getApproverId = (): number | null => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem("workdays_selected_employee_id");
+    return stored ? Number(stored) : null;
+  };
+
   useEffect(() => {
     fetchRequests();
   }, [statusFilter]);
@@ -74,19 +81,20 @@ export default function ApprovalsPage() {
         body: JSON.stringify({
           id: request.id,
           action: "approve",
+          approved_by: getApproverId(),
         }),
       });
 
       if (res.ok) {
-        // Notify the employee
+        // Notify the employee (non-blocking, log on failure)
         if (request.employees) {
-          await createNotification({
+          createNotification({
             employeeId: request.employee_id,
             title: "Demande approuvee",
             message: `Votre demande de conge (${request.absence_codes?.code || ""}) du ${formatDate(request.start_date)} au ${formatDate(request.end_date)} a ete approuvee.`,
             type: "success",
             link: "/self-service",
-          });
+          }).catch((err) => console.warn("Failed to create approval notification:", err));
         }
         fetchRequests();
       }
@@ -106,20 +114,21 @@ export default function ApprovalsPage() {
         body: JSON.stringify({
           id: rejectModal.id,
           action: "reject",
+          approved_by: getApproverId(),
           rejection_reason: rejectionReason || null,
         }),
       });
 
       if (res.ok) {
-        // Notify the employee
+        // Notify the employee (non-blocking, log on failure)
         if (rejectModal.employees) {
-          await createNotification({
+          createNotification({
             employeeId: rejectModal.employee_id,
             title: "Demande refusee",
             message: `Votre demande de conge (${rejectModal.absence_codes?.code || ""}) du ${formatDate(rejectModal.start_date)} au ${formatDate(rejectModal.end_date)} a ete refusee.${rejectionReason ? ` Motif: ${rejectionReason}` : ""}`,
             type: "warning",
             link: "/self-service",
-          });
+          }).catch((err) => console.warn("Failed to create rejection notification:", err));
         }
         setRejectModal(null);
         setRejectionReason("");

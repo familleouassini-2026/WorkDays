@@ -11,12 +11,18 @@ export async function GET(request: NextRequest) {
     const limit = Number(searchParams.get("limit")) || 50;
     const isRead = searchParams.get("is_read");
 
+    const employeeId = searchParams.get("employee_id");
+
     const supabase = createAdminClient();
     let query = supabase
       .from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (employeeId) {
+      query = query.eq("employee_id", Number(employeeId));
+    }
 
     if (isRead === "true") {
       query = query.eq("is_read", true);
@@ -79,15 +85,21 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ids, mark_all_read } = body;
+    const { ids, mark_all_read, employee_id } = body;
 
     const supabase = createAdminClient();
 
     if (mark_all_read) {
-      const { error } = await supabase
+      let markQuery = supabase
         .from("notifications")
         .update({ is_read: true })
         .eq("is_read", false);
+
+      if (employee_id) {
+        markQuery = markQuery.eq("employee_id", Number(employee_id));
+      }
+
+      const { error } = await markQuery;
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

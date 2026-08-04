@@ -156,10 +156,17 @@ export async function PATCH(request: NextRequest) {
         return (tsData as Record<string, number | null>)[DOW_FIELDS[dow]] || 0;
       };
 
-      // 4. Iterate from start_date to end_date, skip weekends, holidays, zero-schedule
+      // 4. Collect all records to insert in a batch
       const start = new Date(leaveRequest.start_date);
       const end = new Date(leaveRequest.end_date);
-      const insertedDays: string[] = [];
+      const recordsToInsert: Array<{
+        employee_id: number;
+        absence_date: string;
+        absence_code_id: number;
+        absence_minutes: number | null;
+        absence_days: number | null;
+        year: number;
+      }> = [];
 
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dow = d.getDay();
@@ -173,33 +180,41 @@ export async function PATCH(request: NextRequest) {
         const scheduledMin = getScheduleMinutes(d);
         if (scheduledMin === 0) continue;
 
-        // Insert year_calendar entry
-        const record = {
+        recordsToInsert.push({
           employee_id: leaveRequest.employee_id,
           absence_date: dateStr,
           absence_code_id: leaveRequest.absence_code_id,
           absence_minutes: isHours ? scheduledMin : null,
           absence_days: !isHours ? 1 : null,
           year: Number(dateStr.split("-")[0]),
-        };
-
-        const { error: insertError } = await supabase
-          .from("year_calendar")
-          .insert(record);
-
-        if (!insertError) {
-          insertedDays.push(dateStr);
-        }
+        });
       }
 
-      // 5. Update the leave request status
+      // 5. Batch insert all year_calendar entries at once (atomic)
+      let insertedCount = 0;
+      if (recordsToInsert.length > 0) {
+        const { data: insertedData, error: insertError } = await supabase
+          .from("year_calendar")
+          .insert(recordsToInsert)
+          .select("id");
+
+        if (insertError) {
+          return NextResponse.json(
+            { error: `Failed to create calendar entries: ${insertError.message}` },
+            { status: 500 }
+          );
+        }
+        insertedCount = insertedData?.length || recordsToInsert.length;
+      }
+
+      // 6. Update the leave request status
       const { error: updateError } = await supabase
         .from("leave_requests")
         .update({
           status: "approved",
           approved_by: approved_by || null,
           approved_at: new Date().toISOString(),
-          total_days: insertedDays.length,
+          total_days: insertedCount,
         })
         .eq("id", id);
 
@@ -207,7 +222,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
 
-      return NextResponse.json({ success: true, days_inserted: insertedDays.length });
+      return NextResponse.json({ success: true, days_inserted: insertedCount });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

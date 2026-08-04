@@ -38,14 +38,42 @@ export default function NotificationsBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [employeeId, setEmployeeId] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Read selected employee from localStorage (set by self-service page)
+    const stored = localStorage.getItem("workdays_selected_employee_id");
+    if (stored) setEmployeeId(Number(stored));
+
+    // Listen for changes to the selected employee
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "workdays_selected_employee_id") {
+        setEmployeeId(e.newValue ? Number(e.newValue) : null);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    // Also listen for custom event (same-tab updates)
+    const handleCustom = () => {
+      const val = localStorage.getItem("workdays_selected_employee_id");
+      setEmployeeId(val ? Number(val) : null);
+    };
+    window.addEventListener("workdays_employee_changed", handleCustom);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("workdays_employee_changed", handleCustom);
+    };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
     // Poll every 30s
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -61,7 +89,9 @@ export default function NotificationsBell() {
 
   async function fetchNotifications() {
     try {
-      const res = await fetch("/api/notifications?limit=10");
+      const params = new URLSearchParams({ limit: "10" });
+      if (employeeId) params.set("employee_id", String(employeeId));
+      const res = await fetch(`/api/notifications?${params.toString()}`);
       const json = await res.json();
       if (json.data) {
         setNotifications(json.data);
