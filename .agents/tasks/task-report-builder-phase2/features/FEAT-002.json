@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Enhanced preview (step 6 in wizard) with total row count, computed totals, group headers with subtotals, orientation indicator. Enhanced PDF export with page header/footer, styled subtotals, and styled grand totals. Update project-health.json.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "1. In src/app/reports/builder/page.tsx - Modify the preview panel: (a) Change runPreview to fetch ALL data (not just 20) and store in a separate state variable (fullPreviewData) for counting, while still displaying first 20 in the table. Show 'X lignes au total' where X is fullPreviewData.length. (b) After fetching, apply applyGrouping to the full data and compute totals. Display totals row at bottom of preview table (bold, bg-blue-50). (c) If groupBy is configured, render grouped preview with colored group headers (bg-indigo-50) and sub-totals per group (bg-gray-100). (d) Show an orientation indicator icon next to the preview title: a rectangle icon rotated 0deg for portrait or 90deg for landscape, using the resolved orientation value.",
     "2. In src/app/reports/[id]/page.tsx - Enhance the PDF print styles: (a) Add a repeating header on each printed page: report title + generation date + 'Page X' (use CSS @page with running headers via @top-center, or use thead repeated approach). Since window.print is used, implement via a print-only header div that appears on every page using position: fixed/running workaround or by using table thead which naturally repeats. (b) Add a print-only footer: 'Genere par WorkDays le [date]'. (c) Style group sub-total rows with bg-gray-100 (light gray background) in both screen and print. (d) Style the grand total row (last row) with font-bold and bg-slate-200 (blue-gray). (e) Ensure all existing functionality continues working.",
@@ -25,5 +25,5 @@
     "Run: export PATH=/opt/toolchains/.nvm/versions/node/v22.23.2/bin:$PATH && cd /projects/sandbox/WorkDays && npx next build 2>&1 | grep -E '(error|Error|✓|✗)' to confirm compilation succeeds"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build passes successfully. Used Monitor/FileText icons from lucide-react for orientation indicator (title prop not supported on lucide components). Print CSS uses position:fixed for header/footer which repeats on each printed page. Grand totals computed across all rows in both grouped and flat views."
 }

@@ -7,6 +7,7 @@ import { schemaMetadata, type TableMetadata, calculatedColumns } from "@/data/sc
 import {
   resolveJoins,
   executeReport,
+  applyGrouping,
   type ReportConfig,
   type ReportColumn,
   type ReportJoin,
@@ -14,6 +15,7 @@ import {
   type ReportSort,
   type ReportTotal,
   type JoinPath,
+  type GroupedResult,
 } from "@/lib/report-engine";
 import {
   Calendar,
@@ -30,6 +32,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Calculator,
+  FileText,
+  Monitor,
 } from "lucide-react";
 
 // Step labels in French
@@ -119,6 +123,9 @@ function ReportBuilderContent() {
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [previewFullCount, setPreviewFullCount] = useState(0);
+  const [previewTotals, setPreviewTotals] = useState<Record<string, number>>({});
+  const [previewGrouped, setPreviewGrouped] = useState<GroupedResult[]>([]);
 
   // Calculated columns state
   const [selectedCalculatedColumns, setSelectedCalculatedColumns] = useState<string[]>([]);
@@ -326,7 +333,42 @@ function ReportBuilderContent() {
     try {
       const config = buildConfig();
       const data = await executeReport(config);
+      setPreviewFullCount(data.length);
       setPreviewData(data.slice(0, 20));
+
+      // Compute totals across all data
+      if (config.totals && config.totals.length > 0) {
+        const allTotals: Record<string, number> = {};
+        for (const total of config.totals) {
+          const values = data
+            .map((row) => row[total.field])
+            .filter((v): v is number => typeof v === "number");
+          switch (total.fn) {
+            case "SUM":
+              allTotals[total.label] = values.reduce((sum, v) => sum + v, 0);
+              break;
+            case "COUNT":
+              allTotals[total.label] = values.length;
+              break;
+            case "AVG":
+              allTotals[total.label] = values.length > 0
+                ? values.reduce((sum, v) => sum + v, 0) / values.length
+                : 0;
+              break;
+          }
+        }
+        setPreviewTotals(allTotals);
+      } else {
+        setPreviewTotals({});
+      }
+
+      // Compute grouped preview if groupBy is configured
+      if (config.groupBy && config.groupBy.length > 0) {
+        const grouped = applyGrouping(data, config);
+        setPreviewGrouped(grouped);
+      } else {
+        setPreviewGrouped([]);
+      }
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : "Erreur lors de l'apercu");
     } finally {
@@ -1015,7 +1057,15 @@ function ReportBuilderContent() {
           <div className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-slate-500" />
             <span className="font-medium text-slate-700">Apercu</span>
-            <span className="text-sm text-slate-400">(20 premieres lignes)</span>
+            {/* Orientation indicator */}
+            {(orientation === "landscape" || (orientation === "auto" && autoOrientation === "landscape")) ? (
+              <Monitor className="w-4 h-4 text-slate-400 rotate-0" />
+            ) : (
+              <FileText className="w-4 h-4 text-slate-400 rotate-0" />
+            )}
+            <span className="text-xs text-slate-400">
+              ({(orientation === "landscape" || (orientation === "auto" && autoOrientation === "landscape")) ? "Paysage" : "Portrait"})
+            </span>
           </div>
           {showPreview ? (
             <ChevronUp className="w-5 h-5 text-slate-400" />
@@ -1031,37 +1081,138 @@ function ReportBuilderContent() {
               <p className="text-sm text-slate-500">Aucune donnee a afficher.</p>
             )}
             {!previewLoading && previewData.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50">
-                      {selectedColumns.map((col) => (
-                        <th
-                          key={`${col.table}.${col.field}`}
-                          className="px-3 py-2 text-left font-medium text-slate-600 border-b border-slate-200"
-                        >
-                          {col.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.map((row, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-slate-50">
-                        {selectedColumns.map((col) => (
-                          <td
-                            key={`${col.table}.${col.field}`}
-                            className="px-3 py-2 text-slate-700 border-b border-slate-100"
-                          >
-                            {row[`${col.table}.${col.field}`] != null
-                              ? String(row[`${col.table}.${col.field}`])
-                              : "-"}
-                          </td>
+              <div>
+                {/* Total count */}
+                <p className="text-sm text-slate-600 mb-3 font-medium">
+                  {previewFullCount} ligne{previewFullCount !== 1 ? "s" : ""} au total
+                </p>
+
+                {/* Grouped preview */}
+                {previewGrouped.length > 0 ? (
+                  <div className="space-y-4">
+                    {previewGrouped.map((group, gi) => {
+                      const groupLabel = Object.entries(group.groupKey)
+                        .map(([field, value]) => {
+                          const col = selectedColumns.find((c) => `${c.table}.${c.field}` === field);
+                          const label = col ? col.label : field;
+                          return `${label}: ${value ?? "-"}`;
+                        })
+                        .join(" | ");
+
+                      return (
+                        <div key={gi} className="border border-slate-200 rounded-lg overflow-hidden">
+                          {/* Group header */}
+                          <div className="bg-indigo-50 px-3 py-2 border-b border-slate-200">
+                            <p className="text-sm font-semibold text-indigo-800">{groupLabel}</p>
+                            <p className="text-xs text-indigo-600">{group.rows.length} ligne{group.rows.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          {/* Group rows (limit to first 5 per group in preview) */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50">
+                                  {selectedColumns.map((col) => (
+                                    <th
+                                      key={`${col.table}.${col.field}`}
+                                      className="px-3 py-2 text-left font-medium text-slate-600 border-b border-slate-200"
+                                    >
+                                      {col.label}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.rows.slice(0, 5).map((row, rowIdx) => (
+                                  <tr key={rowIdx} className="hover:bg-slate-50">
+                                    {selectedColumns.map((col) => (
+                                      <td
+                                        key={`${col.table}.${col.field}`}
+                                        className="px-3 py-2 text-slate-700 border-b border-slate-100"
+                                      >
+                                        {row[`${col.table}.${col.field}`] != null
+                                          ? String(row[`${col.table}.${col.field}`])
+                                          : "-"}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                                {group.rows.length > 5 && (
+                                  <tr>
+                                    <td colSpan={selectedColumns.length} className="px-3 py-2 text-xs text-slate-400 italic text-center border-b border-slate-100">
+                                      ... et {group.rows.length - 5} autre{group.rows.length - 5 > 1 ? "s" : ""} ligne{group.rows.length - 5 > 1 ? "s" : ""}
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                          {/* Group subtotals */}
+                          {Object.keys(group.totals).length > 0 && (
+                            <div className="bg-gray-100 px-3 py-2 border-t border-slate-200 flex flex-wrap gap-4">
+                              {Object.entries(group.totals).map(([label, value]) => (
+                                <span key={label} className="text-xs font-medium text-slate-700">
+                                  {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Flat preview */
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          {selectedColumns.map((col) => (
+                            <th
+                              key={`${col.table}.${col.field}`}
+                              className="px-3 py-2 text-left font-medium text-slate-600 border-b border-slate-200"
+                            >
+                              {col.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.map((row, rowIdx) => (
+                          <tr key={rowIdx} className="hover:bg-slate-50">
+                            {selectedColumns.map((col) => (
+                              <td
+                                key={`${col.table}.${col.field}`}
+                                className="px-3 py-2 text-slate-700 border-b border-slate-100"
+                              >
+                                {row[`${col.table}.${col.field}`] != null
+                                  ? String(row[`${col.table}.${col.field}`])
+                                  : "-"}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Grand totals row */}
+                {Object.keys(previewTotals).length > 0 && (
+                  <div className="bg-blue-50 px-3 py-2 mt-3 rounded-lg border border-blue-100 flex flex-wrap gap-4">
+                    <span className="text-xs font-bold text-blue-900">Totaux :</span>
+                    {Object.entries(previewTotals).map(([label, value]) => (
+                      <span key={label} className="text-xs font-bold text-blue-800">
+                        {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
+                      </span>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                )}
+
+                {previewFullCount > 20 && previewGrouped.length === 0 && (
+                  <p className="text-xs text-slate-400 mt-2 italic">
+                    Affichage limite aux 20 premieres lignes.
+                  </p>
+                )}
               </div>
             )}
             <button
