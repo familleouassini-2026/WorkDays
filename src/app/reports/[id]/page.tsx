@@ -125,6 +125,77 @@ export default function ReportExecutionPage() {
     URL.revokeObjectURL(url);
   }
 
+  function exportExcel() {
+    if (!template) return;
+    const config = template.config;
+
+    // Build an HTML table that Excel can open natively
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
+    html += `<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Rapport</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
+    html += `<body><table border="1">`;
+
+    // Header row
+    html += `<thead><tr>`;
+    for (const col of config.columns) {
+      html += `<th style="background-color:#f1f5f9;font-weight:bold;padding:6px 10px;">${escapeHtml(col.label)}</th>`;
+    }
+    html += `</tr></thead>`;
+
+    // Data rows
+    html += `<tbody>`;
+    for (const row of data) {
+      html += `<tr>`;
+      for (const col of config.columns) {
+        const key = `${col.table}.${col.field}`;
+        const val = row[key];
+        const formatted = formatCellValue(val, col.type);
+        const align = col.type === "number" ? "right" : "left";
+        html += `<td style="padding:4px 8px;text-align:${align};">${escapeHtml(formatted)}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody>`;
+
+    // Grand totals row if applicable
+    if (Object.keys(grandTotals).length > 0) {
+      html += `<tfoot><tr>`;
+      html += `<td style="font-weight:bold;background-color:#e2e8f0;padding:6px 10px;">Totaux</td>`;
+      for (let i = 1; i < config.columns.length; i++) {
+        const totalEntry = Object.entries(grandTotals).find(([label]) => {
+          return config.columns[i].label.includes(label) || label.includes(config.columns[i].label);
+        });
+        if (totalEntry) {
+          html += `<td style="font-weight:bold;background-color:#e2e8f0;padding:6px 10px;text-align:right;">${totalEntry[1].toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</td>`;
+        } else {
+          html += `<td style="background-color:#e2e8f0;"></td>`;
+        }
+      }
+      html += `</tr></tfoot>`;
+    }
+
+    html += `</table></body></html>`;
+
+    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = (template.name || "rapport").replace(/\s+/g, "-").toLowerCase();
+    const todayDate = new Date();
+    const dateStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+    a.download = `rapport-${safeName}-${dateStr}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   function formatCellValue(value: unknown, type: string): string {
     if (value === null || value === undefined) return "-";
     if (type === "date") {
@@ -261,6 +332,13 @@ export default function ReportExecutionPage() {
             >
               <Download className="w-3.5 h-3.5" />
               CSV
+            </button>
+            <button
+              onClick={exportExcel}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Excel
             </button>
           </div>
         </div>

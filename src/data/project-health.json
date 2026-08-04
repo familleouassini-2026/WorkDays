@@ -287,7 +287,7 @@
         "supabase/migrations/021-report-templates.sql"
       ],
       "accessOrigin": "extracted/reports_all.md",
-      "notes": "Module Report Builder complet : selection tables/colonnes, jointures auto via FK, filtres, groupements + totaux (SUM/COUNT/AVG), tri, sauvegarde templates JSONB, edition/duplication, export PDF (window.print avec @media print, orientation auto/portrait/landscape, pas de troncature) et CSV. Wizard 6 etapes avec preview temps reel (20 lignes). Phase 2 : colonnes calculees (anciennete, salaire indexe, age, % temps travail), filtres intelligents (date range, secteur, annee, statut), duplication de rapports, preview enrichi (compteur total, totaux, groupements visuels, indicateur orientation), export PDF ameliore (header/footer repetes, sous-totaux colores, totaux generaux styles), aggregation RPC."
+      "notes": "Module Report Builder complet : selection tables/colonnes, jointures auto via FK, filtres, groupements + totaux (SUM/COUNT/AVG), tri, sauvegarde templates JSONB, edition/duplication, export PDF (window.print avec @media print, orientation auto/portrait/landscape, pas de troncature), CSV et Excel (.xls via HTML table). Wizard 6 etapes avec preview temps reel (20 lignes). Phase 2 : colonnes calculees (anciennete, salaire indexe, age, % temps travail), filtres intelligents (date range, secteur, annee, statut), duplication de rapports, preview enrichi (compteur total, totaux, groupements visuels, indicateur orientation), export PDF ameliore (header/footer repetes, sous-totaux colores, totaux generaux styles), aggregation RPC. Schema metadata complet (30 colonnes employees, secteurs avec mission/groupe RTT, absence_codes avec sort_order/text_color, meetings avec created_at, requests avec requester/priority/completed_at)."
     },
     {
       "id": "auth",
@@ -334,6 +334,16 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-06",
+      "pr": null,
+      "description": "Report Builder corrections : schema-metadata.ts etendu avec toutes les colonnes manquantes (employees passe de 13 a 30 champs, sectors +2, absence_codes +2, meetings +1, requests +3). Export Excel ajoute sur /reports/[id] via HTML table .xls (pas de dependance externe).",
+      "filesChanged": [
+        "src/data/schema-metadata.ts",
+        "src/app/reports/[id]/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-06",
       "pr": "#113",
