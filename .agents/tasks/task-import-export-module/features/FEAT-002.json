@@ -25,5 +25,5 @@
     "Run: export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm run build"
   ],
   "blocked_reason": null,
-  "findings": "Build compiles successfully (exit code 0). Pre-render warning for /settings/import-export is the same pre-existing issue as /employees/new - both use client components with Supabase that fail during static generation without env vars. TypeScript type checking passes. Used eslint-disable for any casts on Supabase response rows with dynamic field access."
+  "findings": "Build compiles successfully (exit code 0). Pre-render warning for /settings/import-export is the same pre-existing issue as /employees/new - both use client components with Supabase that fail during static generation without env vars. TypeScript type checking passes. Used eslint-disable for any casts on Supabase response rows with dynamic field access. Review round 2: Added hasUniqueConstraint boolean to ImportTemplate, updated keyFields for composite-key tables (seniority_scales, rtt_entitlements, vacation_rights), fall back to INSERT for tables without DB unique constraints, disabled upsert radio in UI when not supported."
 }
