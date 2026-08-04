@@ -348,6 +348,87 @@
       "notes": "NON IMPLÉMENTÉ. Login Supabase Auth, rôles : Admin, HR Manager, Sector Manager, Employee"
     },
     {
+      "id": "pwa-manifest",
+      "name": "PWA Manifest et Service Worker",
+      "status": "implemented",
+      "spec": null,
+      "code": [
+        "public/manifest.json",
+        "public/sw.js",
+        "public/icon-192x192.svg",
+        "public/icon-512x512.svg",
+        "src/app/layout.tsx"
+      ],
+      "accessOrigin": null,
+      "notes": "PWA manifest avec icones SVG, service worker pour cache offline, meta tags dans layout. App installable sur mobile."
+    },
+    {
+      "id": "organigramme",
+      "name": "Organigramme hierarchique",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#people",
+      "code": [
+        "src/app/employees/organigramme/page.tsx",
+        "src/app/employees/[id]/edit/page.tsx",
+        "supabase/migrations/024-manager-id.sql"
+      ],
+      "accessOrigin": null,
+      "notes": "Vue arborescente des employes par manager_id. Migration ajoute manager_id a employees. Formulaire edit employe inclut le selecteur de responsable."
+    },
+    {
+      "id": "employee-documents",
+      "name": "Documents employes",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#people",
+      "code": [
+        "src/app/employees/[id]/documents/page.tsx",
+        "supabase/migrations/025-documents.sql"
+      ],
+      "accessOrigin": null,
+      "notes": "Upload/download/delete de documents employes en base64. Categories: contrat, avenant, attestation, fiche_paie, medical, formation, other. Max 2MB."
+    },
+    {
+      "id": "self-service",
+      "name": "Portail Self-service",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#self-service",
+      "code": [
+        "src/app/self-service/page.tsx",
+        "src/app/self-service/leave-request/page.tsx"
+      ],
+      "accessOrigin": null,
+      "notes": "Portail employe avec selecteur (simule connexion). Dashboard: solde conges, RTT, salaire, horaire, 5 dernieres absences, documents personnels. Lien demande de conge."
+    },
+    {
+      "id": "leave-workflow",
+      "name": "Workflow approbation conges",
+      "status": "implemented",
+      "spec": ".kiro/specs/feature-specifications.md#absences",
+      "code": [
+        "src/app/self-service/leave-request/page.tsx",
+        "src/app/absences/approvals/page.tsx",
+        "src/app/api/leave-requests/route.ts",
+        "supabase/migrations/026-leave-requests.sql"
+      ],
+      "accessOrigin": null,
+      "notes": "Demande de conge par employe (status pending). Page approbations pour manager: filtres par statut, approve/reject avec motif. Approbation cree automatiquement les entrees year_calendar (meme logique encoder-drawer: skip weekends, holidays, 0-schedule days). Notifications au manager et employe."
+    },
+    {
+      "id": "notifications",
+      "name": "Notifications in-app",
+      "status": "implemented",
+      "spec": null,
+      "code": [
+        "src/components/notifications-bell.tsx",
+        "src/app/notifications/page.tsx",
+        "src/app/api/notifications/route.ts",
+        "src/lib/notifications.ts",
+        "supabase/migrations/027-notifications.sql"
+      ],
+      "accessOrigin": null,
+      "notes": "Systeme de notifications avec cloche dans le layout (badge non-lues, dropdown 10 dernieres). Page /notifications avec filtres lu/non-lu, marquer tout comme lu. Helper createNotification() pour creation via API route admin. Types: info, warning, success, action."
+    },
+    {
       "id": "settings-sectors",
       "name": "Gestion des secteurs",
       "status": "implemented",
@@ -383,6 +464,31 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-06",
+      "pr": null,
+      "description": "6 nouvelles features: PWA manifest + service worker, organigramme hierarchique (manager_id), documents employes (base64), portail self-service, workflow approbation conges (leave_requests table, creation auto year_calendar a l'approbation), notifications in-app (cloche avec badge, dropdown, page complete, helper createNotification). Migrations 024-027.",
+      "filesChanged": [
+        "public/manifest.json",
+        "public/sw.js",
+        "supabase/migrations/024-manager-id.sql",
+        "supabase/migrations/025-documents.sql",
+        "supabase/migrations/026-leave-requests.sql",
+        "supabase/migrations/027-notifications.sql",
+        "src/app/employees/organigramme/page.tsx",
+        "src/app/employees/[id]/documents/page.tsx",
+        "src/app/self-service/page.tsx",
+        "src/app/self-service/leave-request/page.tsx",
+        "src/app/absences/approvals/page.tsx",
+        "src/app/api/leave-requests/route.ts",
+        "src/app/api/notifications/route.ts",
+        "src/lib/notifications.ts",
+        "src/components/notifications-bell.tsx",
+        "src/app/notifications/page.tsx",
+        "src/app/layout.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-06",
       "pr": null,

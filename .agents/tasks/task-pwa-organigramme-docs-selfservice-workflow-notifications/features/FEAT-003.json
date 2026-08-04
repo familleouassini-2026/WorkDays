@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Leave request workflow (approval system) + Notifications system + project-health.json update",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create migration `supabase/migrations/026-leave-requests.sql` with leave_requests table (id SERIAL PK, employee_id INT NOT NULL FK employees(id) ON DELETE CASCADE, absence_code_id INT NOT NULL FK absence_codes(id), start_date DATE NOT NULL, end_date DATE NOT NULL, total_days NUMERIC, total_minutes INTEGER, reason TEXT, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')), approved_by INT REFERENCES employees(id), approved_at TIMESTAMPTZ, rejection_reason TEXT, created_at TIMESTAMPTZ DEFAULT NOW())",
     "Create migration `supabase/migrations/027-notifications.sql` with notifications table (id SERIAL PK, employee_id INT REFERENCES employees(id) ON DELETE CASCADE, title TEXT NOT NULL, message TEXT, type TEXT DEFAULT 'info' CHECK (type IN ('info','warning','success','action')), link TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())",
