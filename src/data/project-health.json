@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-07",
+  "lastUpdated": "2026-08-08",
   "architecture": {
     "steering": [
       {
@@ -461,10 +461,39 @@
       ],
       "accessOrigin": "extracted/vba_modules/Form_frm_YearCalendar.cls",
       "notes": "Vue 12 mois par employe. 3 sections toujours visibles (calendrier, detail, recap). Multi-absence par jour (bandes empilees max 3 + badge +N). Jours feries rouge, weekends gris. Clic sur jour ouvre l'Encodeur rapide (drawer) avec employe et date pre-selectionnes. Impression A4 couleur 2 pages."
+    },
+    {
+      "id": "recruitment",
+      "name": "Recrutement light",
+      "status": "implemented",
+      "spec": null,
+      "code": [
+        "src/app/recruitment/page.tsx",
+        "src/app/recruitment/openings/page.tsx",
+        "src/app/recruitment/candidates/page.tsx",
+        "src/app/recruitment/candidates/[id]/page.tsx",
+        "supabase/migrations/030-recruitment.sql"
+      ],
+      "accessOrigin": null,
+      "notes": "Module recrutement complet : dashboard (KPIs postes ouverts/candidatures/embauches ce mois + cards postes ouverts), CRUD postes (titre, secteur, site, contrat, description, statut open/filled/cancelled), liste candidats (filtres par poste et statut, rating etoiles, badges colores), fiche candidat (infos personnelles, upload CV base64 max 2MB, motivation/notes, entretien date+notes, rating cliquable, changement statut). Conversion candidat vers employe : bouton Embaucher (visible si statut offered/hired), formulaire pre-rempli avec toutes les donnees, creation employee + update candidate status + auto-fill poste si tous done. Sidebar: entree Recrutement avec icone UserPlus entre Actifs et Journal interne."
     }
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-08",
+      "pr": null,
+      "description": "Module Recrutement light : dashboard KPIs (postes ouverts, candidatures en cours, embauches ce mois) + cards postes ouverts. CRUD postes (titre, secteur dropdown, site dropdown, type contrat, description, statut avec filtres). Liste candidats (filtres par poste/statut, badges colores, rating etoiles). Fiche candidat complete (infos perso, CV upload base64 max 2MB, motivation/notes, entretien date+notes, rating 1-5 cliquable, changement statut). Bouton Embaucher (statut offered/hired) : formulaire pre-rempli, creation employe, update candidat+poste. Sidebar : Recrutement (UserPlus) entre Actifs et Journal interne. Migration 030-recruitment.sql (tables job_openings + candidates).",
+      "filesChanged": [
+        "supabase/migrations/030-recruitment.sql",
+        "src/app/recruitment/page.tsx",
+        "src/app/recruitment/openings/page.tsx",
+        "src/app/recruitment/candidates/page.tsx",
+        "src/app/recruitment/candidates/[id]/page.tsx",
+        "src/components/layout/Sidebar.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-07",
       "pr": null,
