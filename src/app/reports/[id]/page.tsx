@@ -11,6 +11,7 @@ import {
   type ReportConfig,
   type GroupedResult,
 } from "@/lib/report-engine";
+import { getOrganisation, type OrganisationInfo } from "@/lib/organisation";
 
 interface ReportTemplate {
   id: string;
@@ -29,6 +30,7 @@ export default function ReportExecutionPage() {
   const [groupedData, setGroupedData] = useState<GroupedResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [organisation, setOrganisation] = useState<OrganisationInfo | null>(null);
 
   useEffect(() => {
     async function loadAndExecute() {
@@ -36,11 +38,14 @@ export default function ReportExecutionPage() {
       setError(null);
 
       const supabase = createClient();
-      const { data: tpl, error: fetchErr } = await supabase
-        .from("report_templates")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const [tplResult, orgResult] = await Promise.all([
+        supabase.from("report_templates").select("*").eq("id", id).single(),
+        getOrganisation(),
+      ]);
+
+      if (orgResult) setOrganisation(orgResult);
+
+      const { data: tpl, error: fetchErr } = tplResult;
 
       if (fetchErr || !tpl) {
         setError("Rapport introuvable.");
@@ -312,11 +317,17 @@ export default function ReportExecutionPage() {
           Retour aux rapports
         </Link>
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">{reportTitle}</h1>
-            {template?.description && (
-              <p className="text-slate-500 mt-1">{template.description}</p>
+          <div className="flex items-center gap-3">
+            {organisation?.logo_base64 && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={organisation.logo_base64} alt="Logo" className="max-h-[60px] object-contain" />
             )}
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">{reportTitle}</h1>
+              {template?.description && (
+                <p className="text-slate-500 mt-1">{template.description}</p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -347,7 +358,13 @@ export default function ReportExecutionPage() {
       {/* Print header - repeats on each page via position:fixed */}
       <div className="print-only" aria-hidden="true">
         <div className="print-header">
-          <span style={{ fontWeight: 600 }}>{reportTitle}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {organisation?.logo_base64 && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={organisation.logo_base64} alt="" style={{ maxHeight: "60px", objectFit: "contain" }} />
+            )}
+            <span style={{ fontWeight: 600 }}>{reportTitle}</span>
+          </div>
           <span>Genere le {today}</span>
         </div>
         <div className="print-footer">

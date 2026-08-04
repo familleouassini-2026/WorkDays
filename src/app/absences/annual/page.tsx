@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Calendar, Printer } from "lucide-react";
 import SearchableSelect from "@/components/searchable-select";
 import EncoderDrawer from "@/components/encoder-drawer";
+import { getOrganisation, type OrganisationInfo } from "@/lib/organisation";
 
 // ============================================================
 // TYPES
@@ -127,17 +128,22 @@ export default function AnnualCalendarPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerDate, setDrawerDate] = useState<string | undefined>(undefined);
 
+  // Organisation info for print header
+  const [organisation, setOrganisation] = useState<OrganisationInfo | null>(null);
+
 
   // Load sectors and absence codes on mount
   useEffect(() => {
     async function loadInitial() {
       const supabase = createClient();
-      const [secRes, codesRes] = await Promise.all([
+      const [secRes, codesRes, orgRes] = await Promise.all([
         supabase.from("sectors").select("id, name").order("name"),
         supabase.from("absence_codes").select("*").order("sort_order"),
+        getOrganisation(),
       ]);
       if (secRes.data) setSectors(secRes.data);
       if (codesRes.data) setAbsenceCodes(codesRes.data);
+      if (orgRes) setOrganisation(orgRes);
     }
     loadInitial();
   }, []);
@@ -296,6 +302,12 @@ export default function AnnualCalendarPage() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
+    // Build logo header HTML
+    const logoHTML = organisation?.logo_base64
+      ? `<img src="${organisation.logo_base64}" alt="" style="max-height:50px;object-fit:contain;" />`
+      : "";
+    const orgNameHTML = organisation?.name ? `<span class="org-name">${organisation.name}</span>` : "";
+
     // Build calendar HTML
     let calendarHTML = "";
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
@@ -393,9 +405,12 @@ export default function AnnualCalendarPage() {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page { height: 257mm; display: flex; flex-direction: column; overflow: hidden; }
-  .page-header { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 2px solid #1e293b; }
+  .page-header { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 2px solid #1e293b; display: flex; align-items: center; gap: 10px; }
+  .page-header .header-text { flex: 1; }
   .page-header .title { font-size: 15px; font-weight: bold; }
   .page-header .subtitle { font-size: 11px; color: #475569; margin-top: 1px; }
+  .page-header .org-name { font-size: 11px; color: #475569; }
+  .page-header img { max-height: 50px; object-fit: contain; }
   .page-footer { margin-top: auto; padding-top: 4px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; font-size: 9px; color: #64748b; }
   .calendar-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; flex: 1; }
   .month-block { border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px 3px; display: flex; flex-direction: column; }
@@ -419,8 +434,12 @@ export default function AnnualCalendarPage() {
 <body>
   <div class="page">
     <div class="page-header">
-      <div class="title">Calendrier annuel ${selectedYear}</div>
-      <div class="subtitle">${employeeName}</div>
+      ${logoHTML}
+      <div class="header-text">
+        ${orgNameHTML}
+        <div class="title">Calendrier annuel ${selectedYear}</div>
+        <div class="subtitle">${employeeName}</div>
+      </div>
     </div>
     <div class="calendar-grid">${calendarHTML}</div>
     <div class="legend">${legendHTML}</div>
@@ -431,8 +450,12 @@ export default function AnnualCalendarPage() {
   </div>
   <div class="page page-break">
     <div class="page-header">
-      <div class="title">Calendrier annuel ${selectedYear}</div>
-      <div class="subtitle">${employeeName}</div>
+      ${logoHTML}
+      <div class="header-text">
+        ${orgNameHTML}
+        <div class="title">Calendrier annuel ${selectedYear}</div>
+        <div class="subtitle">${employeeName}</div>
+      </div>
     </div>
     <div class="detail-title">Detail des absences ${selectedYear}</div>
     <table class="detail-table">

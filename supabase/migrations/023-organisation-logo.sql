@@ -1,0 +1,1 @@
+ALTER TABLE organisations ADD COLUMN IF NOT EXISTS logo_base64 TEXT;
