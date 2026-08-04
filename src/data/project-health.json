@@ -352,6 +352,15 @@
     {
       "date": "2026-08-06",
       "pr": null,
+      "description": "Data migration page rewrite : suppression complete de l'ancien module staging/migration Supabase, remplacement par une page statique checklist de navigation. 8 cartes (Employes, Horaires, Secteurs, Droits conges, Baremes, RTT, Indexations, Actifs/Leasing) avec liens vers les pages concernees. Grille responsive 1col mobile / 2col desktop.",
+      "filesChanged": [
+        "src/app/settings/data-migration/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
+    {
+      "date": "2026-08-06",
+      "pr": null,
       "description": "Logo organisation : upload base64 (max 500KB, PNG/JPG/SVG) sur /settings/organisation, affichage dans le header d'impression des rapports (/reports/[id]) et du calendrier annuel (/absences/annual). Helper partage src/lib/organisation.ts. Migration SQL 023.",
       "filesChanged": [
         "src/app/settings/organisation/page.tsx",
