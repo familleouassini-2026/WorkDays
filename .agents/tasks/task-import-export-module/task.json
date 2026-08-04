@@ -1,0 +1,14 @@
+{
+  "task_id": "task-import-export-module",
+  "task_description": "Create missing CRUD pages for locations and rtt_groups, then build a complete Import/Export module for all WorkDays tables with Excel export and CSV import with preview, validation, and upsert support",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "skipped",
+    "docker_build": "skipped",
+    "summary": "npm run build completes with exit 0. Pre-render warning for /employees/new is pre-existing (Supabase env vars not available at static build time). No test framework configured. No Dockerfile present. Review issues resolved: (1) .range(0,9999) on all queries, (2) createClient moved inside async functions, (3) batch import with warning, (4) FK error handling on export, (5) keyField used in upsert onConflict, (6) Promise.all for parallel count fetching."
+  }
+}

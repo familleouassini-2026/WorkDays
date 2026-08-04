@@ -1,0 +1,25 @@
+{
+  "project_type": "Next.js 14 App Router + Supabase + Tailwind CSS",
+  "language": "TypeScript",
+  "build_system": "npm with next build",
+  "test_framework": "No test framework configured (no test files or test scripts in package.json)",
+  "build_command": "export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm run build",
+  "test_command": "N/A - no tests configured",
+  "verification_instructions": "Run npm run build to confirm TypeScript compiles without errors",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm install",
+  "environment_constraints": "COMMON_DEPENDENCIES network mode - npm packages available. Node v20.20.2 at /opt/toolchains/.nvm/versions/node/v20.20.2/bin. No npx, use full path or add to PATH.",
+  "contribution_requirements": "Code in English, UI in French. 'use client' components with Supabase browser client (createClient from @/lib/supabase/client). Lucide React icons. Tailwind classes. No heavy external dependencies.",
+  "key_patterns": "CRUD pages follow the sector pattern: inline form + table, useState for state, useEffect for fetching, createClient() from @/lib/supabase/client. Settings cards use Link + card className + icon + title + description. Export Excel via HTML table saved as .xls (see reports/[id]/page.tsx). All pages are 'use client' components.",
+  "relevant_files": [
+    "src/app/settings/page.tsx",
+    "src/app/settings/sectors/page.tsx",
+    "src/app/reports/[id]/page.tsx",
+    "src/data/schema-metadata.ts",
+    "src/data/project-health.json",
+    "src/lib/supabase/client.ts",
+    "src/components/layout/Sidebar.tsx",
+    "docs/database-schema.md"
+  ],
+  "directory_structure": "src/app/ = pages (App Router), src/components/ = shared components, src/lib/ = utilities, src/data/ = static data files, supabase/migrations/ = SQL migrations, docs/ = documentation"
+}
