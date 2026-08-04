@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Documents module (employee file storage with base64) + Self-service portal page",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create migration `supabase/migrations/025-documents.sql` with the employee_documents table (id SERIAL PK, employee_id INT NOT NULL FK employees(id) ON DELETE CASCADE, name TEXT NOT NULL, file_type TEXT, file_size INTEGER, file_base64 TEXT NOT NULL, category TEXT DEFAULT 'other', uploaded_at TIMESTAMPTZ DEFAULT NOW(), notes TEXT)",
     "Create `src/app/employees/[id]/documents/page.tsx`: list documents (name, category badge, size, date), upload form (input file max 2MB accept PDF/images/docx), convert to base64 client-side, download (base64 -> blob -> download), delete with confirmation dialog, filter by category dropdown. Categories: contrat, avenant, attestation, fiche_paie, medical, formation, other",
@@ -20,5 +20,5 @@
   ],
   "verification": ["cd /projects/sandbox/WorkDays && npx next build"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build succeeds. Pre-existing /employees/new prerender error still present (not caused by this feature - documented in FEAT-001). All new pages compile and type-check correctly."
 }
