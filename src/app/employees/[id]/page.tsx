@@ -27,6 +27,7 @@ import {
   ChevronUp,
   Calculator,
   Award,
+  FileText,
 } from "lucide-react";
 import {
   calculateSeniorityYears,
@@ -1053,6 +1054,12 @@ export default function EmployeeProfilePage() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
         >
           <Pencil className="w-4 h-4" /> &Eacute;diter
+        </Link>
+        <Link
+          href={`/employees/${employee.id}/documents`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 transition-colors"
+        >
+          <FileText className="w-4 h-4" /> Documents
         </Link>
       </div>
     </div>
