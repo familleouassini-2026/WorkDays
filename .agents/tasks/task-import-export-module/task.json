@@ -1,7 +1,7 @@
 {
   "task_id": "task-import-export-module",
   "task_description": "Create missing CRUD pages for locations and rtt_groups, then build a complete Import/Export module for all WorkDays tables with Excel export and CSV import with preview, validation, and upsert support",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002"],
   "blocked_reason": null,
   "verification": {
