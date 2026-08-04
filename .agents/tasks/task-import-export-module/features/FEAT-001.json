@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create two missing CRUD pages for locations and rtt_groups following the existing sectors page pattern, and add their cards to the settings page",
+  "status": "in_progress",
+  "steps": [
+    "Create src/app/settings/locations/page.tsx - CRUD for locations table (id, name). Follow the pattern of src/app/settings/sectors/page.tsx but simplified: only 'name' field. Include list, add (inline form), edit, delete with confirmation. Use 'use client', createClient from @/lib/supabase/client, lucide-react icons (MapPin, Plus, Pencil, Trash2, ArrowLeft). Show count in subtitle. Link back to /settings.",
+    "Create src/app/settings/rtt-groups/page.tsx - CRUD for rtt_groups table (id, name). Same pattern as locations but for rtt_groups table. Use Users icon or similar from lucide-react. Same inline form pattern with add/edit/delete.",
+    "Update src/app/settings/page.tsx to add two new cards: (1) 'Sites' card linking to /settings/locations with MapPin icon, description 'Gerer les sites / implantations', (2) 'Groupes RTT' card linking to /settings/rtt-groups with Users icon, description 'Gerer les groupes RTT pour les secteurs'. Place them after the Secteurs card."
+  ],
+  "acceptance_criteria": [
+    "src/app/settings/locations/page.tsx exists and implements full CRUD (list, add, edit, delete) for the locations table",
+    "src/app/settings/rtt-groups/page.tsx exists and implements full CRUD for the rtt_groups table",
+    "src/app/settings/page.tsx has new cards for Sites and Groupes RTT",
+    "All UI text is in French",
+    "npm run build compiles without errors"
+  ],
+  "verification": [
+    "Run: export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create the complete Import/Export module with import templates configuration, export functionality (HTML table .xls), CSV import with preview/validation/upsert, and the settings page card",
+  "status": "pending",
+  "steps": [
+    "Create src/data/import-templates.ts defining ImportTemplate interface and the complete list of 16 tables in dependency order: organisations, locations, sectors, rtt_groups, employees, timesheets, seniority_scales, rtt_entitlements, organisation_indexations, sector_indexations, employee_indexations, absence_codes, vacation_rights, holidays, leasing_assets (assets), employee_leasing (asset_assignments). Each template has: tableName, displayName (French), order, columns (field, label, type, required, fk config), keyField for upsert detection. Column types: text/number/date/boolean. FK references include table, labelField, idField.",
+    "Create src/app/settings/import-export/page.tsx - Main page showing all 16 tables as numbered cards. Each card shows: order number, displayName, record count (fetched via Supabase), 'Exporter Excel' button, 'Importer' button. Cards arranged in a responsive grid. Use 'use client' component. Fetch counts for all tables on mount. Visual dependency order (numbers). Warning badge if dependencies have 0 records (non-blocking).",
+    "Implement the Export logic in the import-export page: When 'Exporter Excel' is clicked, fetch ALL data from that table via Supabase, resolve FK fields to readable labels (e.g., sector_id -> sector name in a 'Secteur' column), but keep the raw ID column too. Generate HTML table .xls file (same technique as src/app/reports/[id]/page.tsx exportExcel function: HTML table with Excel XML namespace, BOM prefix, proper headers). Column headers use the French labels from import-templates.ts. Trigger download.",
+    "Implement the Import UI: When 'Importer' is clicked, open a modal/drawer with: (1) File upload input accepting .csv files, (2) After file selection: parse CSV with FileReader (auto-detect separator ; or ,), (3) Show preview of first 10 rows in a table, (4) Validate: check expected columns match template, check types (dates, numbers), check FK references exist in DB (query Supabase for referenced tables), mark errors in red and warnings in orange, (5) Import mode selector: 'Ajouter uniquement' (INSERT, skip duplicates) or 'Mettre a jour' (UPSERT based on keyField or ID if present), (6) Execute button that inserts/upserts row by row with a progress bar, (7) Final report showing X inserted, Y updated, Z errors with expandable error details.",
+    "Update src/app/settings/page.tsx to add an 'Import / Export' card with FileSpreadsheet icon from lucide-react, linking to /settings/import-export, description 'Importer et exporter les donnees en CSV/Excel'. Place it before the 'Migration des donnees' card.",
+    "Update src/data/project-health.json: add a new feature entry for 'import-export-module' with status 'implemented', add entries for 'settings-locations' and 'settings-rtt-groups' with status 'implemented', add a recentChanges entry describing all changes."
+  ],
+  "acceptance_criteria": [
+    "src/data/import-templates.ts exists with ImportTemplate interface and 16 table definitions in dependency order with proper columns, types, FK references, and keyFields",
+    "src/app/settings/import-export/page.tsx exists and displays all 16 tables as cards with record counts, export buttons, and import buttons",
+    "Export generates .xls file via HTML table technique with French headers and FK labels resolved",
+    "Import modal parses CSV (auto-detect ; or , separator), shows preview, validates columns/types/FK references, supports INSERT and UPSERT modes, shows progress bar during execution, and displays final report",
+    "Settings page has the Import/Export card",
+    "project-health.json is updated with new features and recent changes",
+    "All UI text is in French",
+    "npm run build compiles without errors"
+  ],
+  "verification": [
+    "Run: export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

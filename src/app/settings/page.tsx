@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Building2, ListChecks, Calendar, Layers } from "lucide-react";
+import { ArrowRightLeft, Building2, ListChecks, Calendar, Layers, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -23,6 +23,20 @@ export default function SettingsPage() {
             <h3 className="font-semibold text-slate-900">Secteurs</h3>
           </div>
           <p className="text-sm text-slate-500">Gérer les secteurs et leurs paramètres</p>
+        </Link>
+        <Link href="/settings/locations" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-900">Sites</h3>
+          </div>
+          <p className="text-sm text-slate-500">Gérer les sites / implantations</p>
+        </Link>
+        <Link href="/settings/rtt-groups" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-900">Groupes RTT</h3>
+          </div>
+          <p className="text-sm text-slate-500">Gérer les groupes RTT pour les secteurs</p>
         </Link>
         <Link href="/settings/absence-codes" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <div className="flex items-center gap-2 mb-1">
