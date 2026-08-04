@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X, CalendarDays, LayoutDashboard, Users, Clock, Wallet, Package, Shield, BarChart3, Settings, UserCircle } from "lucide-react";
+import { X, CalendarDays, LayoutDashboard, Users, Clock, Wallet, Package, Shield, BarChart3, Settings, UserCircle, UserPlus } from "lucide-react";
 
 const navigation = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
@@ -11,6 +11,7 @@ const navigation = [
   { name: "Horaires", href: "/schedules", icon: Clock },
   { name: "Rémunération", href: "/remuneration", icon: Wallet },
   { name: "Actifs", href: "/assets", icon: Package },
+  { name: "Recrutement", href: "/recruitment", icon: UserPlus },
   { name: "Journal interne", href: "/governance", icon: Shield },
   { name: "Rapports", href: "/reports", icon: BarChart3 },
   { name: "Self-service", href: "/self-service", icon: UserCircle },
