@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create the complete Import/Export module with import templates configuration, export functionality (HTML table .xls), CSV import with preview/validation/upsert, and the settings page card",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create src/data/import-templates.ts defining ImportTemplate interface and the complete list of 16 tables in dependency order: organisations, locations, sectors, rtt_groups, employees, timesheets, seniority_scales, rtt_entitlements, organisation_indexations, sector_indexations, employee_indexations, absence_codes, vacation_rights, holidays, leasing_assets (assets), employee_leasing (asset_assignments). Each template has: tableName, displayName (French), order, columns (field, label, type, required, fk config), keyField for upsert detection. Column types: text/number/date/boolean. FK references include table, labelField, idField.",
     "Create src/app/settings/import-export/page.tsx - Main page showing all 16 tables as numbered cards. Each card shows: order number, displayName, record count (fetched via Supabase), 'Exporter Excel' button, 'Importer' button. Cards arranged in a responsive grid. Use 'use client' component. Fetch counts for all tables on mount. Visual dependency order (numbers). Warning badge if dependencies have 0 records (non-blocking).",
@@ -25,5 +25,5 @@
     "Run: export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm run build"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build compiles successfully (exit code 0). Pre-render warning for /settings/import-export is the same pre-existing issue as /employees/new - both use client components with Supabase that fail during static generation without env vars. TypeScript type checking passes. Used eslint-disable for any casts on Supabase response rows with dynamic field access."
 }
