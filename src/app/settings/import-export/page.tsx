@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { importTemplates, ImportTemplate, ImportColumnDef } from "@/data/import-templates";
-import { Download, Upload, AlertTriangle, CheckCircle2, XCircle, X, FileSpreadsheet } from "lucide-react";
+import { importTemplates, ImportTemplate } from "@/data/import-templates";
+import { Download, Upload, AlertTriangle, XCircle, X, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 
 // ============================================================
@@ -27,6 +27,8 @@ interface ImportReport {
 }
 
 type ImportMode = "insert" | "upsert";
+
+const BATCH_SIZE = 50;
 
 // ============================================================
 // HELPERS
@@ -82,7 +84,6 @@ function formatValue(value: unknown, type: string): string {
 // ============================================================
 
 export default function ImportExportPage() {
-  const supabase = createClient();
   const [counts, setCounts] = useState<TableCount>({});
   const [loading, setLoading] = useState(true);
   const [activeImport, setActiveImport] = useState<ImportTemplate | null>(null);
@@ -100,21 +101,27 @@ export default function ImportExportPage() {
   const [showErrors, setShowErrors] = useState(false);
 
   // ============================================================
-  // FETCH COUNTS
+  // FETCH COUNTS (parallel using Promise.all)
   // ============================================================
 
   const fetchCounts = useCallback(async () => {
     setLoading(true);
+    const supabase = createClient();
+    const results = await Promise.all(
+      importTemplates.map(async (tpl) => {
+        const { count } = await supabase
+          .from(tpl.tableName)
+          .select("*", { count: "exact", head: true });
+        return { tableName: tpl.tableName, count: count || 0 };
+      })
+    );
     const newCounts: TableCount = {};
-    for (const tpl of importTemplates) {
-      const { count } = await supabase
-        .from(tpl.tableName)
-        .select("*", { count: "exact", head: true });
-      newCounts[tpl.tableName] = count || 0;
+    for (const r of results) {
+      newCounts[r.tableName] = r.count;
     }
     setCounts(newCounts);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchCounts();
@@ -128,7 +135,16 @@ export default function ImportExportPage() {
   async function handleExport(template: ImportTemplate) {
     setExporting(template.tableName);
     try {
-      const { data } = await supabase.from(template.tableName).select("*");
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .from(template.tableName)
+        .select("*")
+        .range(0, 9999);
+      if (fetchError) {
+        alert(`Erreur lors de la recuperation des donnees : ${fetchError.message}`);
+        setExporting(null);
+        return;
+      }
       if (!data || data.length === 0) {
         alert("Aucune donnee a exporter pour cette table.");
         setExporting(null);
@@ -137,12 +153,16 @@ export default function ImportExportPage() {
 
       // Resolve FK labels
       const fkLookups: Record<string, Record<number, string>> = {};
+      const fkErrors: string[] = [];
       for (const col of template.columns) {
         if (col.fk) {
-          const { data: refData } = await supabase
+          const { data: refData, error: fkError } = await supabase
             .from(col.fk.table)
-            .select(`${col.fk.idField},${col.fk.labelField}`);
-          if (refData) {
+            .select(`${col.fk.idField},${col.fk.labelField}`)
+            .range(0, 9999);
+          if (fkError) {
+            fkErrors.push(`${col.label}: ${fkError.message}`);
+          } else if (refData) {
             const lookup: Record<number, string> = {};
             for (const row of refData) {
               const idKey = col.fk.idField as string;
@@ -153,6 +173,16 @@ export default function ImportExportPage() {
             }
             fkLookups[col.field] = lookup;
           }
+        }
+      }
+
+      if (fkErrors.length > 0) {
+        const proceed = confirm(
+          `Attention : certaines references n'ont pas pu etre resolues :\n${fkErrors.join("\n")}\n\nContinuer l'export sans ces labels ?`
+        );
+        if (!proceed) {
+          setExporting(null);
+          return;
         }
       }
 
@@ -239,14 +269,22 @@ export default function ImportExportPage() {
   async function validateData(template: ImportTemplate, headers: string[], rows: string[][]) {
     const errors: ImportError[] = [];
     const cache: Record<string, Record<string, number>> = {};
+    const supabase = createClient();
 
     // Load FK lookups for validation
     for (const col of template.columns) {
       if (col.fk) {
-        const { data: refData } = await supabase
+        const { data: refData, error: fkError } = await supabase
           .from(col.fk.table)
-          .select(`${col.fk.idField},${col.fk.labelField}`);
-        if (refData) {
+          .select(`${col.fk.idField},${col.fk.labelField}`)
+          .range(0, 9999);
+        if (fkError) {
+          errors.push({
+            row: 0,
+            field: col.label,
+            message: `Impossible de charger les references depuis ${col.fk.table}: ${fkError.message}`,
+          });
+        } else if (refData) {
           const lookup: Record<string, number> = {};
           for (const row of refData) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -316,16 +354,39 @@ export default function ImportExportPage() {
   // ============================================================
 
   async function executeImport(template: ImportTemplate, headers: string[], rows: string[][]) {
+    // Show warning about partial import risk
+    const confirmed = confirm(
+      `Vous etes sur le point d'importer ${rows.length} ligne(s) dans "${template.displayName}".\n\n` +
+      `Attention : en cas d'interruption (coupure reseau, fermeture du navigateur), ` +
+      `les lignes deja importees ne seront pas annulees.\n\nContinuer ?`
+    );
+    if (!confirmed) return;
+
     setImporting(true);
     setImportProgress(0);
     const report: ImportReport = { inserted: 0, updated: 0, errors: [] };
+    const supabase = createClient();
 
+    // Build all records first
+    const records: { record: Record<string, unknown>; rowIndex: number; hasId: boolean }[] = [];
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const record: Record<string, unknown> = {};
+      let hasId = false;
 
       for (const col of template.columns) {
-        if (col.field === "id") continue; // Skip ID for insert
+        if (col.field === "id") {
+          // For upsert mode, check if ID is present
+          const idIdx = headers.findIndex(
+            (h) => h.toLowerCase() === "id"
+          );
+          const idVal = idIdx >= 0 ? row[idIdx] : null;
+          if (idVal && Number(idVal)) {
+            record.id = Number(idVal);
+            hasId = true;
+          }
+          continue;
+        }
         const colIdx = headers.findIndex(
           (h) => h.toLowerCase() === col.label.toLowerCase() || h.toLowerCase() === col.field.toLowerCase()
         );
@@ -355,48 +416,67 @@ export default function ImportExportPage() {
         }
         record[col.field] = val;
       }
+      records.push({ record, rowIndex: i + 1, hasId });
+    }
+
+    // Process in batches
+    for (let batchStart = 0; batchStart < records.length; batchStart += BATCH_SIZE) {
+      const batch = records.slice(batchStart, batchStart + BATCH_SIZE);
 
       try {
         if (importMode === "upsert") {
-          // Check if ID column is in the headers and has a value
-          const idIdx = headers.findIndex(
-            (h) => h.toLowerCase() === "id"
-          );
-          const idVal = idIdx >= 0 ? row[idIdx] : null;
+          // Separate records with ID from those without
+          const withId = batch.filter((r) => r.hasId);
+          const withoutId = batch.filter((r) => !r.hasId);
 
-          if (idVal && Number(idVal)) {
-            // Upsert by ID
-            record.id = Number(idVal);
-            const { error } = await supabase.from(template.tableName).upsert(record);
+          // Upsert records that have an ID (use onConflict with keyField)
+          if (withId.length > 0) {
+            const { error } = await supabase
+              .from(template.tableName)
+              .upsert(withId.map((r) => r.record), { onConflict: "id" });
             if (error) {
-              report.errors.push({ row: i + 1, field: "-", message: error.message });
+              for (const r of withId) {
+                report.errors.push({ row: r.rowIndex, field: "-", message: error.message });
+              }
             } else {
-              report.updated++;
+              report.updated += withId.length;
             }
-          } else {
-            // Insert
-            const { error } = await supabase.from(template.tableName).insert(record);
+          }
+
+          // For records without ID, upsert using keyField
+          if (withoutId.length > 0) {
+            const { error } = await supabase
+              .from(template.tableName)
+              .upsert(withoutId.map((r) => r.record), { onConflict: template.keyField });
             if (error) {
-              report.errors.push({ row: i + 1, field: "-", message: error.message });
+              for (const r of withoutId) {
+                report.errors.push({ row: r.rowIndex, field: "-", message: error.message });
+              }
             } else {
-              report.inserted++;
+              report.updated += withoutId.length;
             }
           }
         } else {
-          // Insert only
-          const { error } = await supabase.from(template.tableName).insert(record);
+          // Insert only mode
+          const { error } = await supabase
+            .from(template.tableName)
+            .insert(batch.map((r) => r.record));
           if (error) {
-            report.errors.push({ row: i + 1, field: "-", message: error.message });
+            for (const r of batch) {
+              report.errors.push({ row: r.rowIndex, field: "-", message: error.message });
+            }
           } else {
-            report.inserted++;
+            report.inserted += batch.length;
           }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Erreur inconnue";
-        report.errors.push({ row: i + 1, field: "-", message: msg });
+        for (const r of batch) {
+          report.errors.push({ row: r.rowIndex, field: "-", message: msg });
+        }
       }
 
-      setImportProgress(Math.round(((i + 1) / rows.length) * 100));
+      setImportProgress(Math.round((Math.min(batchStart + BATCH_SIZE, records.length) / records.length) * 100));
     }
 
     setImportReport(report);
@@ -524,7 +604,7 @@ export default function ImportExportPage() {
                         checked={importMode === "upsert"}
                         onChange={() => setImportMode("upsert")}
                       />
-                      Mettre a jour (upsert par ID)
+                      Mettre a jour (upsert par ID ou {activeImport.keyField})
                     </label>
                   </div>
                 </div>
