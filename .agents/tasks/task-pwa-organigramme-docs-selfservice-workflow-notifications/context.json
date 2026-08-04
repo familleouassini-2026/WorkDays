@@ -1,0 +1,32 @@
+{
+  "project_type": "Next.js 14 App Router + Supabase + Tailwind CSS",
+  "language": "TypeScript/React",
+  "build_system": "npm with next build",
+  "test_framework": "No test framework configured - validation via next build",
+  "build_command": "cd /projects/sandbox/WorkDays && npx next build",
+  "test_command": "cd /projects/sandbox/WorkDays && npx next build",
+  "verification_instructions": "Run `npx next build` in the project root. All pages must compile without type errors.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "npm install in project root",
+  "environment_constraints": "COMMON_DEPENDENCIES network mode - npm packages available. No Dockerfile. No test runner configured beyond build.",
+  "contribution_requirements": "UI in French. Code in English. Tailwind styling (slate, blue, white, rounded-lg, shadow-sm). All pages use 'use client' with createClient() from @/lib/supabase/client. Supabase migrations numbered sequentially. project-health.json must be updated.",
+  "key_patterns": "Pages: 'use client' + useState/useEffect + createClient() pattern. API routes in src/app/api/ for admin operations (using createAdminClient). Sidebar navigation in src/components/layout/Sidebar.tsx. Encoder drawer is global component in layout.tsx. audit.ts helper pattern for reusable client-side helpers that call API routes. Lucide-react for icons. SearchableSelect component available.",
+  "relevant_files": [
+    "src/app/layout.tsx",
+    "src/components/layout/Sidebar.tsx",
+    "src/app/employees/page.tsx",
+    "src/app/employees/[id]/page.tsx",
+    "src/app/employees/[id]/edit/page.tsx",
+    "src/app/absences/page.tsx",
+    "src/components/encoder-drawer.tsx",
+    "src/lib/audit.ts",
+    "src/lib/supabase/client.ts",
+    "src/lib/supabase/admin.ts",
+    "src/app/api/audit/route.ts",
+    "src/data/project-health.json",
+    "src/lib/calculations.ts",
+    "next.config.js",
+    "tailwind.config.ts"
+  ],
+  "directory_structure": "src/app/ - pages (app router), src/components/ - shared components, src/lib/ - utilities and supabase clients, src/data/ - static data files, supabase/migrations/ - SQL migrations (001-023 exist), public/ - does not exist yet (needs creation)"
+}

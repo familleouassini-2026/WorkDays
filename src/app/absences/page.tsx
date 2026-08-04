@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CalendarDays, List, Calendar, BarChart3 } from "lucide-react";
+import { CalendarDays, List, Calendar, BarChart3, CheckSquare } from "lucide-react";
 import Link from "next/link";
 
 interface AbsenceEntry {
@@ -36,6 +36,7 @@ const tabs = [
   { label: "Calendrier annuel", href: "/absences/annual", icon: Calendar },
   { label: "Soldes", href: "/absences/balances", icon: BarChart3 },
   { label: "Absenteisme", href: "/absences/absenteeism", icon: BarChart3 },
+  { label: "Approbations", href: "/absences/approvals", icon: CheckSquare },
 ];
 
 export default function AbsencesPage() {

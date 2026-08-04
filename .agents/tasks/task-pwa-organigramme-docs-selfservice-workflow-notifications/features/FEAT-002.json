@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Documents module (employee file storage with base64) + Self-service portal page",
+  "status": "completed",
+  "steps": [
+    "Create migration `supabase/migrations/025-documents.sql` with the employee_documents table (id SERIAL PK, employee_id INT NOT NULL FK employees(id) ON DELETE CASCADE, name TEXT NOT NULL, file_type TEXT, file_size INTEGER, file_base64 TEXT NOT NULL, category TEXT DEFAULT 'other', uploaded_at TIMESTAMPTZ DEFAULT NOW(), notes TEXT)",
+    "Create `src/app/employees/[id]/documents/page.tsx`: list documents (name, category badge, size, date), upload form (input file max 2MB accept PDF/images/docx), convert to base64 client-side, download (base64 -> blob -> download), delete with confirmation dialog, filter by category dropdown. Categories: contrat, avenant, attestation, fiche_paie, medical, formation, other",
+    "Update `src/app/employees/[id]/page.tsx`: add a 'Documents' link in the quick actions section (link to /employees/[id]/documents)",
+    "Create `src/app/self-service/page.tsx`: dropdown to select employee (simulates login). Once selected, shows personal dashboard: solde conges (days entitled - days taken), prochain RTT info, horaire hebdomadaire table, 5 dernieres absences, salaire actuel (indexed), documents personnels list with download, button 'Demander un conge' linking to /self-service/leave-request",
+    "Update `src/components/layout/Sidebar.tsx`: add 'Self-service' entry with UserCircle icon, href '/self-service', placed between Rapports and Parametres"
+  ],
+  "acceptance_criteria": [
+    "Migration 025 creates employee_documents table",
+    "Page /employees/[id]/documents shows document list with upload/download/delete and category filter",
+    "Employee detail page has a Documents quick action link",
+    "Page /self-service renders employee selector and personal dashboard with all required sections",
+    "Sidebar shows Self-service link",
+    "npx next build succeeds without errors"
+  ],
+  "verification": ["cd /projects/sandbox/WorkDays && npx next build"],
+  "blocked_reason": null,
+  "findings": "Build succeeds. Pre-existing /employees/new prerender error still present (not caused by this feature - documented in FEAT-001). All new pages compile and type-check correctly."
+}

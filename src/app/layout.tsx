@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import FeedbackBanner from "@/components/feedback-banner";
 import EncoderDrawer from "@/components/encoder-drawer";
+import NotificationsBell from "@/components/notifications-bell";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,10 +19,31 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1e40af" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <link rel="apple-touch-icon" href="/icon-192x192.svg" />
+      </head>
       <body className={inter.className}>
+        <div className="fixed top-3 right-3 z-40">
+          <NotificationsBell />
+        </div>
         {children}
         <EncoderDrawer />
         <FeedbackBanner />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

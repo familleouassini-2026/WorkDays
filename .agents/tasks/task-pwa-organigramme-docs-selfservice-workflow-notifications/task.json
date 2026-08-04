@@ -1,0 +1,36 @@
+{
+  "task_id": "task-pwa-organigramme-docs-selfservice-workflow-notifications",
+  "task_description": "Implement 6 features: PWA manifest, Organigramme, Documents, Self-service portal, Leave approval workflow, and Notifications system",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "npx next build succeeds (exit 0). Only pre-existing prerender error on /employees/new due to missing Supabase env vars in sandbox. All new pages compile cleanly. No type errors."
+  },
+  "review_fixes": {
+    "status": "completed",
+    "review_file": "2026-08-07-review-v1.md",
+    "issues_addressed": [
+      "Issue 1: Notifications scoped by employee_id query param; bell reads from localStorage",
+      "Issue 2: Leave approval uses single batch insert (atomic) instead of loop-per-row",
+      "Issue 3: Approvals page passes approved_by from localStorage-based simulated login",
+      "Issue 4: Added migration 028 with CHECK constraint (file_size <= 2MB) and index on employee_id",
+      "Issue 5: Service worker excludes /api/ and /_next/ paths from cache",
+      "Issue 6: Notification creation made non-blocking with .catch() + console.warn",
+      "Issue 7: Organigramme fetches inactive managers as ghost nodes to preserve hierarchy"
+    ]
+  },
+  "review_v2_fixes": {
+    "status": "completed",
+    "review_file": "2026-08-07-review-v2.md",
+    "issues_addressed": [
+      "Issue 1: /notifications/page.tsx now reads employee_id from localStorage and passes it to API (same pattern as bell); markAllAsRead sends employee_id so it only affects that employee",
+      "Issue 2: /self-service/leave-request/page.tsx changed await createNotification to fire-and-forget with .catch() so notification failure does not block success state",
+      "Issue 3: Migration 028 now also adds chk_file_base64_length CHECK (length(file_base64) <= 3700000) to guard against oversized payloads regardless of file_size metadata"
+    ]
+  }
+}

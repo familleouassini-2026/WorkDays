@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Leave request workflow (approval system) + Notifications system + project-health.json update",
+  "status": "completed",
+  "steps": [
+    "Create migration `supabase/migrations/026-leave-requests.sql` with leave_requests table (id SERIAL PK, employee_id INT NOT NULL FK employees(id) ON DELETE CASCADE, absence_code_id INT NOT NULL FK absence_codes(id), start_date DATE NOT NULL, end_date DATE NOT NULL, total_days NUMERIC, total_minutes INTEGER, reason TEXT, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')), approved_by INT REFERENCES employees(id), approved_at TIMESTAMPTZ, rejection_reason TEXT, created_at TIMESTAMPTZ DEFAULT NOW())",
+    "Create migration `supabase/migrations/027-notifications.sql` with notifications table (id SERIAL PK, employee_id INT REFERENCES employees(id) ON DELETE CASCADE, title TEXT NOT NULL, message TEXT, type TEXT DEFAULT 'info' CHECK (type IN ('info','warning','success','action')), link TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())",
+    "Create `src/lib/notifications.ts`: helper function createNotification(employeeId, title, message, type, link) that calls a new API route POST /api/notifications to insert into notifications table",
+    "Create `src/app/api/notifications/route.ts`: API route using createAdminClient to insert notifications and to fetch/update notifications (GET for listing, POST for creating, PATCH for marking as read)",
+    "Create `src/app/self-service/leave-request/page.tsx`: form with employee selector (or use from self-service context), absence code dropdown, start date, end date, reason textarea. Submit creates a leave_requests record with status='pending'. Also creates a notification for the employee's manager (if manager_id set) via createNotification helper.",
+    "Create `src/app/absences/approvals/page.tsx`: list pending leave requests with filter by status (pending/approved/rejected). Card view showing employee name, dates, absence type, status badge. Approve action: updates status to 'approved', sets approved_by and approved_at, then creates year_calendar entries using the same logic as encoder-drawer (skip weekends, skip holidays, use timesheet schedule). Also creates notification for the requesting employee. Reject action: updates status to 'rejected' with rejection_reason, creates notification for employee.",
+    "Add 'Approbations' tab link in `src/app/absences/page.tsx` tabs array (href: '/absences/approvals', icon: CheckSquare or similar)",
+    "Create `src/components/notifications-bell.tsx`: bell icon component showing unread count badge. Click opens dropdown with 10 latest notifications. Each notification shows title, message, type-colored indicator, time ago. Click marks as read. 'Voir tout' link to /notifications page.",
+    "Create `src/app/notifications/page.tsx`: full list of notifications with filter (all/unread/read), mark all as read button, type-colored badges, link navigation",
+    "Integrate notifications-bell.tsx into `src/app/layout.tsx` or a header wrapper so it appears globally (or add it to the Sidebar component header area)",
+    "Update `src/data/project-health.json`: add all 6 new features (pwa, organigramme, documents, self-service, workflow-approvals, notifications) to the features array with status 'implemented' and correct code paths. Add a recentChanges entry."
+  ],
+  "acceptance_criteria": [
+    "Migration 026 creates leave_requests table with correct constraints",
+    "Migration 027 creates notifications table with correct constraints",
+    "src/lib/notifications.ts exports createNotification helper",
+    "API route /api/notifications handles create/read/update",
+    "Page /self-service/leave-request allows submitting leave requests",
+    "Page /absences/approvals lists requests, allows approve (creates year_calendar entries) and reject (with reason)",
+    "Absences page tabs include 'Approbations' link",
+    "notifications-bell component shows unread count and dropdown",
+    "Page /notifications shows full notification list with filters",
+    "Bell is visible in the app layout",
+    "project-health.json is updated with all 6 new features",
+    "npx next build succeeds without errors"
+  ],
+  "verification": ["cd /projects/sandbox/WorkDays && npx next build"],
+  "blocked_reason": null,
+  "findings": "Build succeeds (compilation + types pass). Pre-existing prerender error on /employees/new (missing Supabase env vars during SSG) unrelated to this feature. Function declarations inside blocks needed to be converted to arrow functions for ES5 strict mode in API routes."
+}

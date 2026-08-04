@@ -16,6 +16,12 @@ interface Location {
   name: string;
 }
 
+interface EmployeeOption {
+  id: number;
+  first_name: string;
+  last_name: string;
+}
+
 interface EmployeeForm {
   title: string;
   first_name: string;
@@ -29,6 +35,7 @@ interface EmployeeForm {
   end_date: string;
   sector_id: string;
   location_id: string;
+  manager_id: string;
   is_inactive: boolean;
   email: string;
   mobile_phone: string;
@@ -61,6 +68,7 @@ const emptyForm: EmployeeForm = {
   end_date: "",
   sector_id: "",
   location_id: "",
+  manager_id: "",
   is_inactive: false,
   email: "",
   mobile_phone: "",
@@ -87,6 +95,7 @@ export default function EditEmployeePage() {
 
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [allEmployees, setAllEmployees] = useState<EmployeeOption[]>([]);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,14 +104,16 @@ export default function EditEmployeePage() {
 
   useEffect(() => {
     async function fetchData() {
-      const [employeeRes, sectorsRes, locationsRes] = await Promise.all([
+      const [employeeRes, sectorsRes, locationsRes, allEmpRes] = await Promise.all([
         supabase.from("employees").select("*").eq("id", params.id).single(),
         supabase.from("sectors").select("id, name").order("name"),
         supabase.from("locations").select("id, name").order("name"),
+        supabase.from("employees").select("id, first_name, last_name").neq("id", params.id).order("last_name"),
       ]);
 
       if (sectorsRes.data) setSectors(sectorsRes.data);
       if (locationsRes.data) setLocations(locationsRes.data);
+      if (allEmpRes.data) setAllEmployees(allEmpRes.data);
 
       if (employeeRes.data) {
         const emp = employeeRes.data;
@@ -119,6 +130,7 @@ export default function EditEmployeePage() {
           end_date: emp.end_date || "",
           sector_id: emp.sector_id ? String(emp.sector_id) : "",
           location_id: emp.location_id ? String(emp.location_id) : "",
+          manager_id: emp.manager_id ? String(emp.manager_id) : "",
           is_inactive: emp.is_inactive || false,
           email: emp.email || "",
           mobile_phone: emp.mobile_phone || "",
@@ -190,6 +202,7 @@ export default function EditEmployeePage() {
       end_date: form.end_date || null,
       sector_id: form.sector_id ? Number(form.sector_id) : null,
       location_id: form.location_id ? Number(form.location_id) : null,
+      manager_id: form.manager_id ? Number(form.manager_id) : null,
       is_inactive: form.is_inactive,
       email: form.email || null,
       mobile_phone: form.mobile_phone || null,
@@ -477,6 +490,25 @@ export default function EditEmployeePage() {
                 {locations.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="manager_id" className={labelClass}>
+                Responsable hiérarchique
+              </label>
+              <select
+                id="manager_id"
+                name="manager_id"
+                value={form.manager_id}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="">-- Aucun --</option>
+                {allEmployees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.last_name} {emp.first_name}
                   </option>
                 ))}
               </select>
