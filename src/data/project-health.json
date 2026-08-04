@@ -468,6 +468,16 @@
     {
       "date": "2026-08-07",
       "pr": null,
+      "description": "Fix notifications + approvals: (1) Notifications bell et page /notifications fonctionnent en mode admin (toutes les notifications) quand aucun employe n'est selectionne dans localStorage. (2) Bouton 'Marquer tout comme lu' fonctionne aussi sans employe selectionne. (3) Bouton 'Creer notification test' permet de creer une notification globale (sans employee_id) en plus du mode par employe. (4) Page /absences/approvals: ajout bandeau info expliquant le workflow et lien vers l'Organigramme pour configurer la hierarchie.",
+      "filesChanged": [
+        "src/app/notifications/page.tsx",
+        "src/app/absences/approvals/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
+    {
+      "date": "2026-08-07",
+      "pr": null,
       "description": "Fix PR#118 bugs: (1) Migration 029 GRANT+DISABLE RLS pour employee_documents, notifications, leave_requests. (2) manifest.json reecrit UTF-8 propre. (3) Meta apple-mobile-web-app-capable remplace par mobile-web-app-capable. (4) Organigramme: mode edition toggle 'Configurer la hierarchie' avec dropdown responsable par employe + sauvegarde immediate. (5) Self-service: bouton 'Demander un conge' ouvre EncoderDrawer avec employe pre-selectionne + bandeau PWA install. (6) Notifications: bouton 'Creer une notification test' avec dropdown employe.",
       "filesChanged": [
         "supabase/migrations/029-grant-new-tables.sql",
