@@ -23,5 +23,14 @@
       "Issue 6: Notification creation made non-blocking with .catch() + console.warn",
       "Issue 7: Organigramme fetches inactive managers as ghost nodes to preserve hierarchy"
     ]
+  },
+  "review_v2_fixes": {
+    "status": "completed",
+    "review_file": "2026-08-07-review-v2.md",
+    "issues_addressed": [
+      "Issue 1: /notifications/page.tsx now reads employee_id from localStorage and passes it to API (same pattern as bell); markAllAsRead sends employee_id so it only affects that employee",
+      "Issue 2: /self-service/leave-request/page.tsx changed await createNotification to fire-and-forget with .catch() so notification failure does not block success state",
+      "Issue 3: Migration 028 now also adds chk_file_base64_length CHECK (length(file_base64) <= 3700000) to guard against oversized payloads regardless of file_size metadata"
+    ]
   }
 }
