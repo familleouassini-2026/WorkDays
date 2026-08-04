@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createNotification } from "@/lib/notifications";
-import { CheckSquare, Clock, CheckCircle, XCircle, X } from "lucide-react";
+import { CheckSquare, Clock, CheckCircle, XCircle, X, Info } from "lucide-react";
+import Link from "next/link";
 
 interface LeaveRequest {
   id: number;
@@ -164,6 +165,18 @@ export default function ApprovalsPage() {
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           Gerez les demandes de conge en attente d&apos;approbation.
+        </p>
+      </div>
+
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm p-3 rounded-lg flex items-start gap-2">
+        <Info className="w-4 h-4 mt-0.5 shrink-0" />
+        <p>
+          Les demandes de conge sont soumises par les employes via le Self-service.
+          Pour configurer qui approuve qui, assignez les responsables dans l&apos;
+          <Link href="/employees/organigramme" className="font-medium underline hover:text-blue-900">
+            Organigramme
+          </Link>.
         </p>
       </div>
 

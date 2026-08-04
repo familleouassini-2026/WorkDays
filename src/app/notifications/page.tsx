@@ -102,12 +102,13 @@ export default function NotificationsPage() {
   }
 
   async function markAllAsRead() {
-    if (!employeeId) return;
     try {
+      const body: Record<string, unknown> = { mark_all_read: true };
+      if (employeeId) body.employee_id = employeeId;
       await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mark_all_read: true, employee_id: employeeId }),
+        body: JSON.stringify(body),
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
@@ -130,15 +131,17 @@ export default function NotificationsPage() {
     }
   }
 
-  async function createTestNotification() {
-    if (!testEmpId) return;
+  async function createTestNotification(global = false) {
+    if (!global && !testEmpId) return;
     setTestSending(true);
     try {
       const supabase = createClient();
       await supabase.from("notifications").insert({
-        employee_id: testEmpId,
-        title: "Notification de test",
-        message: "Ceci est une notification de test creee manuellement pour verifier le systeme.",
+        employee_id: global ? null : testEmpId,
+        title: global ? "Notification globale de test" : "Notification de test",
+        message: global
+          ? "Ceci est une notification globale (sans employe) pour verifier le systeme en mode admin."
+          : "Ceci est une notification de test creee manuellement pour verifier le systeme.",
         type: "info",
         is_read: false,
       });
@@ -162,6 +165,10 @@ export default function NotificationsPage() {
             Notifications
           </h1>
           <p className="text-sm text-slate-500 mt-1">
+            {employeeId
+              ? `Mode self-service (employe #${employeeId})`
+              : "Mode administrateur (toutes les notifications)"}
+            {" — "}
             {unreadCount > 0
               ? `${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}`
               : "Toutes les notifications sont lues"}
@@ -275,13 +282,13 @@ export default function NotificationsPage() {
         </h3>
         <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
           <div className="w-full sm:w-64">
-            <label className="block text-xs text-slate-500 mb-1">Employe</label>
+            <label className="block text-xs text-slate-500 mb-1">Employe (optionnel)</label>
             <select
               value={testEmpId || ""}
               onChange={(e) => setTestEmpId(e.target.value ? Number(e.target.value) : null)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">-- Choisir un employe --</option>
+              <option value="">-- Notification globale --</option>
               {testEmployees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.last_name} {emp.first_name}
@@ -289,18 +296,32 @@ export default function NotificationsPage() {
               ))}
             </select>
           </div>
-          <button
-            onClick={createTestNotification}
-            disabled={!testEmpId || testSending}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {testSending ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <PlusCircle className="w-4 h-4" />
-            )}
-            Creer une notification test
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => createTestNotification(false)}
+              disabled={!testEmpId || testSending}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {testSending ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <PlusCircle className="w-4 h-4" />
+              )}
+              Pour cet employe
+            </button>
+            <button
+              onClick={() => createTestNotification(true)}
+              disabled={testSending}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {testSending ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <PlusCircle className="w-4 h-4" />
+              )}
+              Globale
+            </button>
+          </div>
         </div>
       </div>
     </div>
