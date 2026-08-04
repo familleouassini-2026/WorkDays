@@ -11,6 +11,7 @@ import {
   type ReportConfig,
   type GroupedResult,
 } from "@/lib/report-engine";
+import { getOrganisation, type OrganisationInfo } from "@/lib/organisation";
 
 interface ReportTemplate {
   id: string;
@@ -29,11 +30,16 @@ export default function ReportExecutionPage() {
   const [groupedData, setGroupedData] = useState<GroupedResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [organisation, setOrganisation] = useState<OrganisationInfo | null>(null);
 
   useEffect(() => {
     async function loadAndExecute() {
       setLoading(true);
       setError(null);
+
+      // Load organisation info for logo
+      const orgInfo = await getOrganisation();
+      setOrganisation(orgInfo);
 
       const supabase = createClient();
       const { data: tpl, error: fetchErr } = await supabase
@@ -347,6 +353,14 @@ export default function ReportExecutionPage() {
       {/* Print header - repeats on each page via position:fixed */}
       <div className="print-only" aria-hidden="true">
         <div className="print-header">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {organisation?.logo_base64 && (
+              <img src={organisation.logo_base64} alt="Logo" style={{ maxHeight: "60px", width: "auto" }} />
+            )}
+            {organisation?.name && (
+              <span style={{ fontWeight: 500, fontSize: "11px" }}>{organisation.name}</span>
+            )}
+          </div>
           <span style={{ fontWeight: 600 }}>{reportTitle}</span>
           <span>Genere le {today}</span>
         </div>
@@ -354,6 +368,16 @@ export default function ReportExecutionPage() {
           Genere par WorkDays le {today}
         </div>
       </div>
+
+      {/* Report header with logo (visible in preview and print) */}
+      {organisation?.logo_base64 && (
+        <div className="flex items-center gap-3 bg-white border rounded-lg p-3 shadow-sm">
+          <img src={organisation.logo_base64} alt="Logo" className="max-h-[60px] w-auto" />
+          {organisation.name && (
+            <span className="text-sm font-medium text-slate-700">{organisation.name}</span>
+          )}
+        </div>
+      )}
 
       {/* Data count */}
       <p className="text-xs text-slate-500 no-print">

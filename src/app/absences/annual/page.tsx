@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Calendar, Printer } from "lucide-react";
 import SearchableSelect from "@/components/searchable-select";
 import EncoderDrawer from "@/components/encoder-drawer";
+import { getOrganisation, type OrganisationInfo } from "@/lib/organisation";
 
 // ============================================================
 // TYPES
@@ -127,6 +128,9 @@ export default function AnnualCalendarPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerDate, setDrawerDate] = useState<string | undefined>(undefined);
 
+  // Organisation (for logo in print)
+  const [organisation, setOrganisation] = useState<OrganisationInfo | null>(null);
+
 
   // Load sectors and absence codes on mount
   useEffect(() => {
@@ -138,6 +142,10 @@ export default function AnnualCalendarPage() {
       ]);
       if (secRes.data) setSectors(secRes.data);
       if (codesRes.data) setAbsenceCodes(codesRes.data);
+
+      // Load organisation for logo
+      const orgInfo = await getOrganisation();
+      setOrganisation(orgInfo);
     }
     loadInitial();
   }, []);
@@ -296,6 +304,17 @@ export default function AnnualCalendarPage() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
+    // Build logo header HTML
+    const logoHTML = organisation?.logo_base64
+      ? `<img src="${organisation.logo_base64}" alt="Logo" style="max-height:50px;width:auto;" />`
+      : "";
+    const orgNameHTML = organisation?.name
+      ? `<span style="font-size:12px;font-weight:500;color:#334155;">${organisation.name}</span>`
+      : "";
+    const logoHeaderHTML = (logoHTML || orgNameHTML)
+      ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">${logoHTML}${orgNameHTML}</div>`
+      : "";
+
     // Build calendar HTML
     let calendarHTML = "";
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
@@ -419,6 +438,7 @@ export default function AnnualCalendarPage() {
 <body>
   <div class="page">
     <div class="page-header">
+      ${logoHeaderHTML}
       <div class="title">Calendrier annuel ${selectedYear}</div>
       <div class="subtitle">${employeeName}</div>
     </div>
@@ -431,6 +451,7 @@ export default function AnnualCalendarPage() {
   </div>
   <div class="page page-break">
     <div class="page-header">
+      ${logoHeaderHTML}
       <div class="title">Calendrier annuel ${selectedYear}</div>
       <div class="subtitle">${employeeName}</div>
     </div>

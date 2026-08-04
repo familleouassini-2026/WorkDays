@@ -337,6 +337,19 @@
     {
       "date": "2026-08-06",
       "pr": null,
+      "description": "Organisation logo : upload logo base64 sur /settings/organisation (PNG/JPG/SVG, max 500KB), affichage dans impression rapports (/reports/[id]) et calendrier annuel (/absences/annual). Helper partage src/lib/organisation.ts. Migration 023 ajoute colonne logo_base64.",
+      "filesChanged": [
+        "src/app/settings/organisation/page.tsx",
+        "src/app/reports/[id]/page.tsx",
+        "src/app/absences/annual/page.tsx",
+        "src/lib/organisation.ts",
+        "supabase/migrations/023-organisation-logo.sql",
+        "src/data/project-health.json"
+      ]
+    },
+    {
+      "date": "2026-08-06",
+      "pr": null,
       "description": "Report Builder corrections : schema-metadata.ts etendu avec toutes les colonnes manquantes (employees passe de 13 a 30 champs, sectors +2, absence_codes +2, meetings +1, requests +3). Export Excel ajoute sur /reports/[id] via HTML table .xls (pas de dependance externe).",
       "filesChanged": [
         "src/data/schema-metadata.ts",
