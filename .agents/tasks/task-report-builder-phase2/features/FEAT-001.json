@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Duplicate template functionality, calculated columns metadata, SQL aggregation RPC, and advanced dynamic filters in the report builder wizard.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. In src/app/reports/page.tsx - The duplicate button already exists (links to /reports/builder?duplicate=ID). In src/app/reports/builder/page.tsx - The builder already handles the 'duplicate' searchParam by loading the template but clearing the name. Enhance it so that when ?duplicate=ID is used, the name is set to 'Copie de [original name]' and on save it creates a new record (INSERT not UPDATE), then redirects to /reports/builder?id=[new_id] for immediate editing.",
     "2. In src/data/schema-metadata.ts - Add a new export `calculatedColumns` array. Each entry has: id (string), label (string, French), description (string), requiredTables (string[]), requiredFields (string[] in table.field format), computeFn (string - function name). Define 5 calculated columns: 'seniority_years' (Anciennete en annees, requires employees, fields: employees.date_of_hire + employees.granted_seniority + employees.granted_seniority_date, computeFn: 'computeSeniorityYears'), 'indexed_salary' (Salaire indexe, requires employees+seniority_scales+organisation_indexations+sector_indexations+employee_indexations, computeFn: 'computeIndexedSalary'), 'age' (Age, requires employees, fields: employees.date_of_birth, computeFn: 'computeAge'), 'work_time_percent' (% temps de travail, requires timesheets, fields: timesheets.monday_minutes through sunday_minutes + timesheets.full_time_minutes, computeFn: 'computeWorkTimePercent'), 'seniority_considered' (Anciennete prise en compte, requires employees+seniority_scales, computeFn: 'computeSeniorityConsidered').",
@@ -26,5 +26,5 @@
     "Run: export PATH=/opt/toolchains/.nvm/versions/node/v22.23.2/bin:$PATH && cd /projects/sandbox/WorkDays && npx next build 2>&1 | grep -E '(error|Error|✓|✗)' to confirm compilation succeeds"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build passes with only the expected /employees/new prerender error (missing Supabase env vars). All TypeScript compilation succeeds. The getFilterWidgetType helper was moved before buildConfig to ensure proper closure scope. The duplicate flow now correctly sets name to 'Copie de [name]' and redirects to the new report ID after save."
 }
