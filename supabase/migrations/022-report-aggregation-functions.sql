@@ -24,6 +24,9 @@ AS $$
 $$;
 
 -- get_salary_overview: joins employees with seniority_scales to return salary overview
+-- Seniority calculation accounts for granted_seniority (bonus years) and
+-- granted_seniority_date (alternative start date), matching the client-side logic
+-- in calculations.ts (calculateSeniorityYears).
 CREATE OR REPLACE FUNCTION get_salary_overview()
 RETURNS TABLE(
   employee_id INT,
@@ -34,19 +37,29 @@ RETURNS TABLE(
 LANGUAGE sql
 STABLE
 AS $$
+  WITH employee_seniority AS (
+    SELECT
+      e.id,
+      e.sector_id,
+      (
+        EXTRACT(YEAR FROM age(now(), COALESCE(e.granted_seniority_date, e.date_of_hire)))
+        + COALESCE(e.granted_seniority, 0)
+      )::INT AS seniority_years
+    FROM employees e
+    WHERE e.is_inactive = false
+  )
   SELECT
-    e.id::INT AS employee_id,
-    e.sector_id::INT,
+    es.id::INT AS employee_id,
+    es.sector_id::INT,
     ss.base_salary::NUMERIC,
-    EXTRACT(YEAR FROM age(now(), e.date_of_hire))::INT AS seniority_years
-  FROM employees e
+    es.seniority_years
+  FROM employee_seniority es
   LEFT JOIN LATERAL (
     SELECT s.base_salary
     FROM seniority_scales s
-    WHERE s.sector_id = e.sector_id
-      AND s.years <= EXTRACT(YEAR FROM age(now(), e.date_of_hire))::INT
+    WHERE s.sector_id = es.sector_id
+      AND s.years <= es.seniority_years
     ORDER BY s.years DESC
     LIMIT 1
-  ) ss ON true
-  WHERE e.is_inactive = false;
+  ) ss ON true;
 $$;

@@ -50,6 +50,8 @@ export const schemaMetadata: TableMetadata[] = [
       { field: "is_inactive", label: "Inactif", type: "boolean" },
       { field: "sector_id", label: "Secteur", type: "number" },
       { field: "location_id", label: "Site", type: "number" },
+      { field: "granted_seniority", label: "Anciennete accordee", type: "number" },
+      { field: "granted_seniority_date", label: "Date anciennete accordee", type: "date" },
     ],
     foreignKeys: [
       { fromField: "sector_id", toTable: "sectors", toField: "id" },

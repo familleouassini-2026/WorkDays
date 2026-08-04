@@ -619,6 +619,12 @@ export function applyCalculatedColumns(
 /**
  * Execute a Supabase RPC function for aggregation.
  * Returns null if the function does not exist or fails (fallback to client-side calculation).
+ *
+ * TODO: Wire executeRpcAggregation into the report execution path as an optional
+ * optimization. When a report uses calculated columns that match an available RPC
+ * (e.g., get_salary_overview for indexed_salary), call the RPC first and fall back
+ * to client-side computation only if it returns null. This avoids transferring all
+ * rows for server-computable aggregations.
  */
 export async function executeRpcAggregation(
   rpcName: string,

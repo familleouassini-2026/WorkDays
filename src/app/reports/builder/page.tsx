@@ -200,7 +200,7 @@ function ReportBuilderContent() {
       setSelectedCalculatedColumns(config.calculatedColumns || []);
     };
     loadTemplate();
-  }, [templateId, editId]);
+  }, [templateId, editId, duplicateId]);
 
   // Handle table toggle
   const toggleTable = useCallback((tableName: string) => {
@@ -283,9 +283,11 @@ function ReportBuilderContent() {
       } else if (f.op === "neq") {
         mappedFilters.push({ field: f.field, op: "neq" as const, value: f.value });
       } else {
-        // Handle date range: if valueTo is set, generate two filters (gte + lte)
+        // Handle date range: only apply gte+lte range logic when the user's operator
+        // is "eq" (default) and both date values are filled. If the user explicitly chose
+        // a different operator (gt, lt, gte, lte, like, etc.), respect that choice.
         const widgetType = getFilterWidgetType(f.field);
-        if (widgetType === "date_range" && f.value && f.valueTo) {
+        if (widgetType === "date_range" && f.value && f.valueTo && f.op === "eq") {
           mappedFilters.push({ field: f.field, op: "gte" as const, value: f.value });
           mappedFilters.push({ field: f.field, op: "lte" as const, value: f.valueTo });
         } else {
@@ -323,6 +325,11 @@ function ReportBuilderContent() {
   }, [selectedTables, selectedColumns, joins, filters, groupBy, totals, sortRows, orientation, reportTitle, selectedCalculatedColumns]);
 
   // Run preview
+  // TODO: Optimize preview to use Supabase's { count: 'exact', head: true } for
+  // the total count and a separate .limit(20) query for display data. This avoids
+  // transferring up to 5000 rows just to show 20 and read .length. Currently the
+  // full fetch is needed for grouped previews and totals computation, but for flat
+  // previews without totals, the two-query approach would reduce network transfer.
   const runPreview = useCallback(async () => {
     if (selectedTables.length === 0 || selectedColumns.length === 0) {
       setPreviewError("Selectionnez au moins une table et une colonne.");
@@ -576,31 +583,47 @@ function ReportBuilderContent() {
 
     switch (widgetType) {
       case "date_range":
+        // Show two date inputs (range) only when operator is "eq" (implies range behavior).
+        // For other operators (gt, lt, gte, lte, etc.), show a single date input.
+        if (filter.op === "eq") {
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Du</span>
+              <input
+                type="date"
+                value={filter.value}
+                onChange={(e) => {
+                  const updated = [...filters];
+                  updated[idx] = { ...updated[idx], value: e.target.value };
+                  setFilters(updated);
+                }}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              />
+              <span className="text-xs text-slate-500">Au</span>
+              <input
+                type="date"
+                value={filter.valueTo || ""}
+                onChange={(e) => {
+                  const updated = [...filters];
+                  updated[idx] = { ...updated[idx], valueTo: e.target.value };
+                  setFilters(updated);
+                }}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+          );
+        }
         return (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Du</span>
-            <input
-              type="date"
-              value={filter.value}
-              onChange={(e) => {
-                const updated = [...filters];
-                updated[idx] = { ...updated[idx], value: e.target.value };
-                setFilters(updated);
-              }}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
-            <span className="text-xs text-slate-500">Au</span>
-            <input
-              type="date"
-              value={filter.valueTo || ""}
-              onChange={(e) => {
-                const updated = [...filters];
-                updated[idx] = { ...updated[idx], valueTo: e.target.value };
-                setFilters(updated);
-              }}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
-          </div>
+          <input
+            type="date"
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+          />
         );
       case "sector":
         return (

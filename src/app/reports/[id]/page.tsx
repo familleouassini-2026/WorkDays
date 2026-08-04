@@ -216,15 +216,20 @@ export default function ReportExecutionPage() {
           tfoot { display: table-footer-group; }
           tr { page-break-inside: avoid; }
           td, th { padding: 6px 8px; border: 1px solid #e2e8f0; word-wrap: break-word; white-space: normal; }
-          .print-header { position: fixed; top: 0; left: 0; right: 0; padding: 0 0 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 10px; display: flex; justify-content: space-between; }
-          .print-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 0 0 0; border-top: 1px solid #e2e8f0; font-size: 9px; text-align: center; color: #64748b; }
           .subtotal-row { background-color: #f3f4f6 !important; }
           .subtotal-row td { font-weight: 500; }
           .grand-total-row { background-color: #e2e8f0 !important; }
           .grand-total-row td { font-weight: 700; }
           .group-header-row { background-color: #eef2ff !important; }
           .group-header-row td { font-weight: 600; }
-          body { padding-top: 30px; padding-bottom: 30px; }
+          /* Print header/footer: uses position:fixed which displays on each page in
+             Chrome/Edge print. Note: on Firefox and some browsers, fixed elements may
+             overlap content on pages 2+. For reliable multi-page repeating headers,
+             the table thead approach (already applied) handles column headers.
+             The report title header is best-effort via position:fixed. */
+          .print-header { position: fixed; top: 0; left: 0; right: 0; padding: 0 0 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 10px; display: flex; justify-content: space-between; background: white; z-index: 1000; }
+          .print-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 0 0 0; border-top: 1px solid #e2e8f0; font-size: 9px; text-align: center; color: #64748b; background: white; z-index: 1000; }
+          body { padding-top: 40px; padding-bottom: 40px; }
         }
         .print-only { display: none; }
       `}} />
