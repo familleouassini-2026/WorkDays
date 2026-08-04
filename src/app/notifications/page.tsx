@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, Filter } from "lucide-react";
+import { Bell, CheckCheck, Filter, PlusCircle } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 interface Notification {
   id: number;
@@ -37,6 +38,9 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [employeeId, setEmployeeId] = useState<number | null>(null);
+  const [testEmployees, setTestEmployees] = useState<{ id: number; first_name: string; last_name: string }[]>([]);
+  const [testEmpId, setTestEmpId] = useState<number | null>(null);
+  const [testSending, setTestSending] = useState(false);
 
   // Read selected employee from localStorage (same pattern as bell component)
   useEffect(() => {
@@ -66,6 +70,20 @@ export default function NotificationsPage() {
     fetchNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, employeeId]);
+
+  // Load employees for the test notification dropdown
+  useEffect(() => {
+    async function loadTestEmployees() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name")
+        .eq("is_inactive", false)
+        .order("last_name");
+      if (data) setTestEmployees(data);
+    }
+    loadTestEmployees();
+  }, []);
 
   async function fetchNotifications() {
     setLoading(true);
@@ -110,6 +128,26 @@ export default function NotificationsPage() {
     } catch {
       // Silently fail
     }
+  }
+
+  async function createTestNotification() {
+    if (!testEmpId) return;
+    setTestSending(true);
+    try {
+      const supabase = createClient();
+      await supabase.from("notifications").insert({
+        employee_id: testEmpId,
+        title: "Notification de test",
+        message: "Ceci est une notification de test creee manuellement pour verifier le systeme.",
+        type: "info",
+        is_read: false,
+      });
+      // Refresh the list
+      await fetchNotifications();
+    } catch (err) {
+      console.error("Failed to create test notification:", err);
+    }
+    setTestSending(false);
   }
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -228,6 +266,43 @@ export default function NotificationsPage() {
           })}
         </div>
       )}
+
+      {/* Test notification section */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 sm:p-6">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <PlusCircle className="w-4 h-4 text-slate-500" />
+          Creer une notification test
+        </h3>
+        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+          <div className="w-full sm:w-64">
+            <label className="block text-xs text-slate-500 mb-1">Employe</label>
+            <select
+              value={testEmpId || ""}
+              onChange={(e) => setTestEmpId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">-- Choisir un employe --</option>
+              {testEmployees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.last_name} {emp.first_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={createTestNotification}
+            disabled={!testEmpId || testSending}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {testSending ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <PlusCircle className="w-4 h-4" />
+            )}
+            Creer une notification test
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

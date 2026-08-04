@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import EncoderDrawer from "@/components/encoder-drawer";
 import {
   UserCircle,
   TreePalm,
@@ -13,6 +13,7 @@ import {
   FileText,
   Download,
   PlusCircle,
+  Smartphone,
 } from "lucide-react";
 import {
   calculateSeniorityYears,
@@ -99,6 +100,7 @@ export default function SelfServicePage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
+  const [encoderOpen, setEncoderOpen] = useState(false);
 
   // Dashboard data
   const [vacationRights, setVacationRights] = useState<VacationRight[]>([]);
@@ -551,12 +553,30 @@ export default function SelfServicePage() {
 
           {/* Action button */}
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/self-service/leave-request"
+            <button
+              onClick={() => setEncoderOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               <PlusCircle className="w-4 h-4" /> Demander un conge
-            </Link>
+            </button>
+          </div>
+          <EncoderDrawer
+            externalOpen={encoderOpen}
+            onExternalClose={() => setEncoderOpen(false)}
+            preselectedEmployeeId={selectedEmployee?.id}
+            onSaved={() => {
+              if (selectedId) loadEmployeeData(selectedId);
+            }}
+          />
+
+          {/* PWA install info */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-start gap-3">
+            <Smartphone className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-slate-600">
+              Pour installer WorkDays sur votre telephone : ouvrez le menu de
+              votre navigateur (&#8942;) &rarr; &quot;Ajouter a l&apos;ecran
+              d&apos;accueil&quot;
+            </p>
           </div>
         </div>
       )}
