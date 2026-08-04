@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create two missing CRUD pages for locations and rtt_groups following the existing sectors page pattern, and add their cards to the settings page",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create src/app/settings/locations/page.tsx - CRUD for locations table (id, name). Follow the pattern of src/app/settings/sectors/page.tsx but simplified: only 'name' field. Include list, add (inline form), edit, delete with confirmation. Use 'use client', createClient from @/lib/supabase/client, lucide-react icons (MapPin, Plus, Pencil, Trash2, ArrowLeft). Show count in subtitle. Link back to /settings.",
     "Create src/app/settings/rtt-groups/page.tsx - CRUD for rtt_groups table (id, name). Same pattern as locations but for rtt_groups table. Use Users icon or similar from lucide-react. Same inline form pattern with add/edit/delete.",
@@ -19,5 +19,5 @@
     "Run: export PATH=/opt/toolchains/.nvm/versions/node/v20.20.2/bin:$PATH && cd /projects/sandbox/WorkDays && npm run build"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Build passes with exit code 0. Pre-existing prerender error on /employees/new (Supabase env vars missing at build time) is unrelated. New pages use 'use client' so no SSR issues."
 }
