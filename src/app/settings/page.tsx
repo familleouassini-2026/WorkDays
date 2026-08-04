@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Building2, ListChecks, TreePalm, Calendar, Layers } from "lucide-react";
+import { ArrowRightLeft, Building2, ListChecks, Calendar, Layers } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -20,9 +20,9 @@ export default function SettingsPage() {
         <Link href="/settings/sectors" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <div className="flex items-center gap-2 mb-1">
             <Layers className="w-4 h-4 text-blue-600" />
-            <h3 className="font-semibold text-slate-900">Secteurs & Groupes RTT</h3>
+            <h3 className="font-semibold text-slate-900">Secteurs</h3>
           </div>
-          <p className="text-sm text-slate-500">Gérer les secteurs et leurs groupes RTT</p>
+          <p className="text-sm text-slate-500">Gérer les secteurs et leurs paramètres</p>
         </Link>
         <Link href="/settings/absence-codes" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <div className="flex items-center gap-2 mb-1">
@@ -31,13 +31,7 @@ export default function SettingsPage() {
           </div>
           <p className="text-sm text-slate-500">Types d&apos;absence, couleurs, unités de temps</p>
         </Link>
-        <Link href="/settings/vacation-policy" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
-          <div className="flex items-center gap-2 mb-1">
-            <TreePalm className="w-4 h-4 text-blue-600" />
-            <h3 className="font-semibold text-slate-900">Politique de congés</h3>
-          </div>
-          <p className="text-sm text-slate-500">Règles d&apos;attribution des congés par ancienneté</p>
-        </Link>
+
         <Link href="/settings/holidays" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all">
           <div className="flex items-center gap-2 mb-1">
             <Calendar className="w-4 h-4 text-blue-600" />
@@ -54,7 +48,7 @@ export default function SettingsPage() {
             <ArrowRightLeft className="w-4 h-4 text-blue-600" />
             <h3 className="font-semibold text-slate-900">Migration des données</h3>
           </div>
-          <p className="text-sm text-slate-500">Transférer les données staging vers les tables de production</p>
+          <p className="text-sm text-slate-500">Checklist des données à vérifier et compléter</p>
         </Link>
         <Link href="/settings/feedback" className="card p-6 hover:border-blue-300 hover:shadow-sm transition-all md:col-span-2">
           <div className="flex items-center gap-2 mb-1">

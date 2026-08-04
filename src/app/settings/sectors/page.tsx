@@ -158,10 +158,10 @@ export default function SectorsPage() {
                     {sec.rtt_group_name ? <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{sec.rtt_group_name}</span> : <span className="text-xs text-slate-400">\u2014</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {sec.has_rtt ? <span className="text-green-600 font-bold">\u2713</span> : <span className="text-red-500 font-bold">\u2717</span>}
+                    {sec.has_rtt ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-700 text-xs font-bold">✓</span> : <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-700 text-xs font-bold">✗</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {sec.is_ific ? <span className="text-green-600 font-bold">\u2713</span> : <span className="text-red-500 font-bold">\u2717</span>}
+                    {sec.is_ific ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-700 text-xs font-bold">✓</span> : <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-700 text-xs font-bold">✗</span>}
                   </td>
                   <td className="px-4 py-3 text-center text-sm text-slate-600">
                     {sec.is_ific && sec.ific_category ? sec.ific_category : "\u2014"}

@@ -11,7 +11,7 @@ const navigation = [
   { name: "Horaires", href: "/schedules", icon: Clock },
   { name: "Rémunération", href: "/remuneration", icon: Wallet },
   { name: "Actifs", href: "/assets", icon: Package },
-  { name: "Gouvernance", href: "/governance", icon: Shield },
+  { name: "Journal interne", href: "/governance", icon: Shield },
   { name: "Rapports", href: "/reports", icon: BarChart3 },
   { name: "Paramètres", href: "/settings", icon: Settings },
 ];
