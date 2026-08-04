@@ -83,17 +83,17 @@ export default function LeaveRequestPage() {
         return;
       }
 
-      // Notify the manager (if set)
+      // Notify the manager (fire-and-forget, non-blocking)
       const employee = employees.find((emp) => emp.id === employeeId);
       if (employee?.manager_id) {
         const code = codes.find((c) => String(c.id) === absenceCodeId);
-        await createNotification({
+        createNotification({
           employeeId: employee.manager_id,
           title: "Nouvelle demande de conge",
           message: `${employee.first_name} ${employee.last_name} demande un conge (${code?.code || ""}) du ${startDate} au ${endDate}.`,
           type: "action",
           link: "/absences/approvals",
-        });
+        }).catch((err) => console.warn("Notification failed (non-blocking):", err));
       }
 
       setSuccess(true);

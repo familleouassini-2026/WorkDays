@@ -36,18 +36,45 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const [employeeId, setEmployeeId] = useState<number | null>(null);
+
+  // Read selected employee from localStorage (same pattern as bell component)
+  useEffect(() => {
+    const stored = localStorage.getItem("workdays_selected_employee_id");
+    if (stored) setEmployeeId(Number(stored));
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "workdays_selected_employee_id") {
+        setEmployeeId(e.newValue ? Number(e.newValue) : null);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    const handleCustom = () => {
+      const val = localStorage.getItem("workdays_selected_employee_id");
+      setEmployeeId(val ? Number(val) : null);
+    };
+    window.addEventListener("workdays_employee_changed", handleCustom);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("workdays_employee_changed", handleCustom);
+    };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
-  }, [filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, employeeId]);
 
   async function fetchNotifications() {
     setLoading(true);
     try {
-      let url = "/api/notifications?limit=100";
-      if (filter === "unread") url += "&is_read=false";
-      if (filter === "read") url += "&is_read=true";
-      const res = await fetch(url);
+      const params = new URLSearchParams({ limit: "100" });
+      if (employeeId) params.set("employee_id", String(employeeId));
+      if (filter === "unread") params.set("is_read", "false");
+      if (filter === "read") params.set("is_read", "true");
+      const res = await fetch(`/api/notifications?${params.toString()}`);
       const json = await res.json();
       if (json.data) setNotifications(json.data);
     } catch (err) {
@@ -57,11 +84,12 @@ export default function NotificationsPage() {
   }
 
   async function markAllAsRead() {
+    if (!employeeId) return;
     try {
       await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mark_all_read: true }),
+        body: JSON.stringify({ mark_all_read: true, employee_id: employeeId }),
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
