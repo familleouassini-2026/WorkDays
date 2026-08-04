@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1e40af"/>
+  <rect x="96" y="140" width="320" height="260" rx="16" fill="white" opacity="0.9"/>
+  <rect x="96" y="140" width="320" height="60" rx="16" fill="#3b82f6"/>
+  <circle cx="140" cy="170" r="10" fill="white"/>
+  <circle cx="176" cy="170" r="10" fill="white"/>
+  <circle cx="212" cy="170" r="10" fill="white"/>
+  <rect x="120" y="224" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="196" y="224" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="272" y="224" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="348" y="224" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="120" y="284" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="196" y="284" width="60" height="44" rx="6" fill="#93c5fd"/>
+  <rect x="272" y="284" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="348" y="284" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="120" y="344" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="196" y="344" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="272" y="344" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <rect x="348" y="344" width="60" height="44" rx="6" fill="#dbeafe"/>
+  <text x="256" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="white">WorkDays</text>
+</svg>

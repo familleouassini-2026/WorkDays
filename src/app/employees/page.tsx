@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Search, Plus, X } from "lucide-react";
+import { Search, Plus, X, GitBranch } from "lucide-react";
 
 interface Employee {
   id: number;
@@ -123,9 +123,14 @@ export default function EmployeesPage() {
             {hasFilters ? ` (sur ${employees.length} total)` : ""}
           </p>
         </div>
-        <Link href="/employees/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-          <Plus className="w-4 h-4" /> Ajouter
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/employees/organigramme" className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors">
+            <GitBranch className="w-4 h-4" /> Organigramme
+          </Link>
+          <Link href="/employees/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus className="w-4 h-4" /> Ajouter
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
