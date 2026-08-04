@@ -474,11 +474,21 @@
         "supabase/migrations/030-recruitment.sql"
       ],
       "accessOrigin": null,
-      "notes": "Module recrutement complet : dashboard (KPIs postes ouverts/candidatures/embauches ce mois + cards postes ouverts), CRUD postes (titre, secteur, site, contrat, description, statut open/filled/cancelled), liste candidats (filtres par poste et statut, rating etoiles, badges colores), fiche candidat (infos personnelles, upload CV base64 max 2MB, motivation/notes, entretien date+notes, rating cliquable, changement statut). Conversion candidat vers employe : bouton Embaucher (visible si statut offered/hired), formulaire pre-rempli avec toutes les donnees, creation employee + update candidate status + auto-fill poste si tous done. Sidebar: entree Recrutement avec icone UserPlus entre Actifs et Journal interne."
+      "notes": "Module recrutement complet : dashboard (KPIs postes ouverts/candidatures/embauches ce mois + cards postes ouverts + bouton '+ Candidat' vers /candidates?new=true), CRUD postes (titre, secteur, site, contrat, description, statut open/filled/cancelled), liste candidats (filtres par poste et statut, rating etoiles, badges colores, bouton '+ Nouveau candidat' avec formulaire inline), formulaire ajout candidat (prenom/nom obligatoires, email, tel, poste dropdown open, nationalite, registre national, adresse, ville, CP, upload CV base64 max 2MB PDF/images, motivation textarea, statut auto 'received'), fiche candidat (infos personnelles, upload CV base64 max 2MB, motivation/notes, entretien date+notes, rating cliquable, changement statut). Conversion candidat vers employe : bouton Embaucher (visible si statut offered/hired), formulaire pre-rempli avec toutes les donnees, creation employee + update candidate status + auto-fill poste si tous done. Sidebar: entree Recrutement avec icone UserPlus entre Actifs et Journal interne."
     }
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-08",
+      "pr": null,
+      "description": "Ajout formulaire creation candidat sur /recruitment/candidates : bouton '+ Nouveau candidat' en haut a droite, formulaire inline (prenom/nom obligatoires, email, tel, poste dropdown postes ouverts, nationalite, registre national, adresse, ville, CP, upload CV base64 max 2MB PDF/images, motivation textarea, statut auto 'received'). Support query param ?new=true pour ouvrir le formulaire directement. Bouton '+ Candidat' ajoute sur le dashboard /recruitment redirigeant vers /recruitment/candidates?new=true.",
+      "filesChanged": [
+        "src/app/recruitment/candidates/page.tsx",
+        "src/app/recruitment/page.tsx",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-08",
       "pr": null,
