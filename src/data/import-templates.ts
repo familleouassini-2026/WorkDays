@@ -23,6 +23,8 @@ export interface ImportTemplate {
   order: number;
   columns: ImportColumnDef[];
   keyField: string;
+  /** Whether the keyField column(s) have a UNIQUE constraint in the database */
+  hasUniqueConstraint: boolean;
 }
 
 // ============================================================
@@ -35,6 +37,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Organisation",
     order: 1,
     keyField: "name",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "name", label: "Nom", type: "text", required: true },
@@ -57,6 +60,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Sites",
     order: 2,
     keyField: "name",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "name", label: "Nom", type: "text", required: true },
@@ -78,6 +82,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Groupes RTT",
     order: 3,
     keyField: "name",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "name", label: "Nom", type: "text", required: true },
@@ -88,6 +93,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Secteurs",
     order: 4,
     keyField: "name",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "name", label: "Nom", type: "text", required: true },
@@ -110,6 +116,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Employes",
     order: 5,
     keyField: "email",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "title", label: "Civilite", type: "text", required: false },
@@ -161,6 +168,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Horaires",
     order: 6,
     keyField: "id",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -189,7 +197,8 @@ export const importTemplates: ImportTemplate[] = [
     tableName: "seniority_scales",
     displayName: "Baremes salariaux",
     order: 7,
-    keyField: "id",
+    keyField: "sector_id,years",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -207,7 +216,8 @@ export const importTemplates: ImportTemplate[] = [
     tableName: "rtt_entitlements",
     displayName: "Baremes RTT",
     order: 8,
-    keyField: "id",
+    keyField: "sector_id,seniority_start",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -226,6 +236,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Indexations generales",
     order: 9,
     keyField: "id",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -244,6 +255,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Indexations sectorielles",
     order: 10,
     keyField: "id",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -262,6 +274,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Augmentations individuelles",
     order: 11,
     keyField: "id",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -280,6 +293,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Codes d'absence",
     order: 12,
     keyField: "code",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "code", label: "Code", type: "text", required: true },
@@ -295,7 +309,8 @@ export const importTemplates: ImportTemplate[] = [
     tableName: "vacation_rights",
     displayName: "Droits aux conges",
     order: 13,
-    keyField: "id",
+    keyField: "employee_id,absence_code_id,year",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {
@@ -323,6 +338,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Jours feries",
     order: 14,
     keyField: "holiday_date",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "holiday_date", label: "Date", type: "date", required: true },
@@ -334,6 +350,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Actifs",
     order: 15,
     keyField: "plate_number",
+    hasUniqueConstraint: true,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       { field: "type", label: "Type", type: "text", required: true },
@@ -349,6 +366,7 @@ export const importTemplates: ImportTemplate[] = [
     displayName: "Affectations actifs",
     order: 16,
     keyField: "id",
+    hasUniqueConstraint: false,
     columns: [
       { field: "id", label: "ID", type: "number", required: false },
       {

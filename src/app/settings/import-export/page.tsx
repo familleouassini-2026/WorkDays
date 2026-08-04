@@ -443,17 +443,31 @@ export default function ImportExportPage() {
             }
           }
 
-          // For records without ID, upsert using keyField
+          // For records without ID, upsert using keyField only if the table has a unique constraint
           if (withoutId.length > 0) {
-            const { error } = await supabase
-              .from(template.tableName)
-              .upsert(withoutId.map((r) => r.record), { onConflict: template.keyField });
-            if (error) {
-              for (const r of withoutId) {
-                report.errors.push({ row: r.rowIndex, field: "-", message: error.message });
+            if (template.hasUniqueConstraint) {
+              const { error } = await supabase
+                .from(template.tableName)
+                .upsert(withoutId.map((r) => r.record), { onConflict: template.keyField });
+              if (error) {
+                for (const r of withoutId) {
+                  report.errors.push({ row: r.rowIndex, field: "-", message: error.message });
+                }
+              } else {
+                report.updated += withoutId.length;
               }
             } else {
-              report.updated += withoutId.length;
+              // No unique constraint on keyField: fall back to plain INSERT
+              const { error } = await supabase
+                .from(template.tableName)
+                .insert(withoutId.map((r) => r.record));
+              if (error) {
+                for (const r of withoutId) {
+                  report.errors.push({ row: r.rowIndex, field: "-", message: error.message });
+                }
+              } else {
+                report.inserted += withoutId.length;
+              }
             }
           }
         } else {
@@ -597,16 +611,22 @@ export default function ImportExportPage() {
                       />
                       Ajouter uniquement
                     </label>
-                    <label className="flex items-center gap-2 text-sm">
+                    <label className={`flex items-center gap-2 text-sm ${!activeImport.hasUniqueConstraint ? "opacity-50 cursor-not-allowed" : ""}`}>
                       <input
                         type="radio"
                         name="importMode"
                         checked={importMode === "upsert"}
                         onChange={() => setImportMode("upsert")}
+                        disabled={!activeImport.hasUniqueConstraint}
                       />
                       Mettre a jour (upsert par ID ou {activeImport.keyField})
                     </label>
                   </div>
+                  {!activeImport.hasUniqueConstraint && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Mise a jour disponible uniquement avec colonne ID
+                    </p>
+                  )}
                 </div>
 
                 {/* Progress bar */}
