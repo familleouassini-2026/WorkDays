@@ -1,0 +1,26 @@
+{
+  "project_type": "Next.js 14 App Router + Supabase + Tailwind CSS",
+  "language": "TypeScript",
+  "build_system": "npm + next build. Node v22 available at /opt/toolchains/.nvm/versions/node/v22.23.2/bin",
+  "test_framework": "No test framework configured (no jest/vitest/playwright in package.json)",
+  "build_command": "export PATH=/opt/toolchains/.nvm/versions/node/v22.23.2/bin:$PATH && cd /projects/sandbox/WorkDays && npx next build",
+  "test_command": "N/A - no test runner configured. Verification is via TypeScript compilation (next build).",
+  "verification_instructions": "Run next build. It should succeed (the only expected error is Supabase prerender for /employees/new due to missing env vars). Check no TypeScript errors on new/changed files.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "export PATH=/opt/toolchains/.nvm/versions/node/v22.23.2/bin:$PATH",
+  "environment_constraints": "No Supabase connection (no env vars). No Docker. Node 22 available but not in default PATH - must export. Build succeeds except static generation of pages requiring Supabase (expected). INTEGRATIONS_ONLY network mode likely.",
+  "contribution_requirements": "Code in English, UI text in French. No test suite exists. Follow existing patterns from Phase 1 files.",
+  "key_patterns": "Client components with 'use client'. Supabase client via createClient() from @/lib/supabase/client. Schema metadata defined in src/data/schema-metadata.ts. Report engine in src/lib/report-engine.ts. Calculations in src/lib/calculations.ts (calculateSeniorityBreakdown, calculateFullSalary, findBaseSalary, calculateSeniorityYears, calculateDProduct, calculatePersonalIncreases). Reports pages use lucide-react icons. Tailwind for all styling. project-health.json tracks features.",
+  "relevant_files": [
+    "src/data/schema-metadata.ts",
+    "src/lib/report-engine.ts",
+    "src/lib/calculations.ts",
+    "src/app/reports/page.tsx",
+    "src/app/reports/builder/page.tsx",
+    "src/app/reports/[id]/page.tsx",
+    "supabase/migrations/021-report-templates.sql",
+    "src/data/project-health.json",
+    "package.json"
+  ],
+  "directory_structure": "src/app/ (Next.js App Router pages), src/lib/ (utilities: supabase/, calculations.ts, report-engine.ts, audit.ts), src/data/ (schema-metadata.ts, project-health.json), src/components/ (encoder-drawer.tsx), supabase/migrations/ (SQL migrations 001-021)"
+}

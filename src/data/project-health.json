@@ -287,7 +287,7 @@
         "supabase/migrations/021-report-templates.sql"
       ],
       "accessOrigin": "extracted/reports_all.md",
-      "notes": "Module Report Builder complet : selection tables/colonnes, jointures auto via FK, filtres, groupements + totaux (SUM/COUNT/AVG), tri, sauvegarde templates JSONB, edition/duplication, export PDF (window.print, @media print, orientation auto/portrait/landscape, pas de troncature) et CSV. Wizard 6 etapes avec preview temps reel (20 lignes)."
+      "notes": "Module Report Builder complet : selection tables/colonnes, jointures auto via FK, filtres, groupements + totaux (SUM/COUNT/AVG), tri, sauvegarde templates JSONB, edition/duplication, export PDF (window.print avec @media print, orientation auto/portrait/landscape, pas de troncature) et CSV. Wizard 6 etapes avec preview temps reel (20 lignes). Phase 2 : colonnes calculees (anciennete, salaire indexe, age, % temps travail), filtres intelligents (date range, secteur, annee, statut), duplication de rapports, preview enrichi (compteur total, totaux, groupements visuels, indicateur orientation), export PDF ameliore (header/footer repetes, sous-totaux colores, totaux generaux styles), aggregation RPC."
     },
     {
       "id": "auth",
@@ -334,6 +334,18 @@
   ],
   "gaps": [],
   "recentChanges": [
+    {
+      "date": "2026-08-06",
+      "pr": "#113",
+      "description": "Report Builder Phase 2 : colonnes calculees (anciennete, salaire indexe, age, % temps travail, anciennete prise en compte), filtres intelligents (date range, dropdown secteur/annee/statut/booleen), duplication de rapports, preview enrichi (compteur total lignes, totaux calcules, groupements visuels avec headers indigo et sous-totaux gris, indicateur orientation portrait/paysage), export PDF ameliore (header repetant titre+date sur chaque page, footer 'Genere par WorkDays', sous-totaux fond gris, totaux generaux fond bleu-gris gras), aggregation RPC avec fallback client.",
+      "filesChanged": [
+        "src/app/reports/builder/page.tsx",
+        "src/app/reports/[id]/page.tsx",
+        "src/lib/report-engine.ts",
+        "src/data/schema-metadata.ts",
+        "src/data/project-health.json"
+      ]
+    },
     {
       "date": "2026-08-06",
       "pr": "#112",

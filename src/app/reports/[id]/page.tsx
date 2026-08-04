@@ -181,17 +181,57 @@ export default function ReportExecutionPage() {
 
   const hasGrouping = groupedData.length > 0 && template?.config.groupBy && template.config.groupBy.length > 0;
 
+  // Compute grand totals across all rows
+  const grandTotals: Record<string, number> = {};
+  if (template?.config.totals && template.config.totals.length > 0) {
+    for (const total of template.config.totals) {
+      const values = data
+        .map((row) => row[total.field])
+        .filter((v): v is number => typeof v === "number");
+      switch (total.fn) {
+        case "SUM":
+          grandTotals[total.label] = values.reduce((sum, v) => sum + v, 0);
+          break;
+        case "COUNT":
+          grandTotals[total.label] = values.length;
+          break;
+        case "AVG":
+          grandTotals[total.label] = values.length > 0
+            ? values.reduce((sum, v) => sum + v, 0) / values.length
+            : 0;
+          break;
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page { margin: 15mm; size: ${orientation}; }
           .no-print { display: none !important; }
+          .print-only { display: block !important; }
           table { width: 100%; border-collapse: collapse; }
           thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
           tr { page-break-inside: avoid; }
           td, th { padding: 6px 8px; border: 1px solid #e2e8f0; word-wrap: break-word; white-space: normal; }
+          .subtotal-row { background-color: #f3f4f6 !important; }
+          .subtotal-row td { font-weight: 500; }
+          .grand-total-row { background-color: #e2e8f0 !important; }
+          .grand-total-row td { font-weight: 700; }
+          .group-header-row { background-color: #eef2ff !important; }
+          .group-header-row td { font-weight: 600; }
+          /* Print header/footer: uses position:fixed which displays on each page in
+             Chrome/Edge print. Note: on Firefox and some browsers, fixed elements may
+             overlap content on pages 2+. For reliable multi-page repeating headers,
+             the table thead approach (already applied) handles column headers.
+             The report title header is best-effort via position:fixed. */
+          .print-header { position: fixed; top: 0; left: 0; right: 0; padding: 0 0 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 10px; display: flex; justify-content: space-between; background: white; z-index: 1000; }
+          .print-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 0 0 0; border-top: 1px solid #e2e8f0; font-size: 9px; text-align: center; color: #64748b; background: white; z-index: 1000; }
+          body { padding-top: 40px; padding-bottom: 40px; }
         }
+        .print-only { display: none; }
       `}} />
 
       {/* Header - no-print */}
@@ -226,10 +266,15 @@ export default function ReportExecutionPage() {
         </div>
       </div>
 
-      {/* Print header - only visible when printing */}
-      <div className="hidden print:block mb-4">
-        <h1 className="text-xl font-bold">{reportTitle}</h1>
-        <p className="text-sm text-slate-500">Genere le {today}</p>
+      {/* Print header - repeats on each page via position:fixed */}
+      <div className="print-only" aria-hidden="true">
+        <div className="print-header">
+          <span style={{ fontWeight: 600 }}>{reportTitle}</span>
+          <span>Genere le {today}</span>
+        </div>
+        <div className="print-footer">
+          Genere par WorkDays le {today}
+        </div>
       </div>
 
       {/* Data count */}
@@ -263,7 +308,7 @@ export default function ReportExecutionPage() {
 
             return (
               <div key={gi} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 group-header-row">
                   <p className="text-sm font-semibold text-slate-700">{groupLabel}</p>
                   <p className="text-xs text-slate-500">{group.rows.length} ligne{group.rows.length !== 1 ? "s" : ""}</p>
                 </div>
@@ -302,11 +347,11 @@ export default function ReportExecutionPage() {
                     </tbody>
                   </table>
                 </div>
-                {/* Group totals */}
+                {/* Group subtotals - styled with gray background */}
                 {Object.keys(group.totals).length > 0 && (
-                  <div className="bg-blue-50 px-4 py-2 border-t border-slate-200 flex flex-wrap gap-4">
+                  <div className="bg-gray-100 subtotal-row px-4 py-2 border-t border-slate-200 flex flex-wrap gap-4">
                     {Object.entries(group.totals).map(([label, value]) => (
-                      <span key={label} className="text-xs font-medium text-blue-800">
+                      <span key={label} className="text-xs font-medium text-slate-700">
                         {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
                       </span>
                     ))}
@@ -315,6 +360,18 @@ export default function ReportExecutionPage() {
               </div>
             );
           })}
+
+          {/* Grand totals */}
+          {Object.keys(grandTotals).length > 0 && (
+            <div className="bg-slate-200 grand-total-row rounded-lg border border-slate-300 px-4 py-3 flex flex-wrap gap-4">
+              <span className="text-sm font-bold text-slate-900">Totaux generaux :</span>
+              {Object.entries(grandTotals).map(([label, value]) => (
+                <span key={label} className="text-sm font-bold text-slate-800">
+                  {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         /* Flat (non-grouped) data rendering */
@@ -354,6 +411,17 @@ export default function ReportExecutionPage() {
               </tbody>
             </table>
           </div>
+          {/* Grand totals for flat view */}
+          {Object.keys(grandTotals).length > 0 && (
+            <div className="bg-slate-200 grand-total-row px-4 py-3 border-t border-slate-300 flex flex-wrap gap-4">
+              <span className="text-sm font-bold text-slate-900">Totaux generaux :</span>
+              {Object.entries(grandTotals).map(([label, value]) => (
+                <span key={label} className="text-sm font-bold text-slate-800">
+                  {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { schemaMetadata, type TableMetadata } from "@/data/schema-metadata";
+import { schemaMetadata, type TableMetadata, calculatedColumns } from "@/data/schema-metadata";
 import {
   resolveJoins,
   executeReport,
+  applyGrouping,
   type ReportConfig,
   type ReportColumn,
   type ReportJoin,
@@ -14,6 +15,7 @@ import {
   type ReportSort,
   type ReportTotal,
   type JoinPath,
+  type GroupedResult,
 } from "@/lib/report-engine";
 import {
   Calendar,
@@ -29,6 +31,9 @@ import {
   Eye,
   ArrowLeft,
   ArrowRight,
+  Calculator,
+  FileText,
+  Monitor,
 } from "lucide-react";
 
 // Step labels in French
@@ -47,6 +52,7 @@ interface FilterRow {
   field: string;
   op: Operator;
   value: string;
+  valueTo?: string; // For date range (end value)
 }
 
 interface SortRow {
@@ -58,6 +64,15 @@ interface TotalRow {
   field: string;
   fn: "SUM" | "COUNT" | "AVG";
   label: string;
+}
+
+interface SectorOption {
+  id: number;
+  name: string;
+}
+
+interface YearOption {
+  year: number;
 }
 
 function getTypeIcon(type: string) {
@@ -108,6 +123,37 @@ function ReportBuilderContent() {
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [previewFullCount, setPreviewFullCount] = useState(0);
+  const [previewTotals, setPreviewTotals] = useState<Record<string, number>>({});
+  const [previewGrouped, setPreviewGrouped] = useState<GroupedResult[]>([]);
+
+  // Calculated columns state
+  const [selectedCalculatedColumns, setSelectedCalculatedColumns] = useState<string[]>([]);
+
+  // Smart filter options
+  const [sectorOptions, setSectorOptions] = useState<SectorOption[]>([]);
+  const [yearOptions, setYearOptions] = useState<YearOption[]>([]);
+
+  // Load sectors and years for smart filters
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      const supabase = createClient();
+      const [sectorsRes, yearsRes] = await Promise.all([
+        supabase.from("sectors").select("id, name").order("name"),
+        supabase.from("year_calendar").select("year"),
+      ]);
+      if (sectorsRes.data) {
+        setSectorOptions(sectorsRes.data as SectorOption[]);
+      }
+      if (yearsRes.data) {
+        const uniqueYears = Array.from(new Set((yearsRes.data as YearOption[]).map((y) => y.year)))
+          .sort((a, b) => b - a)
+          .map((y) => ({ year: y }));
+        setYearOptions(uniqueYears);
+      }
+    };
+    loadFilterOptions();
+  }, []);
 
   // Load existing template for edit/duplicate mode
   useEffect(() => {
@@ -147,13 +193,14 @@ function ReportBuilderContent() {
           direction: s.direction,
         }))
       );
-      setReportName(editId ? (data.name || "") : "");
+      setReportName(editId ? (data.name || "") : duplicateId ? `Copie de ${data.name || ""}` : "");
       setReportTitle(config.title || "");
       setReportDescription(editId ? (data.description || "") : "");
       setOrientation(config.orientation || "auto");
+      setSelectedCalculatedColumns(config.calculatedColumns || []);
     };
     loadTemplate();
-  }, [templateId, editId]);
+  }, [templateId, editId, duplicateId]);
 
   // Handle table toggle
   const toggleTable = useCallback((tableName: string) => {
@@ -197,22 +244,57 @@ function ReportBuilderContent() {
     []
   );
 
+  // Helper to determine smart filter type for a field
+  const getFilterWidgetType = (field: string): "date_range" | "sector" | "boolean" | "status" | "year" | "text" => {
+    if (!field) return "text";
+    const parts = field.split(".");
+    const tableName = parts[0];
+    const fieldName = parts[1];
+
+    // Check if field is a date type
+    const tableMeta = schemaMetadata.find((t) => t.tableName === tableName);
+    const colMeta = tableMeta?.columns.find((c) => c.field === fieldName);
+    if (colMeta?.type === "date") return "date_range";
+
+    // Sector dropdown
+    if (field === "employees.sector_id") return "sector";
+
+    // Boolean dropdown
+    if (field === "employees.is_inactive") return "boolean";
+
+    // Status dropdown
+    if (field === "requests.status") return "status";
+
+    // Year dropdown
+    if (fieldName === "year") return "year";
+
+    return "text";
+  };
+
   // Build report config from current state
   const buildConfig = useCallback((): ReportConfig => {
-    const mappedFilters: ReportFilter[] = filters
-      .filter((f) => f.field)
-      .map((f) => {
-        if (f.op === "is_null") {
-          return { field: f.field, op: "is" as const, value: null };
+    const mappedFilters: ReportFilter[] = [];
+    for (const f of filters) {
+      if (!f.field) continue;
+      if (f.op === "is_null") {
+        mappedFilters.push({ field: f.field, op: "is" as const, value: null });
+      } else if (f.op === "is_not_null") {
+        mappedFilters.push({ field: f.field, op: "not_null" as const, value: null });
+      } else if (f.op === "neq") {
+        mappedFilters.push({ field: f.field, op: "neq" as const, value: f.value });
+      } else {
+        // Handle date range: only apply gte+lte range logic when the user's operator
+        // is "eq" (default) and both date values are filled. If the user explicitly chose
+        // a different operator (gt, lt, gte, lte, like, etc.), respect that choice.
+        const widgetType = getFilterWidgetType(f.field);
+        if (widgetType === "date_range" && f.value && f.valueTo && f.op === "eq") {
+          mappedFilters.push({ field: f.field, op: "gte" as const, value: f.value });
+          mappedFilters.push({ field: f.field, op: "lte" as const, value: f.valueTo });
+        } else {
+          mappedFilters.push({ field: f.field, op: f.op as ReportFilter["op"], value: f.value });
         }
-        if (f.op === "is_not_null") {
-          return { field: f.field, op: "not_null" as const, value: null };
-        }
-        if (f.op === "neq") {
-          return { field: f.field, op: "neq" as const, value: f.value };
-        }
-        return { field: f.field, op: f.op as ReportFilter["op"], value: f.value };
-      });
+      }
+    }
 
     const mappedJoins: ReportJoin[] = joins.map((j) => ({
       from: j.from,
@@ -238,10 +320,16 @@ function ReportBuilderContent() {
       sortBy: mappedSort,
       orientation,
       title: reportTitle,
+      calculatedColumns: selectedCalculatedColumns.length > 0 ? selectedCalculatedColumns : undefined,
     };
-  }, [selectedTables, selectedColumns, joins, filters, groupBy, totals, sortRows, orientation, reportTitle]);
+  }, [selectedTables, selectedColumns, joins, filters, groupBy, totals, sortRows, orientation, reportTitle, selectedCalculatedColumns]);
 
   // Run preview
+  // TODO: Optimize preview to use Supabase's { count: 'exact', head: true } for
+  // the total count and a separate .limit(20) query for display data. This avoids
+  // transferring up to 5000 rows just to show 20 and read .length. Currently the
+  // full fetch is needed for grouped previews and totals computation, but for flat
+  // previews without totals, the two-query approach would reduce network transfer.
   const runPreview = useCallback(async () => {
     if (selectedTables.length === 0 || selectedColumns.length === 0) {
       setPreviewError("Selectionnez au moins une table et une colonne.");
@@ -252,7 +340,42 @@ function ReportBuilderContent() {
     try {
       const config = buildConfig();
       const data = await executeReport(config);
+      setPreviewFullCount(data.length);
       setPreviewData(data.slice(0, 20));
+
+      // Compute totals across all data
+      if (config.totals && config.totals.length > 0) {
+        const allTotals: Record<string, number> = {};
+        for (const total of config.totals) {
+          const values = data
+            .map((row) => row[total.field])
+            .filter((v): v is number => typeof v === "number");
+          switch (total.fn) {
+            case "SUM":
+              allTotals[total.label] = values.reduce((sum, v) => sum + v, 0);
+              break;
+            case "COUNT":
+              allTotals[total.label] = values.length;
+              break;
+            case "AVG":
+              allTotals[total.label] = values.length > 0
+                ? values.reduce((sum, v) => sum + v, 0) / values.length
+                : 0;
+              break;
+          }
+        }
+        setPreviewTotals(allTotals);
+      } else {
+        setPreviewTotals({});
+      }
+
+      // Compute grouped preview if groupBy is configured
+      if (config.groupBy && config.groupBy.length > 0) {
+        const grouped = applyGrouping(data, config);
+        setPreviewGrouped(grouped);
+      } else {
+        setPreviewGrouped([]);
+      }
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : "Erreur lors de l'apercu");
     } finally {
@@ -285,18 +408,24 @@ function ReportBuilderContent() {
         if (error) throw error;
         setSaveMessage("Rapport mis a jour avec succes.");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("report_templates")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
         setSaveMessage("Rapport sauvegarde avec succes.");
+        // If duplicate mode, redirect to edit the new report
+        if (duplicateId && data?.id) {
+          window.location.href = `/reports/builder?id=${data.id}`;
+        }
       }
     } catch (err) {
       setSaveMessage(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
     } finally {
       setSaving(false);
     }
-  }, [reportName, reportDescription, buildConfig, editId]);
+  }, [reportName, reportDescription, buildConfig, editId, duplicateId]);
 
   // Auto-detect orientation
   const autoOrientation = selectedColumns.length <= 5 ? "portrait" : "landscape";
@@ -384,10 +513,201 @@ function ReportBuilderContent() {
               </div>
             );
           })}
+
+          {/* Calculated Columns Section */}
+          <div className="border-t border-slate-200 pt-6">
+            <h4 className="font-medium text-slate-700 mb-2 flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-purple-500" />
+              Colonnes calculees
+            </h4>
+            <p className="text-sm text-slate-500 mb-3">
+              Colonnes virtuelles calculees cote client a partir des donnees brutes.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {calculatedColumns.map((calcCol) => {
+                const allRequiredTablesSelected = calcCol.requiredTables.every(
+                  (t) => selectedTables.includes(t)
+                );
+                const isChecked = selectedCalculatedColumns.includes(calcCol.id);
+                return (
+                  <label
+                    key={calcCol.id}
+                    className={`flex items-center gap-2 p-2 rounded ${
+                      allRequiredTablesSelected
+                        ? "hover:bg-slate-50 cursor-pointer"
+                        : "opacity-50 cursor-not-allowed"
+                    }`}
+                    title={
+                      allRequiredTablesSelected
+                        ? calcCol.description
+                        : `Requiert les tables : ${calcCol.requiredTables.join(", ")}`
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={!allRequiredTablesSelected}
+                      onChange={() => {
+                        if (!allRequiredTablesSelected) return;
+                        setSelectedCalculatedColumns((prev) =>
+                          prev.includes(calcCol.id)
+                            ? prev.filter((id) => id !== calcCol.id)
+                            : [...prev, calcCol.id]
+                        );
+                      }}
+                      className="rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <Calculator className="w-4 h-4 text-purple-400" />
+                    <div className="flex flex-col">
+                      <span className="text-sm text-slate-700">{calcCol.label}</span>
+                      {!allRequiredTablesSelected && (
+                        <span className="text-xs text-slate-400">
+                          Requiert : {calcCol.requiredTables.join(", ")}
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
+
+  const renderFilterValueWidget = (filter: FilterRow, idx: number) => {
+    if (filter.op === "is_null" || filter.op === "is_not_null") return null;
+
+    const widgetType = getFilterWidgetType(filter.field);
+
+    switch (widgetType) {
+      case "date_range":
+        // Show two date inputs (range) only when operator is "eq" (implies range behavior).
+        // For other operators (gt, lt, gte, lte, etc.), show a single date input.
+        if (filter.op === "eq") {
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Du</span>
+              <input
+                type="date"
+                value={filter.value}
+                onChange={(e) => {
+                  const updated = [...filters];
+                  updated[idx] = { ...updated[idx], value: e.target.value };
+                  setFilters(updated);
+                }}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              />
+              <span className="text-xs text-slate-500">Au</span>
+              <input
+                type="date"
+                value={filter.valueTo || ""}
+                onChange={(e) => {
+                  const updated = [...filters];
+                  updated[idx] = { ...updated[idx], valueTo: e.target.value };
+                  setFilters(updated);
+                }}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+          );
+        }
+        return (
+          <input
+            type="date"
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+          />
+        );
+      case "sector":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Secteur --</option>
+            {sectorOptions.map((s) => (
+              <option key={s.id} value={String(s.id)}>{s.name}</option>
+            ))}
+          </select>
+        );
+      case "boolean":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Statut --</option>
+            <option value="false">Actif</option>
+            <option value="true">Inactif</option>
+          </select>
+        );
+      case "status":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Statut --</option>
+            <option value="open">Ouvert</option>
+            <option value="closed">Ferme</option>
+            <option value="completed">Termine</option>
+          </select>
+        );
+      case "year":
+        return (
+          <select
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">-- Annee --</option>
+            {yearOptions.map((y) => (
+              <option key={y.year} value={String(y.year)}>{y.year}</option>
+            ))}
+          </select>
+        );
+      default:
+        return (
+          <input
+            type="text"
+            value={filter.value}
+            onChange={(e) => {
+              const updated = [...filters];
+              updated[idx] = { ...updated[idx], value: e.target.value };
+              setFilters(updated);
+            }}
+            placeholder="Valeur"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+          />
+        );
+    }
+  };
 
   const renderStep3 = () => (
     <div>
@@ -399,7 +719,7 @@ function ReportBuilderContent() {
             value={filter.field}
             onChange={(e) => {
               const updated = [...filters];
-              updated[idx] = { ...updated[idx], field: e.target.value };
+              updated[idx] = { ...updated[idx], field: e.target.value, value: "", valueTo: undefined };
               setFilters(updated);
             }}
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
@@ -428,19 +748,7 @@ function ReportBuilderContent() {
             <option value="is_null">est vide</option>
             <option value="is_not_null">n&apos;est pas vide</option>
           </select>
-          {filter.op !== "is_null" && filter.op !== "is_not_null" && (
-            <input
-              type="text"
-              value={filter.value}
-              onChange={(e) => {
-                const updated = [...filters];
-                updated[idx] = { ...updated[idx], value: e.target.value };
-                setFilters(updated);
-              }}
-              placeholder="Valeur"
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            />
-          )}
+          {renderFilterValueWidget(filter, idx)}
           <button
             onClick={() => setFilters(filters.filter((_, i) => i !== idx))}
             className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
@@ -772,7 +1080,15 @@ function ReportBuilderContent() {
           <div className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-slate-500" />
             <span className="font-medium text-slate-700">Apercu</span>
-            <span className="text-sm text-slate-400">(20 premieres lignes)</span>
+            {/* Orientation indicator */}
+            {(orientation === "landscape" || (orientation === "auto" && autoOrientation === "landscape")) ? (
+              <Monitor className="w-4 h-4 text-slate-400 rotate-0" />
+            ) : (
+              <FileText className="w-4 h-4 text-slate-400 rotate-0" />
+            )}
+            <span className="text-xs text-slate-400">
+              ({(orientation === "landscape" || (orientation === "auto" && autoOrientation === "landscape")) ? "Paysage" : "Portrait"})
+            </span>
           </div>
           {showPreview ? (
             <ChevronUp className="w-5 h-5 text-slate-400" />
@@ -788,37 +1104,138 @@ function ReportBuilderContent() {
               <p className="text-sm text-slate-500">Aucune donnee a afficher.</p>
             )}
             {!previewLoading && previewData.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50">
-                      {selectedColumns.map((col) => (
-                        <th
-                          key={`${col.table}.${col.field}`}
-                          className="px-3 py-2 text-left font-medium text-slate-600 border-b border-slate-200"
-                        >
-                          {col.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.map((row, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-slate-50">
-                        {selectedColumns.map((col) => (
-                          <td
-                            key={`${col.table}.${col.field}`}
-                            className="px-3 py-2 text-slate-700 border-b border-slate-100"
-                          >
-                            {row[`${col.table}.${col.field}`] != null
-                              ? String(row[`${col.table}.${col.field}`])
-                              : "-"}
-                          </td>
+              <div>
+                {/* Total count */}
+                <p className="text-sm text-slate-600 mb-3 font-medium">
+                  {previewFullCount} ligne{previewFullCount !== 1 ? "s" : ""} au total
+                </p>
+
+                {/* Grouped preview */}
+                {previewGrouped.length > 0 ? (
+                  <div className="space-y-4">
+                    {previewGrouped.map((group, gi) => {
+                      const groupLabel = Object.entries(group.groupKey)
+                        .map(([field, value]) => {
+                          const col = selectedColumns.find((c) => `${c.table}.${c.field}` === field);
+                          const label = col ? col.label : field;
+                          return `${label}: ${value ?? "-"}`;
+                        })
+                        .join(" | ");
+
+                      return (
+                        <div key={gi} className="border border-slate-200 rounded-lg overflow-hidden">
+                          {/* Group header */}
+                          <div className="bg-indigo-50 px-3 py-2 border-b border-slate-200">
+                            <p className="text-sm font-semibold text-indigo-800">{groupLabel}</p>
+                            <p className="text-xs text-indigo-600">{group.rows.length} ligne{group.rows.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          {/* Group rows (limit to first 5 per group in preview) */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50">
+                                  {selectedColumns.map((col) => (
+                                    <th
+                                      key={`${col.table}.${col.field}`}
+                                      className="px-3 py-2 text-left font-medium text-slate-600 border-b border-slate-200"
+                                    >
+                                      {col.label}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.rows.slice(0, 5).map((row, rowIdx) => (
+                                  <tr key={rowIdx} className="hover:bg-slate-50">
+                                    {selectedColumns.map((col) => (
+                                      <td
+                                        key={`${col.table}.${col.field}`}
+                                        className="px-3 py-2 text-slate-700 border-b border-slate-100"
+                                      >
+                                        {row[`${col.table}.${col.field}`] != null
+                                          ? String(row[`${col.table}.${col.field}`])
+                                          : "-"}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                                {group.rows.length > 5 && (
+                                  <tr>
+                                    <td colSpan={selectedColumns.length} className="px-3 py-2 text-xs text-slate-400 italic text-center border-b border-slate-100">
+                                      ... et {group.rows.length - 5} autre{group.rows.length - 5 > 1 ? "s" : ""} ligne{group.rows.length - 5 > 1 ? "s" : ""}
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                          {/* Group subtotals */}
+                          {Object.keys(group.totals).length > 0 && (
+                            <div className="bg-gray-100 px-3 py-2 border-t border-slate-200 flex flex-wrap gap-4">
+                              {Object.entries(group.totals).map(([label, value]) => (
+                                <span key={label} className="text-xs font-medium text-slate-700">
+                                  {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Flat preview */
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          {selectedColumns.map((col) => (
+                            <th
+                              key={`${col.table}.${col.field}`}
+                              className="px-3 py-2 text-left font-medium text-slate-600 border-b border-slate-200"
+                            >
+                              {col.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.map((row, rowIdx) => (
+                          <tr key={rowIdx} className="hover:bg-slate-50">
+                            {selectedColumns.map((col) => (
+                              <td
+                                key={`${col.table}.${col.field}`}
+                                className="px-3 py-2 text-slate-700 border-b border-slate-100"
+                              >
+                                {row[`${col.table}.${col.field}`] != null
+                                  ? String(row[`${col.table}.${col.field}`])
+                                  : "-"}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Grand totals row */}
+                {Object.keys(previewTotals).length > 0 && (
+                  <div className="bg-blue-50 px-3 py-2 mt-3 rounded-lg border border-blue-100 flex flex-wrap gap-4">
+                    <span className="text-xs font-bold text-blue-900">Totaux :</span>
+                    {Object.entries(previewTotals).map(([label, value]) => (
+                      <span key={label} className="text-xs font-bold text-blue-800">
+                        {label}: {typeof value === "number" ? value.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : value}
+                      </span>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                )}
+
+                {previewFullCount > 20 && previewGrouped.length === 0 && (
+                  <p className="text-xs text-slate-400 mt-2 italic">
+                    Affichage limite aux 20 premieres lignes.
+                  </p>
+                )}
               </div>
             )}
             <button
